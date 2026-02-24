@@ -95,10 +95,25 @@ export default function App() {
     if (!name) return setError('Set your name first.');
 
     setError(null);
-    const { error } = await supabase.from('join_requests').upsert(
-      { event_id: eventId, requester_name: name, status: 'pending' },
-      { onConflict: 'event_id,requester_name' }
+
+    const existing = requests.find(
+      (r) => r.event_id === eventId && r.requester_name.toLowerCase() === name.toLowerCase()
     );
+
+    if (existing) {
+      if (existing.status !== 'pending') {
+        const { error } = await supabase.from('join_requests').update({ status: 'pending' }).eq('id', existing.id);
+        if (error) return setError(error.message);
+      }
+      await loadData();
+      return;
+    }
+
+    const { error } = await supabase.from('join_requests').insert({
+      event_id: eventId,
+      requester_name: name,
+      status: 'pending',
+    });
 
     if (error) return setError(error.message);
     await loadData();
