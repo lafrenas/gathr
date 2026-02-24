@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  FlatList,
   Linking,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -200,12 +200,13 @@ export default function App() {
   const openRatingForm = (eventId: number, ratedName: string) => {
     setRatingEventId(eventId);
     setRatingTargetName(ratedName);
+    const ev = events.find((e) => e.id === eventId);
     setSkillRating('5');
     setFriendlinessRating('5');
     setReliabilityRating('5');
     setCommunicationRating('5');
     setBoundaryRating('5');
-    setSkillContext('General');
+    setSkillContext(ev?.category?.trim() || 'General');
     setRatingComment('');
   };
 
@@ -361,11 +362,8 @@ export default function App() {
         </View>
       )}
 
-      <FlatList
-        data={events}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => {
+      <ScrollView contentContainerStyle={styles.list}>
+        {events.map((item) => {
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
@@ -373,7 +371,7 @@ export default function App() {
           const approved = isHost || myReq?.status === 'approved';
 
           return (
-            <View style={styles.eventCard}>
+            <View key={item.id} style={styles.eventCard}>
               <Text style={styles.eventTitle}>{item.title}</Text>
               <Text style={styles.meta}>{item.category} • Host: {item.host_name}</Text>
               {(() => {
@@ -423,11 +421,11 @@ export default function App() {
                 );
               })()}
 
-              <Text style={styles.ratingHint}>After event: rate skill • friendliness • reliability</Text>
+              <Text style={styles.ratingHint}>After event: rate trust + skill</Text>
             </View>
           );
-        }}
-      />
+        })}
+      </ScrollView>
     </SafeAreaView>
   );
 }
