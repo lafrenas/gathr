@@ -36,6 +36,7 @@ type JoinRequestRow = {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [authMsg, setAuthMsg] = useState<string | null>(null);
 
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -85,14 +86,23 @@ export default function App() {
     return requests.filter((r) => r.status === 'pending' && hostedEventIds.has(r.event_id));
   }, [events, requests, userId]);
 
+  const signUp = async () => {
+    setAuthMsg(null);
+    setError(null);
+    const clean = email.trim();
+    if (!clean || !password) return;
+    const { error } = await supabase.auth.signUp({ email: clean, password });
+    if (error) return setError(error.message);
+    setAuthMsg('Account created. If email confirmation is enabled, confirm once then sign in.');
+  };
+
   const signIn = async () => {
     setAuthMsg(null);
     setError(null);
     const clean = email.trim();
-    if (!clean) return;
-    const { error } = await supabase.auth.signInWithOtp({ email: clean });
+    if (!clean || !password) return;
+    const { error } = await supabase.auth.signInWithPassword({ email: clean, password });
     if (error) return setError(error.message);
-    setAuthMsg('Magic link sent. Open your email on this phone and tap the link.');
   };
 
   const signOut = async () => {
@@ -158,7 +168,7 @@ export default function App() {
         <Text style={styles.brand}>gathr</Text>
         <Text style={styles.subtitle}>Sign in to create, join, and approve events securely.</Text>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign in with email</Text>
+          <Text style={styles.cardTitle}>Email + password</Text>
           <TextInput
             style={styles.input}
             placeholder="you@example.com"
@@ -168,9 +178,22 @@ export default function App() {
             value={email}
             onChangeText={setEmail}
           />
-          <TouchableOpacity style={styles.primaryBtn} onPress={signIn}>
-            <Text style={styles.primaryBtnText}>Send Magic Link</Text>
-          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Password (min 6 chars)"
+            placeholderTextColor="#9ca3af"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          <View style={styles.rowGap}>
+            <TouchableOpacity style={[styles.primaryBtn, { flex: 1, marginTop: 0 }]} onPress={signIn}>
+              <Text style={styles.primaryBtnText}>Sign In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={signUp}>
+              <Text style={styles.approveBtnText}>Create Account</Text>
+            </TouchableOpacity>
+          </View>
           {!!authMsg && <Text style={styles.approvedText}>{authMsg}</Text>}
           {!!error && <Text style={styles.error}>Auth: {error}</Text>}
         </View>
