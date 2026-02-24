@@ -40,8 +40,10 @@ export default function App() {
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const loadData = async () => {
+    setBusy(true);
     setError(null);
 
     const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }] = await Promise.all([
@@ -49,11 +51,18 @@ export default function App() {
       supabase.from('join_requests').select('*').order('created_at', { ascending: false }),
     ]);
 
-    if (eventsError) return setError(eventsError.message);
-    if (reqError) return setError(reqError.message);
+    if (eventsError) {
+      setBusy(false);
+      return setError(eventsError.message);
+    }
+    if (reqError) {
+      setBusy(false);
+      return setError(reqError.message);
+    }
 
     setEvents((eventsData ?? []) as EventRow[]);
     setRequests((reqData ?? []) as JoinRequestRow[]);
+    setBusy(false);
   };
 
   useEffect(() => {
@@ -149,6 +158,15 @@ export default function App() {
       </View>
 
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Debug</Text>
+        <Text style={styles.meta}>Status: {busy ? 'Loading…' : 'Ready'}</Text>
+        <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length}</Text>
+        <TouchableOpacity style={styles.mapBtn} onPress={loadData}>
+          <Text style={styles.mapBtnText}>Refresh data</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Create event</Text>
