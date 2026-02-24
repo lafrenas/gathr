@@ -38,6 +38,9 @@ type EventRatingRow = {
   skill: number;
   friendliness: number;
   reliability: number;
+  communication: number;
+  boundary_respect: number;
+  skill_context: string;
   comment?: string;
 };
 
@@ -59,6 +62,9 @@ export default function App() {
   const [friendlinessRating, setFriendlinessRating] = useState('5');
   const [reliabilityRating, setReliabilityRating] = useState('5');
   const [ratingComment, setRatingComment] = useState('');
+  const [communicationRating, setCommunicationRating] = useState('5');
+  const [boundaryRating, setBoundaryRating] = useState('5');
+  const [skillContext, setSkillContext] = useState('General');
 
   const loadData = async () => {
     setBusy(true);
@@ -101,7 +107,7 @@ export default function App() {
   }, [events, requests, currentUser]);
 
   const hostRatingStats = useMemo(() => {
-    const byHost: Record<string, { avg: number; count: number; skill: number; friendliness: number; reliability: number }> = {};
+    const byHost: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
 
     const grouped: Record<string, EventRatingRow[]> = {};
     for (const r of ratings) {
@@ -115,14 +121,17 @@ export default function App() {
       const skill = hostRatings.reduce((s, r) => s + r.skill, 0) / count;
       const friendliness = hostRatings.reduce((s, r) => s + r.friendliness, 0) / count;
       const reliability = hostRatings.reduce((s, r) => s + r.reliability, 0) / count;
-      // Weighted trust score: friendliness/reliability matter more than raw skill
-      const avg = skill * 0.2 + friendliness * 0.4 + reliability * 0.4;
+      const communication = hostRatings.reduce((s, r) => s + (r.communication ?? 5), 0) / count;
+      const boundary = hostRatings.reduce((s, r) => s + (r.boundary_respect ?? 5), 0) / count;
+      const trust = friendliness * 0.35 + reliability * 0.35 + communication * 0.2 + boundary * 0.1;
       byHost[hostKey] = {
-        avg,
-        count,
+        trust,
         skill,
+        count,
         friendliness,
         reliability,
+        communication,
+        boundary,
       };
     }
 
@@ -194,6 +203,9 @@ export default function App() {
     setSkillRating('5');
     setFriendlinessRating('5');
     setReliabilityRating('5');
+    setCommunicationRating('5');
+    setBoundaryRating('5');
+    setSkillContext('General');
     setRatingComment('');
   };
 
@@ -205,11 +217,15 @@ export default function App() {
     const skill = Number(skillRating);
     const friendliness = Number(friendlinessRating);
     const reliability = Number(reliabilityRating);
+    const communication = Number(communicationRating);
+    const boundary_respect = Number(boundaryRating);
 
     if (
       !Number.isInteger(skill) || skill < 1 || skill > 5 ||
       !Number.isInteger(friendliness) || friendliness < 1 || friendliness > 5 ||
-      !Number.isInteger(reliability) || reliability < 1 || reliability > 5
+      !Number.isInteger(reliability) || reliability < 1 || reliability > 5 ||
+      !Number.isInteger(communication) || communication < 1 || communication > 5 ||
+      !Number.isInteger(boundary_respect) || boundary_respect < 1 || boundary_respect > 5
     ) {
       return setError('Ratings must be numbers 1 to 5.');
     }
@@ -222,6 +238,9 @@ export default function App() {
         skill,
         friendliness,
         reliability,
+        communication,
+        boundary_respect,
+        skill_context: skillContext.trim() || 'General',
         comment: ratingComment.trim() || null,
       },
       { onConflict: 'event_id,rater_name,rated_name' }
@@ -276,6 +295,7 @@ export default function App() {
           <Text style={styles.ratingLabel}>Skill</Text>
           <Text style={styles.ratingHelp}>How capable were they at the activity?</Text>
           <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={skillRating} onChangeText={setSkillRating} />
+          <TextInput style={styles.input} placeholder="Skill context (e.g., Basketball)" placeholderTextColor="#9ca3af" value={skillContext} onChangeText={setSkillContext} />
 
           <Text style={styles.ratingLabel}>Friendliness</Text>
           <Text style={styles.ratingHelp}>Were they respectful, kind, and good to be around?</Text>
@@ -284,6 +304,14 @@ export default function App() {
           <Text style={styles.ratingLabel}>Reliability</Text>
           <Text style={styles.ratingHelp}>Did they show up on time and follow through?</Text>
           <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={reliabilityRating} onChangeText={setReliabilityRating} />
+
+          <Text style={styles.ratingLabel}>Communication</Text>
+          <Text style={styles.ratingHelp}>Were they clear and responsive before/during event?</Text>
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={communicationRating} onChangeText={setCommunicationRating} />
+
+          <Text style={styles.ratingLabel}>Boundary respect</Text>
+          <Text style={styles.ratingHelp}>Did they respect boundaries and personal comfort?</Text>
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={boundaryRating} onChangeText={setBoundaryRating} />
 
           <Text style={styles.ratingLabel}>Comment (optional)</Text>
           <TextInput style={styles.input} placeholder="Short feedback" placeholderTextColor="#9ca3af" value={ratingComment} onChangeText={setRatingComment} />
@@ -350,11 +378,12 @@ export default function App() {
               <Text style={styles.meta}>{item.category} • Host: {item.host_name}</Text>
               {(() => {
                 const stat = hostRatingStats[item.host_name.toLowerCase()];
-                if (!stat) return <Text style={styles.meta}>Host rating: New</Text>;
+                if (!stat) return <Text style={styles.meta}>Trust: New • Skill: New</Text>;
                 return (
-                  <Text style={styles.meta}>
-                    Host rating: ⭐ {stat.avg.toFixed(1)} ({stat.count}) • S {stat.skill.toFixed(1)} • F {stat.friendliness.toFixed(1)} • R {stat.reliability.toFixed(1)}
-                  </Text>
+                  <>
+                    <Text style={styles.meta}>Trust: ⭐ {stat.trust.toFixed(1)} ({stat.count})</Text>
+                    <Text style={styles.meta}>Skill: ⭐ {stat.skill.toFixed(1)} • F {stat.friendliness.toFixed(1)} • R {stat.reliability.toFixed(1)} • C {stat.communication.toFixed(1)} • B {stat.boundary.toFixed(1)}</Text>
+                  </>
                 );
               })()}
               <Text style={styles.meta}>Area: {item.area}</Text>
