@@ -115,8 +115,10 @@ export default function App() {
       const skill = hostRatings.reduce((s, r) => s + r.skill, 0) / count;
       const friendliness = hostRatings.reduce((s, r) => s + r.friendliness, 0) / count;
       const reliability = hostRatings.reduce((s, r) => s + r.reliability, 0) / count;
+      // Weighted trust score: friendliness/reliability matter more than raw skill
+      const avg = skill * 0.2 + friendliness * 0.4 + reliability * 0.4;
       byHost[hostKey] = {
-        avg: (skill + friendliness + reliability) / 3,
+        avg,
         count,
         skill,
         friendliness,
