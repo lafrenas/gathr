@@ -57,6 +57,7 @@ export default function App() {
   const [exactTime, setExactTime] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showAllEvents, setShowAllEvents] = useState(false);
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
   const [ratingTargetName, setRatingTargetName] = useState('');
   const [skillRating, setSkillRating] = useState('5');
@@ -263,6 +264,32 @@ export default function App() {
     await loadData();
   };
 
+  const clearTestData = async () => {
+    setError(null);
+    setBusy(true);
+
+    const r1 = await supabase.from('event_ratings').delete().neq('id', -1);
+    if (r1.error) {
+      setBusy(false);
+      return setError(r1.error.message);
+    }
+
+    const r2 = await supabase.from('join_requests').delete().neq('id', -1);
+    if (r2.error) {
+      setBusy(false);
+      return setError(r2.error.message);
+    }
+
+    const r3 = await supabase.from('events').delete().neq('id', -1);
+    if (r3.error) {
+      setBusy(false);
+      return setError(r3.error.message);
+    }
+
+    await loadData();
+    setBusy(false);
+  };
+
   const openMap = (query: string) => {
     const encoded = encodeURIComponent(query);
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encoded}`);
@@ -292,9 +319,14 @@ export default function App() {
         <Text style={styles.cardTitle}>Debug</Text>
         <Text style={styles.meta}>Status: {busy ? 'Loading…' : 'Ready'}</Text>
         <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length} • Ratings: {ratings.length}</Text>
-        <TouchableOpacity style={styles.mapBtn} onPress={loadData}>
-          <Text style={styles.mapBtnText}>Refresh data</Text>
-        </TouchableOpacity>
+        <View style={styles.rowGap}>
+          <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={loadData}>
+            <Text style={styles.mapBtnText}>Refresh data</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={clearTestData}>
+            <Text style={styles.approveBtnText}>Clear test data</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {ratingEventId && (
@@ -400,8 +432,15 @@ export default function App() {
         </View>
       )}
 
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Event feed</Text>
+        <TouchableOpacity style={styles.mapBtn} onPress={() => setShowAllEvents((v) => !v)}>
+          <Text style={styles.mapBtnText}>{showAllEvents ? 'Show latest 8 only' : 'Show all events'}</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.list}>
-        {events.map((item) => {
+        {(showAllEvents ? events : events.slice(0, 8)).map((item) => {
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
