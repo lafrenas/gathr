@@ -333,6 +333,14 @@ export default function App() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Rate {ratingTargetName}</Text>
           <Text style={styles.ratingGuide}>1 = poor • 3 = okay • 5 = excellent</Text>
+          <View style={styles.rowGap}>
+            <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={submitRating}>
+              <Text style={styles.approveBtnText}>Submit rating</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setRatingEventId(null)}>
+              <Text style={styles.approveBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.ratingLabel}>Skill</Text>
           <Text style={styles.ratingHelp}>How capable were they at the activity?</Text>
@@ -454,10 +462,14 @@ export default function App() {
               {(() => {
                 const stat = hostRatingStats[item.host_name.toLowerCase()];
                 if (!stat) return <Text style={styles.meta}>Trust: New • Skill: New</Text>;
+                const recent = ratings.find((r) => r.rated_name.toLowerCase() === item.host_name.toLowerCase() && !!r.comment?.trim());
                 return (
                   <>
                     <Text style={styles.meta}>Trust: ⭐ {stat.trust.toFixed(1)} ({stat.count})</Text>
                     <Text style={styles.meta}>Skill: ⭐ {stat.skill.toFixed(1)} • F {stat.friendliness.toFixed(1)} • R {stat.reliability.toFixed(1)} • C {stat.communication.toFixed(1)} • B {stat.boundary.toFixed(1)}</Text>
+                    {stat.reliability < 3.2 && <Text style={styles.warnBadge}>⚠ Low reliability</Text>}
+                    {stat.boundary < 3.2 && <Text style={styles.warnBadge}>⚠ Boundary concerns</Text>}
+                    {recent?.comment ? <Text style={styles.reviewSnippet}>“{recent.comment}”</Text> : null}
                   </>
                 );
               })()}
@@ -556,4 +568,6 @@ const styles = StyleSheet.create({
   ratingGuide: { color: '#cbd5e1', marginBottom: 8 },
   ratingLabel: { color: '#f1f5f9', fontWeight: '700', marginTop: 2 },
   ratingHelp: { color: '#94a3b8', marginBottom: 6, fontSize: 12 },
+  warnBadge: { color: '#fca5a5', marginTop: 6, fontWeight: '700' },
+  reviewSnippet: { color: '#cbd5e1', marginTop: 6, fontStyle: 'italic' },
 });
