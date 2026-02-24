@@ -1,5 +1,4 @@
 import { StatusBar } from 'expo-status-bar';
-import { Session } from '@supabase/supabase-js';
 import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -22,23 +21,17 @@ type EventRow = {
   exact_location: string;
   exact_time: string;
   host_name: string;
-  host_user_id: string;
 };
 
 type JoinRequestRow = {
   id: number;
   event_id: number;
   requester_name: string;
-  requester_user_id: string;
   status: 'pending' | 'approved' | 'rejected';
 };
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authMsg, setAuthMsg] = useState<string | null>(null);
-
+  const [currentUser, setCurrentUser] = useState('Ignas');
   const [events, setEvents] = useState<EventRow[]>([]);
   const [requests, setRequests] = useState<JoinRequestRow[]>([]);
   const [title, setTitle] = useState('');
@@ -48,22 +41,9 @@ export default function App() {
   const [exactTime, setExactTime] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const userId = session?.user?.id ?? null;
-  const userEmail = session?.user?.email ?? '';
-  const displayName = userEmail.split('@')[0] || 'user';
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
   const loadData = async () => {
     setError(null);
+
     const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }] = await Promise.all([
       supabase.from('events').select('*').order('created_at', { ascending: false }),
       supabase.from('join_requests').select('*').order('created_at', { ascending: false }),
@@ -77,53 +57,17 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (session) loadData();
-  }, [session]);
+    loadData();
+  }, []);
 
   const pendingForMyHostedEvents = useMemo(() => {
-    if (!userId) return [];
-    const hostedEventIds = new Set(events.filter((e) => e.host_user_id === userId).map((e) => e.id));
+    const hostedEventIds = new Set(
+      events.filter((e) => e.host_name.toLowerCase() === currentUser.trim().toLowerCase()).map((e) => e.id)
+    );
     return requests.filter((r) => r.status === 'pending' && hostedEventIds.has(r.event_id));
-  }, [events, requests, userId]);
-
-  const signUp = async () => {
-    setAuthMsg(null);
-    setError(null);
-    const clean = email.trim();
-    if (!clean || !password) return;
-    const { error } = await supabase.auth.signUp({ email: clean, password });
-    if (error) return setError(error.message);
-    setAuthMsg('Account created. If email confirmation is enabled, confirm once then sign in.');
-  };
-
-  const signIn = async () => {
-    setAuthMsg(null);
-    setError(null);
-    const clean = email.trim();
-    if (!clean || !password) return setError('Enter email and password.');
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
-    if (error) return setError(error.message);
-
-    if (!data.session) {
-      const { data: s } = await supabase.auth.getSession();
-      if (!s.session) return setError('Sign-in returned no session. Please try again.');
-      setSession(s.session);
-      return;
-    }
-
-    setSession(data.session);
-    setAuthMsg('Signed in successfully.');
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setEvents([]);
-    setRequests([]);
-  };
+  }, [events, requests, currentUser]);
 
   const createEvent = async () => {
-    if (!userId) return;
     if (!title.trim() || !area.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
     setError(null);
@@ -133,8 +77,7 @@ export default function App() {
       area: area.trim(),
       exact_location: exactLocation.trim(),
       exact_time: exactTime.trim(),
-      host_name: displayName,
-      host_user_id: userId,
+      host_name: currentUser.trim() || 'Anonymous',
     });
 
     if (error) return setError(error.message);
@@ -148,12 +91,13 @@ export default function App() {
   };
 
   const requestJoin = async (eventId: number) => {
-    if (!userId) return;
+    const name = currentUser.trim();
+    if (!name) return setError('Set your name first.');
 
     setError(null);
     const { error } = await supabase.from('join_requests').upsert(
-      { event_id: eventId, requester_name: displayName, requester_user_id: userId, status: 'pending' },
-      { onConflict: 'event_id,requester_user_id' }
+      { event_id: eventId, requester_name: name, status: 'pending' },
+      { onConflict: 'event_id,requester_name' }
     );
 
     if (error) return setError(error.message);
@@ -172,54 +116,22 @@ export default function App() {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encoded}`);
   };
 
-  if (!session) {
-    return (
-      <SafeAreaView style={styles.root}>
-        <StatusBar style="light" />
-        <Text style={styles.brand}>gathr</Text>
-        <Text style={styles.subtitle}>Sign in to create, join, and approve events securely.</Text>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Email + password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="you@example.com"
-            placeholderTextColor="#9ca3af"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password (min 6 chars)"
-            placeholderTextColor="#9ca3af"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          <View style={styles.rowGap}>
-            <TouchableOpacity style={[styles.primaryBtn, { flex: 1, marginTop: 0 }]} onPress={signIn}>
-              <Text style={styles.primaryBtnText}>Sign In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={signUp}>
-              <Text style={styles.approveBtnText}>Create Account</Text>
-            </TouchableOpacity>
-          </View>
-          {!!authMsg && <Text style={styles.approvedText}>{authMsg}</Text>}
-          {!!error && <Text style={styles.error}>Auth: {error}</Text>}
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
       <Text style={styles.brand}>gathr</Text>
-      <Text style={styles.subtitle}>Logged in as {userEmail}</Text>
-      <TouchableOpacity style={styles.rejectBtn} onPress={signOut}>
-        <Text style={styles.approveBtnText}>Log out</Text>
-      </TouchableOpacity>
+      <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>You are</Text>
+        <TextInput
+          style={styles.input}
+          value={currentUser}
+          onChangeText={setCurrentUser}
+          placeholder="Your display name"
+          placeholderTextColor="#9ca3af"
+        />
+      </View>
 
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
 
@@ -263,8 +175,10 @@ export default function App() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const isHost = item.host_user_id === userId;
-          const myReq = requests.find((r) => r.event_id === item.id && r.requester_user_id === userId);
+          const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
+          const myReq = requests.find(
+            (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
+          );
           const approved = isHost || myReq?.status === 'approved';
 
           return (
@@ -309,7 +223,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0b1220', paddingHorizontal: 16, paddingTop: 8 },
   brand: { color: '#f9fafb', fontSize: 34, fontWeight: '800' },
   subtitle: { color: '#9ca3af', marginBottom: 12 },
-  error: { color: '#fca5a5', marginVertical: 8 },
+  error: { color: '#fca5a5', marginBottom: 8 },
   card: {
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
   },
@@ -339,7 +253,7 @@ const styles = StyleSheet.create({
   pendingItem: { marginBottom: 8 },
   rowGap: { flexDirection: 'row', gap: 8, marginTop: 8 },
   approveBtn: { backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
-  rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, alignSelf: 'flex-start' },
+  rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   approveBtnText: { color: '#fff', fontWeight: '700' },
   mapBtn: {
     marginTop: 10, backgroundColor: '#374151', paddingVertical: 8, borderRadius: 10, alignItems: 'center',
