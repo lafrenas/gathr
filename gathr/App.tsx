@@ -100,6 +100,33 @@ export default function App() {
     return requests.filter((r) => r.status === 'pending' && hostedEventIds.has(r.event_id));
   }, [events, requests, currentUser]);
 
+  const hostRatingStats = useMemo(() => {
+    const byHost: Record<string, { avg: number; count: number; skill: number; friendliness: number; reliability: number }> = {};
+
+    const grouped: Record<string, EventRatingRow[]> = {};
+    for (const r of ratings) {
+      const key = r.rated_name.toLowerCase();
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(r);
+    }
+
+    for (const [hostKey, hostRatings] of Object.entries(grouped)) {
+      const count = hostRatings.length;
+      const skill = hostRatings.reduce((s, r) => s + r.skill, 0) / count;
+      const friendliness = hostRatings.reduce((s, r) => s + r.friendliness, 0) / count;
+      const reliability = hostRatings.reduce((s, r) => s + r.reliability, 0) / count;
+      byHost[hostKey] = {
+        avg: (skill + friendliness + reliability) / 3,
+        count,
+        skill,
+        friendliness,
+        reliability,
+      };
+    }
+
+    return byHost;
+  }, [ratings]);
+
   const createEvent = async () => {
     if (!title.trim() || !area.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
@@ -319,6 +346,15 @@ export default function App() {
             <View style={styles.eventCard}>
               <Text style={styles.eventTitle}>{item.title}</Text>
               <Text style={styles.meta}>{item.category} • Host: {item.host_name}</Text>
+              {(() => {
+                const stat = hostRatingStats[item.host_name.toLowerCase()];
+                if (!stat) return <Text style={styles.meta}>Host rating: New</Text>;
+                return (
+                  <Text style={styles.meta}>
+                    Host rating: ⭐ {stat.avg.toFixed(1)} ({stat.count}) • S {stat.skill.toFixed(1)} • F {stat.friendliness.toFixed(1)} • R {stat.reliability.toFixed(1)}
+                  </Text>
+                );
+              })()}
               <Text style={styles.meta}>Area: {item.area}</Text>
 
               <TouchableOpacity style={styles.mapBtn} onPress={() => openMap(approved ? item.exact_location : item.area)}>
