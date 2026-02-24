@@ -30,10 +30,22 @@ type JoinRequestRow = {
   status: 'pending' | 'approved' | 'rejected';
 };
 
+type EventRatingRow = {
+  id: number;
+  event_id: number;
+  rater_name: string;
+  rated_name: string;
+  skill: number;
+  friendliness: number;
+  reliability: number;
+  comment?: string;
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState('Ignas');
   const [events, setEvents] = useState<EventRow[]>([]);
   const [requests, setRequests] = useState<JoinRequestRow[]>([]);
+  const [ratings, setRatings] = useState<EventRatingRow[]>([]);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
   const [area, setArea] = useState('');
@@ -46,9 +58,10 @@ export default function App() {
     setBusy(true);
     setError(null);
 
-    const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }] = await Promise.all([
+    const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }, { data: ratingData, error: ratingError }] = await Promise.all([
       supabase.from('events').select('*').order('created_at', { ascending: false }),
       supabase.from('join_requests').select('*').order('created_at', { ascending: false }),
+      supabase.from('event_ratings').select('*').order('created_at', { ascending: false }),
     ]);
 
     if (eventsError) {
@@ -59,9 +72,14 @@ export default function App() {
       setBusy(false);
       return setError(reqError.message);
     }
+    if (ratingError) {
+      setBusy(false);
+      return setError(ratingError.message);
+    }
 
     setEvents((eventsData ?? []) as EventRow[]);
     setRequests((reqData ?? []) as JoinRequestRow[]);
+    setRatings((ratingData ?? []) as EventRatingRow[]);
     setBusy(false);
   };
 
@@ -135,6 +153,28 @@ export default function App() {
     await loadData();
   };
 
+  const submitQuickRating = async (eventId: number, ratedName: string) => {
+    const rater = currentUser.trim();
+    if (!rater) return;
+    setError(null);
+
+    const { error } = await supabase.from('event_ratings').upsert(
+      {
+        event_id: eventId,
+        rater_name: rater,
+        rated_name: ratedName,
+        skill: 5,
+        friendliness: 5,
+        reliability: 5,
+        comment: 'Great session',
+      },
+      { onConflict: 'event_id,rater_name,rated_name' }
+    );
+
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
   const openMap = (query: string) => {
     const encoded = encodeURIComponent(query);
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encoded}`);
@@ -162,7 +202,7 @@ export default function App() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Debug</Text>
         <Text style={styles.meta}>Status: {busy ? 'Loading…' : 'Ready'}</Text>
-        <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length}</Text>
+        <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length} • Ratings: {ratings.length}</Text>
         <TouchableOpacity style={styles.mapBtn} onPress={loadData}>
           <Text style={styles.mapBtnText}>Refresh data</Text>
         </TouchableOpacity>
@@ -242,6 +282,18 @@ export default function App() {
               {!isHost && myReq?.status === 'pending' && <Text style={styles.pendingText}>Request pending host approval…</Text>}
               {!isHost && myReq?.status === 'approved' && <Text style={styles.approvedText}>Approved ✅</Text>}
               {!isHost && myReq?.status === 'rejected' && <Text style={styles.rejectedText}>Request rejected</Text>}
+
+              {approved && !isHost && (() => {
+                const alreadyRated = ratings.some(
+                  (r) => r.event_id === item.id && r.rater_name.toLowerCase() === currentUser.trim().toLowerCase() && r.rated_name.toLowerCase() === item.host_name.toLowerCase()
+                );
+                if (alreadyRated) return <Text style={styles.approvedText}>You rated this host ✅</Text>;
+                return (
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => submitQuickRating(item.id, item.host_name)}>
+                    <Text style={styles.approveBtnText}>Rate host (5★ quick)</Text>
+                  </TouchableOpacity>
+                );
+              })()}
 
               <Text style={styles.ratingHint}>After event: rate skill • friendliness • reliability</Text>
             </View>
