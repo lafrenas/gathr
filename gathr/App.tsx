@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { Session } from '@supabase/supabase-js';
 import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -21,17 +22,22 @@ type EventRow = {
   exact_location: string;
   exact_time: string;
   host_name: string;
+  host_user_id: string;
 };
 
 type JoinRequestRow = {
   id: number;
   event_id: number;
   requester_name: string;
+  requester_user_id: string;
   status: 'pending' | 'approved' | 'rejected';
 };
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState('Ignas');
+  const [session, setSession] = useState<Session | null>(null);
+  const [email, setEmail] = useState('');
+  const [authMsg, setAuthMsg] = useState<string | null>(null);
+
   const [events, setEvents] = useState<EventRow[]>([]);
   const [requests, setRequests] = useState<JoinRequestRow[]>([]);
   const [title, setTitle] = useState('');
@@ -41,9 +47,22 @@ export default function App() {
   const [exactTime, setExactTime] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const userId = session?.user?.id ?? null;
+  const userEmail = session?.user?.email ?? '';
+  const displayName = userEmail.split('@')[0] || 'user';
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   const loadData = async () => {
     setError(null);
-
     const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }] = await Promise.all([
       supabase.from('events').select('*').order('created_at', { ascending: false }),
       supabase.from('join_requests').select('*').order('created_at', { ascending: false }),
@@ -57,17 +76,33 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (session) loadData();
+  }, [session]);
 
   const pendingForMyHostedEvents = useMemo(() => {
-    const hostedEventIds = new Set(
-      events.filter((e) => e.host_name.toLowerCase() === currentUser.trim().toLowerCase()).map((e) => e.id)
-    );
+    if (!userId) return [];
+    const hostedEventIds = new Set(events.filter((e) => e.host_user_id === userId).map((e) => e.id));
     return requests.filter((r) => r.status === 'pending' && hostedEventIds.has(r.event_id));
-  }, [events, requests, currentUser]);
+  }, [events, requests, userId]);
+
+  const signIn = async () => {
+    setAuthMsg(null);
+    setError(null);
+    const clean = email.trim();
+    if (!clean) return;
+    const { error } = await supabase.auth.signInWithOtp({ email: clean });
+    if (error) return setError(error.message);
+    setAuthMsg('Magic link sent. Open your email on this phone and tap the link.');
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setEvents([]);
+    setRequests([]);
+  };
 
   const createEvent = async () => {
+    if (!userId) return;
     if (!title.trim() || !area.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
     setError(null);
@@ -77,7 +112,8 @@ export default function App() {
       area: area.trim(),
       exact_location: exactLocation.trim(),
       exact_time: exactTime.trim(),
-      host_name: currentUser.trim() || 'Anonymous',
+      host_name: displayName,
+      host_user_id: userId,
     });
 
     if (error) return setError(error.message);
@@ -91,13 +127,12 @@ export default function App() {
   };
 
   const requestJoin = async (eventId: number) => {
-    const name = currentUser.trim();
-    if (!name) return setError('Set your name first.');
+    if (!userId) return;
 
     setError(null);
     const { error } = await supabase.from('join_requests').upsert(
-      { event_id: eventId, requester_name: name, status: 'pending' },
-      { onConflict: 'event_id,requester_name' }
+      { event_id: eventId, requester_name: displayName, requester_user_id: userId, status: 'pending' },
+      { onConflict: 'event_id,requester_user_id' }
     );
 
     if (error) return setError(error.message);
@@ -116,22 +151,41 @@ export default function App() {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encoded}`);
   };
 
+  if (!session) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <StatusBar style="light" />
+        <Text style={styles.brand}>gathr</Text>
+        <Text style={styles.subtitle}>Sign in to create, join, and approve events securely.</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Sign in with email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="you@example.com"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TouchableOpacity style={styles.primaryBtn} onPress={signIn}>
+            <Text style={styles.primaryBtnText}>Send Magic Link</Text>
+          </TouchableOpacity>
+          {!!authMsg && <Text style={styles.approvedText}>{authMsg}</Text>}
+          {!!error && <Text style={styles.error}>Auth: {error}</Text>}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
       <Text style={styles.brand}>gathr</Text>
-      <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>You are</Text>
-        <TextInput
-          style={styles.input}
-          value={currentUser}
-          onChangeText={setCurrentUser}
-          placeholder="Your display name"
-          placeholderTextColor="#9ca3af"
-        />
-      </View>
+      <Text style={styles.subtitle}>Logged in as {userEmail}</Text>
+      <TouchableOpacity style={styles.rejectBtn} onPress={signOut}>
+        <Text style={styles.approveBtnText}>Log out</Text>
+      </TouchableOpacity>
 
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
 
@@ -175,10 +229,8 @@ export default function App() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
-          const myReq = requests.find(
-            (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
-          );
+          const isHost = item.host_user_id === userId;
+          const myReq = requests.find((r) => r.event_id === item.id && r.requester_user_id === userId);
           const approved = isHost || myReq?.status === 'approved';
 
           return (
@@ -223,7 +275,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0b1220', paddingHorizontal: 16, paddingTop: 8 },
   brand: { color: '#f9fafb', fontSize: 34, fontWeight: '800' },
   subtitle: { color: '#9ca3af', marginBottom: 12 },
-  error: { color: '#fca5a5', marginBottom: 8 },
+  error: { color: '#fca5a5', marginVertical: 8 },
   card: {
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
   },
@@ -253,7 +305,7 @@ const styles = StyleSheet.create({
   pendingItem: { marginBottom: 8 },
   rowGap: { flexDirection: 'row', gap: 8, marginTop: 8 },
   approveBtn: { backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
-  rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
+  rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, alignSelf: 'flex-start' },
   approveBtnText: { color: '#fff', fontWeight: '700' },
   mapBtn: {
     marginTop: 10, backgroundColor: '#374151', paddingVertical: 8, borderRadius: 10, alignItems: 'center',
