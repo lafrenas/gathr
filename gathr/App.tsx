@@ -51,6 +51,7 @@ export default function App() {
   const [ratings, setRatings] = useState<EventRatingRow[]>([]);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
+  const [activityType, setActivityType] = useState('Basketball');
   const [area, setArea] = useState('');
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
@@ -65,6 +66,11 @@ export default function App() {
   const [communicationRating, setCommunicationRating] = useState('5');
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
+
+  const activityOptions: Record<string, string[]> = {
+    Sports: ['Basketball', 'Football', 'Tennis', 'Running', 'Gym'],
+    Social: ['Coffee', 'Dinner', 'Walk', 'Board Games', 'Networking'],
+  };
 
   const loadData = async () => {
     setBusy(true);
@@ -144,7 +150,7 @@ export default function App() {
     setError(null);
     const { error } = await supabase.from('events').insert({
       title: title.trim(),
-      category: category.trim(),
+      category: `${category.trim()}:${activityType.trim()}`,
       area: area.trim(),
       exact_location: exactLocation.trim(),
       exact_time: exactTime.trim(),
@@ -155,6 +161,7 @@ export default function App() {
 
     setTitle('');
     setCategory('Sports');
+    setActivityType('Basketball');
     setArea('');
     setExactLocation('');
     setExactTime('');
@@ -206,7 +213,8 @@ export default function App() {
     setReliabilityRating('5');
     setCommunicationRating('5');
     setBoundaryRating('5');
-    setSkillContext(ev?.category?.trim() || 'General');
+    const parsedActivity = ev?.category?.includes(':') ? ev.category.split(':')[1].trim() : ev?.category?.trim();
+    setSkillContext(parsedActivity || 'General');
     setRatingComment('');
   };
 
@@ -263,6 +271,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
+      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>gathr</Text>
       <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
 
@@ -330,7 +339,36 @@ export default function App() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Create event</Text>
         <TextInput style={styles.input} placeholder="Title" placeholderTextColor="#9ca3af" value={title} onChangeText={setTitle} />
-        <TextInput style={styles.input} placeholder="Category" placeholderTextColor="#9ca3af" value={category} onChangeText={setCategory} />
+
+        <Text style={styles.ratingLabel}>Category</Text>
+        <View style={styles.rowGapWrap}>
+          {Object.keys(activityOptions).map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.chipBtn, category === cat && styles.chipBtnActive]}
+              onPress={() => {
+                setCategory(cat);
+                setActivityType(activityOptions[cat][0]);
+              }}
+            >
+              <Text style={styles.chipBtnText}>{cat}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.ratingLabel}>Activity</Text>
+        <View style={styles.rowGapWrap}>
+          {(activityOptions[category] ?? ['General']).map((act) => (
+            <TouchableOpacity
+              key={act}
+              style={[styles.chipBtn, activityType === act && styles.chipBtnActive]}
+              onPress={() => setActivityType(act)}
+            >
+              <Text style={styles.chipBtnText}>{act}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <TextInput style={styles.input} placeholder="Public area (shown to everyone)" placeholderTextColor="#9ca3af" value={area} onChangeText={setArea} />
         <TextInput style={styles.input} placeholder="Exact location (approved only)" placeholderTextColor="#9ca3af" value={exactLocation} onChangeText={setExactLocation} />
         <TextInput style={styles.input} placeholder="Exact time (approved only)" placeholderTextColor="#9ca3af" value={exactTime} onChangeText={setExactTime} />
@@ -362,7 +400,7 @@ export default function App() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <View style={styles.list}>
         {events.map((item) => {
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
           const myReq = requests.find(
@@ -373,7 +411,7 @@ export default function App() {
           return (
             <View key={item.id} style={styles.eventCard}>
               <Text style={styles.eventTitle}>{item.title}</Text>
-              <Text style={styles.meta}>{item.category} • Host: {item.host_name}</Text>
+              <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
               {(() => {
                 const stat = hostRatingStats[item.host_name.toLowerCase()];
                 if (!stat) return <Text style={styles.meta}>Trust: New • Skill: New</Text>;
@@ -425,13 +463,15 @@ export default function App() {
             </View>
           );
         })}
+      </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0b1220', paddingHorizontal: 16, paddingTop: 8 },
+  root: { flex: 1, backgroundColor: '#0b1220' },
+  page: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
   brand: { color: '#f9fafb', fontSize: 34, fontWeight: '800' },
   subtitle: { color: '#9ca3af', marginBottom: 12 },
   error: { color: '#fca5a5', marginBottom: 8 },
@@ -463,6 +503,10 @@ const styles = StyleSheet.create({
   ratingHint: { marginTop: 8, color: '#94a3b8', fontSize: 12 },
   pendingItem: { marginBottom: 8 },
   rowGap: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  rowGapWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  chipBtn: { backgroundColor: '#1f2937', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999 },
+  chipBtnActive: { backgroundColor: '#2563eb' },
+  chipBtnText: { color: '#fff', fontWeight: '600' },
   approveBtn: { backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   approveBtnText: { color: '#fff', fontWeight: '700' },
