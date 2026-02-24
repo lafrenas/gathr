@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   SafeAreaView,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { supabase } from './lib/supabase';
 
 type Event = {
   id: string;
@@ -23,45 +24,51 @@ type Event = {
   pending: boolean;
 };
 
-const seedEvents: Event[] = [
-  {
-    id: '1',
-    title: 'Basketball pickup',
-    category: 'Sports',
-    area: 'North London',
-    exactLocation: 'Regents Park Court 2',
-    exactTime: 'Tomorrow 18:30',
-    host: 'Ignas',
-    joined: false,
-    approved: false,
-    pending: false,
-  },
-  {
-    id: '2',
-    title: 'Coffee + ideas meetup',
-    category: 'Social',
-    area: 'Camden',
-    exactLocation: 'Brew Lab, Camden High St',
-    exactTime: 'Fri 10:00',
-    host: 'Marta',
-    joined: false,
-    approved: false,
-    pending: false,
-  },
-];
-
 export default function App() {
-  const [events, setEvents] = useState<Event[]>(seedEvents);
+  const [events, setEvents] = useState<Event[]>([]);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
   const [area, setArea] = useState('');
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const pendingRequests = useMemo(
     () => events.filter((e) => e.pending && e.host === 'Ignas'),
     [events]
   );
+
+  const loadEvents = async () => {
+    setError(null);
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    const mapped: Event[] = (data ?? []).map((e: any) => ({
+      id: String(e.id),
+      title: e.title,
+      category: e.category,
+      area: e.area,
+      exactLocation: e.exact_location,
+      exactTime: e.exact_time,
+      host: e.host_name,
+      joined: false,
+      approved: false,
+      pending: false,
+    }));
+
+    setEvents(mapped);
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
   const requestJoin = (id: string) => {
     setEvents((prev) =>
@@ -75,28 +82,30 @@ export default function App() {
     );
   };
 
-  const createEvent = () => {
+  const createEvent = async () => {
     if (!title.trim() || !area.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
-    const newEvent: Event = {
-      id: Date.now().toString(),
+    setError(null);
+    const { error } = await supabase.from('events').insert({
       title: title.trim(),
       category: category.trim(),
       area: area.trim(),
-      exactLocation: exactLocation.trim(),
-      exactTime: exactTime.trim(),
-      host: 'Ignas',
-      joined: false,
-      approved: false,
-      pending: false,
-    };
+      exact_location: exactLocation.trim(),
+      exact_time: exactTime.trim(),
+      host_name: 'Ignas',
+    });
 
-    setEvents((prev) => [newEvent, ...prev]);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
     setTitle('');
     setCategory('Sports');
     setArea('');
     setExactLocation('');
     setExactTime('');
+    await loadEvents();
   };
 
   return (
@@ -104,6 +113,7 @@ export default function App() {
       <StatusBar style="light" />
       <Text style={styles.brand}>gathr</Text>
       <Text style={styles.subtitle}>Create events. Request to join. Approve before details unlock.</Text>
+      {!!error && <Text style={styles.error}>Backend: {error}</Text>}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Create event (Host)</Text>
@@ -184,6 +194,10 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#9ca3af',
     marginBottom: 12,
+  },
+  error: {
+    color: '#fca5a5',
+    marginBottom: 8,
   },
   card: {
     backgroundColor: '#111827',
