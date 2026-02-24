@@ -100,9 +100,20 @@ export default function App() {
     setAuthMsg(null);
     setError(null);
     const clean = email.trim();
-    if (!clean || !password) return;
-    const { error } = await supabase.auth.signInWithPassword({ email: clean, password });
+    if (!clean || !password) return setError('Enter email and password.');
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
     if (error) return setError(error.message);
+
+    if (!data.session) {
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) return setError('Sign-in returned no session. Please try again.');
+      setSession(s.session);
+      return;
+    }
+
+    setSession(data.session);
+    setAuthMsg('Signed in successfully.');
   };
 
   const signOut = async () => {
