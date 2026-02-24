@@ -44,11 +44,27 @@ type EventRatingRow = {
   comment?: string;
 };
 
+type UserBlockRow = {
+  id: number;
+  blocker_name: string;
+  blocked_name: string;
+};
+
+type UserReportRow = {
+  id: number;
+  reporter_name: string;
+  reported_name: string;
+  reason: string;
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState('Ignas');
   const [events, setEvents] = useState<EventRow[]>([]);
   const [requests, setRequests] = useState<JoinRequestRow[]>([]);
   const [ratings, setRatings] = useState<EventRatingRow[]>([]);
+  const [blocks, setBlocks] = useState<UserBlockRow[]>([]);
+  const [reports, setReports] = useState<UserReportRow[]>([]);
+  const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('Basketball');
@@ -77,10 +93,12 @@ export default function App() {
     setBusy(true);
     setError(null);
 
-    const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }, { data: ratingData, error: ratingError }] = await Promise.all([
+    const [{ data: eventsData, error: eventsError }, { data: reqData, error: reqError }, { data: ratingData, error: ratingError }, { data: blockData, error: blockError }, { data: reportData, error: reportError }] = await Promise.all([
       supabase.from('events').select('*').order('created_at', { ascending: false }),
       supabase.from('join_requests').select('*').order('created_at', { ascending: false }),
       supabase.from('event_ratings').select('*').order('created_at', { ascending: false }),
+      supabase.from('user_blocks').select('*').order('id', { ascending: false }),
+      supabase.from('user_reports').select('*').order('id', { ascending: false }),
     ]);
 
     if (eventsError) {
@@ -95,10 +113,20 @@ export default function App() {
       setBusy(false);
       return setError(ratingError.message);
     }
+    if (blockError) {
+      setBusy(false);
+      return setError(blockError.message);
+    }
+    if (reportError) {
+      setBusy(false);
+      return setError(reportError.message);
+    }
 
     setEvents((eventsData ?? []) as EventRow[]);
     setRequests((reqData ?? []) as JoinRequestRow[]);
     setRatings((ratingData ?? []) as EventRatingRow[]);
+    setBlocks((blockData ?? []) as UserBlockRow[]);
+    setReports((reportData ?? []) as UserReportRow[]);
     setBusy(false);
   };
 
@@ -112,6 +140,15 @@ export default function App() {
     );
     return requests.filter((r) => r.status === 'pending' && hostedEventIds.has(r.event_id));
   }, [events, requests, currentUser]);
+
+  const blockedByMe = useMemo(() => {
+    const me = currentUser.trim().toLowerCase();
+    return new Set(blocks.filter((b) => b.blocker_name.toLowerCase() === me).map((b) => b.blocked_name.toLowerCase()));
+  }, [blocks, currentUser]);
+
+  const visibleEvents = useMemo(() => {
+    return events.filter((e) => !blockedByMe.has(e.host_name.toLowerCase()));
+  }, [events, blockedByMe]);
 
   const hostRatingStats = useMemo(() => {
     const byHost: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -264,9 +301,46 @@ export default function App() {
     await loadData();
   };
 
+  const reportHost = async (hostName: string) => {
+    const me = currentUser.trim();
+    if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
+    setError(null);
+    const { error } = await supabase.from('user_reports').insert({
+      reporter_name: me,
+      reported_name: hostName,
+      reason: 'General safety concern',
+    });
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
+  const blockHost = async (hostName: string) => {
+    const me = currentUser.trim();
+    if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
+    setError(null);
+    const { error } = await supabase.from('user_blocks').upsert(
+      { blocker_name: me, blocked_name: hostName },
+      { onConflict: 'blocker_name,blocked_name' }
+    );
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
   const clearTestData = async () => {
     setError(null);
     setBusy(true);
+
+    const r0 = await supabase.from('user_reports').delete().neq('id', -1);
+    if (r0.error) {
+      setBusy(false);
+      return setError(r0.error.message);
+    }
+
+    const rb = await supabase.from('user_blocks').delete().neq('id', -1);
+    if (rb.error) {
+      setBusy(false);
+      return setError(rb.error.message);
+    }
 
     const r1 = await supabase.from('event_ratings').delete().neq('id', -1);
     if (r1.error) {
@@ -318,7 +392,7 @@ export default function App() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Debug</Text>
         <Text style={styles.meta}>Status: {busy ? 'Loading…' : 'Ready'}</Text>
-        <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length} • Ratings: {ratings.length}</Text>
+        <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length} • Ratings: {ratings.length} • Reports: {reports.length}</Text>
         <View style={styles.rowGap}>
           <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={loadData}>
             <Text style={styles.mapBtnText}>Refresh data</Text>
@@ -328,6 +402,29 @@ export default function App() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {selectedHost && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Host profile: {selectedHost}</Text>
+          {(() => {
+            const stat = hostRatingStats[selectedHost.toLowerCase()];
+            const reviews = ratings.filter((r) => r.rated_name.toLowerCase() === selectedHost.toLowerCase() && !!r.comment?.trim()).slice(0, 3);
+            if (!stat) return <Text style={styles.meta}>No ratings yet.</Text>;
+            return (
+              <>
+                <Text style={styles.meta}>Trust ⭐ {stat.trust.toFixed(1)} ({stat.count})</Text>
+                <Text style={styles.meta}>Skill ⭐ {stat.skill.toFixed(1)}</Text>
+                {reviews.map((r) => (
+                  <Text key={r.id} style={styles.reviewSnippet}>• {r.comment}</Text>
+                ))}
+              </>
+            );
+          })()}
+          <TouchableOpacity style={styles.mapBtn} onPress={() => setSelectedHost(null)}>
+            <Text style={styles.mapBtnText}>Close profile</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {ratingEventId && (
         <View style={styles.card}>
@@ -448,7 +545,7 @@ export default function App() {
       </View>
 
       <View style={styles.list}>
-        {(showAllEvents ? events : events.slice(0, 8)).map((item) => {
+        {(showAllEvents ? visibleEvents : visibleEvents.slice(0, 8)).map((item) => {
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
@@ -478,6 +575,23 @@ export default function App() {
               <TouchableOpacity style={styles.mapBtn} onPress={() => openMap(approved ? item.exact_location : item.area)}>
                 <Text style={styles.mapBtnText}>{approved ? 'Open exact location in map' : 'Open rough area in map'}</Text>
               </TouchableOpacity>
+
+              <View style={styles.rowGap}>
+                <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setSelectedHost(item.host_name)}>
+                  <Text style={styles.mapBtnText}>Host profile</Text>
+                </TouchableOpacity>
+                {!isHost && (
+                  <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => reportHost(item.host_name)}>
+                    <Text style={styles.approveBtnText}>Report</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {!isHost && (
+                <TouchableOpacity style={styles.rejectBtn} onPress={() => blockHost(item.host_name)}>
+                  <Text style={styles.approveBtnText}>Block this host</Text>
+                </TouchableOpacity>
+              )}
 
               {approved ? (
                 <View style={styles.revealedBox}>
