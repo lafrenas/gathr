@@ -53,6 +53,12 @@ export default function App() {
   const [exactTime, setExactTime] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ratingEventId, setRatingEventId] = useState<number | null>(null);
+  const [ratingTargetName, setRatingTargetName] = useState('');
+  const [skillRating, setSkillRating] = useState('5');
+  const [friendlinessRating, setFriendlinessRating] = useState('5');
+  const [reliabilityRating, setReliabilityRating] = useState('5');
+  const [ratingComment, setRatingComment] = useState('');
 
   const loadData = async () => {
     setBusy(true);
@@ -153,25 +159,50 @@ export default function App() {
     await loadData();
   };
 
-  const submitQuickRating = async (eventId: number, ratedName: string) => {
+  const openRatingForm = (eventId: number, ratedName: string) => {
+    setRatingEventId(eventId);
+    setRatingTargetName(ratedName);
+    setSkillRating('5');
+    setFriendlinessRating('5');
+    setReliabilityRating('5');
+    setRatingComment('');
+  };
+
+  const submitRating = async () => {
     const rater = currentUser.trim();
-    if (!rater) return;
+    if (!rater || !ratingEventId || !ratingTargetName) return;
     setError(null);
+
+    const skill = Number(skillRating);
+    const friendliness = Number(friendlinessRating);
+    const reliability = Number(reliabilityRating);
+
+    if (
+      !Number.isInteger(skill) || skill < 1 || skill > 5 ||
+      !Number.isInteger(friendliness) || friendliness < 1 || friendliness > 5 ||
+      !Number.isInteger(reliability) || reliability < 1 || reliability > 5
+    ) {
+      return setError('Ratings must be numbers 1 to 5.');
+    }
 
     const { error } = await supabase.from('event_ratings').upsert(
       {
-        event_id: eventId,
+        event_id: ratingEventId,
         rater_name: rater,
-        rated_name: ratedName,
-        skill: 5,
-        friendliness: 5,
-        reliability: 5,
-        comment: 'Great session',
+        rated_name: ratingTargetName,
+        skill,
+        friendliness,
+        reliability,
+        comment: ratingComment.trim() || null,
       },
       { onConflict: 'event_id,rater_name,rated_name' }
     );
 
     if (error) return setError(error.message);
+
+    setRatingEventId(null);
+    setRatingTargetName('');
+    setRatingComment('');
     await loadData();
   };
 
@@ -207,6 +238,24 @@ export default function App() {
           <Text style={styles.mapBtnText}>Refresh data</Text>
         </TouchableOpacity>
       </View>
+
+      {ratingEventId && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Rate {ratingTargetName}</Text>
+          <TextInput style={styles.input} placeholder="Skill (1-5)" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={skillRating} onChangeText={setSkillRating} />
+          <TextInput style={styles.input} placeholder="Friendliness (1-5)" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={friendlinessRating} onChangeText={setFriendlinessRating} />
+          <TextInput style={styles.input} placeholder="Reliability (1-5)" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={reliabilityRating} onChangeText={setReliabilityRating} />
+          <TextInput style={styles.input} placeholder="Comment (optional)" placeholderTextColor="#9ca3af" value={ratingComment} onChangeText={setRatingComment} />
+          <View style={styles.rowGap}>
+            <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={submitRating}>
+              <Text style={styles.approveBtnText}>Submit rating</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setRatingEventId(null)}>
+              <Text style={styles.approveBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Create event</Text>
@@ -289,8 +338,8 @@ export default function App() {
                 );
                 if (alreadyRated) return <Text style={styles.approvedText}>You rated this host ✅</Text>;
                 return (
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => submitQuickRating(item.id, item.host_name)}>
-                    <Text style={styles.approveBtnText}>Rate host (5★ quick)</Text>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => openRatingForm(item.id, item.host_name)}>
+                    <Text style={styles.approveBtnText}>Rate host</Text>
                   </TouchableOpacity>
                 );
               })()}
