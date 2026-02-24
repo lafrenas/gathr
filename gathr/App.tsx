@@ -242,10 +242,22 @@ export default function App() {
       {ratingEventId && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Rate {ratingTargetName}</Text>
-          <TextInput style={styles.input} placeholder="Skill (1-5)" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={skillRating} onChangeText={setSkillRating} />
-          <TextInput style={styles.input} placeholder="Friendliness (1-5)" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={friendlinessRating} onChangeText={setFriendlinessRating} />
-          <TextInput style={styles.input} placeholder="Reliability (1-5)" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={reliabilityRating} onChangeText={setReliabilityRating} />
-          <TextInput style={styles.input} placeholder="Comment (optional)" placeholderTextColor="#9ca3af" value={ratingComment} onChangeText={setRatingComment} />
+          <Text style={styles.ratingGuide}>1 = poor • 3 = okay • 5 = excellent</Text>
+
+          <Text style={styles.ratingLabel}>Skill</Text>
+          <Text style={styles.ratingHelp}>How capable were they at the activity?</Text>
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={skillRating} onChangeText={setSkillRating} />
+
+          <Text style={styles.ratingLabel}>Friendliness</Text>
+          <Text style={styles.ratingHelp}>Were they respectful, kind, and good to be around?</Text>
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={friendlinessRating} onChangeText={setFriendlinessRating} />
+
+          <Text style={styles.ratingLabel}>Reliability</Text>
+          <Text style={styles.ratingHelp}>Did they show up on time and follow through?</Text>
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={reliabilityRating} onChangeText={setReliabilityRating} />
+
+          <Text style={styles.ratingLabel}>Comment (optional)</Text>
+          <TextInput style={styles.input} placeholder="Short feedback" placeholderTextColor="#9ca3af" value={ratingComment} onChangeText={setRatingComment} />
           <View style={styles.rowGap}>
             <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={submitRating}>
               <Text style={styles.approveBtnText}>Submit rating</Text>
@@ -393,4 +405,7 @@ const styles = StyleSheet.create({
     marginTop: 10, backgroundColor: '#374151', paddingVertical: 8, borderRadius: 10, alignItems: 'center',
   },
   mapBtnText: { color: '#e5e7eb', fontWeight: '600' },
+  ratingGuide: { color: '#cbd5e1', marginBottom: 8 },
+  ratingLabel: { color: '#f1f5f9', fontWeight: '700', marginTop: 2 },
+  ratingHelp: { color: '#94a3b8', marginBottom: 6, fontSize: 12 },
 });
