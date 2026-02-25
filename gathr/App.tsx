@@ -569,10 +569,10 @@ export default function App() {
     const raw = address.trim();
     if (!raw) return raw;
     const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
-    if (parts.length <= 1) return `~3 km radius near ${raw}`;
+    if (parts.length <= 1) return `~2 km near ${raw}`;
 
     const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2) ?? parts[1];
-    return `~3 km radius near ${cityLike}`;
+    return `~2 km near ${cityLike}`;
   };
 
   const broadAreaFromCoords = async (latitude: number, longitude: number) => {
@@ -590,8 +590,9 @@ export default function App() {
       const neighborhood = pick('neighborhood', 'sublocality_level_1', 'sublocality', 'postal_town');
       const city = pick('locality', 'administrative_area_level_2', 'administrative_area_level_1');
 
-      if (neighborhood && city) return `~3 km radius near ${neighborhood}, ${city}`;
-      if (city) return `~3 km radius near ${city}`;
+      if (neighborhood && city) return `~2 km near ${neighborhood}, ${city}`;
+      if (neighborhood) return `~2 km near ${neighborhood}`;
+      if (city) return `~2 km near ${city}`;
       return '';
     } catch {
       return '';
@@ -620,7 +621,7 @@ export default function App() {
   const roughCoordsForEvent = (e: EventRow) => {
     if (typeof e.exact_lat !== 'number' || typeof e.exact_lng !== 'number') return undefined;
 
-    const km = 2.2;
+    const km = 2.0;
     const angle = ((e.id % 360) * Math.PI) / 180;
     const latOffset = (km / 111) * Math.cos(angle);
     const lngOffset = (km / (111 * Math.cos((e.exact_lat * Math.PI) / 180))) * Math.sin(angle);
@@ -1314,7 +1315,7 @@ export default function App() {
           </View>
         )}
 
-        <Text style={styles.meta}>Public area is auto-generated (~3 km radius) from exact location.</Text>
+        <Text style={styles.meta}>Public area is auto-generated (~2 km radius) from exact location.</Text>
         <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
           <Text style={styles.mapBtnText}>{exactLocation.trim() ? 'Change location on map' : 'Pick location on map'}</Text>
         </TouchableOpacity>
