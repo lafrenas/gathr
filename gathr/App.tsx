@@ -192,9 +192,12 @@ export default function App() {
 
     const timer = setTimeout(async () => {
       try {
-        const [postcodeRes, placesRes] = await Promise.all([
+        const [postcodeRes, placesRes, cityRes] = await Promise.all([
           fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
-          fetch(`https://geocode.maps.co/search?q=${encodeURIComponent(q)}`),
+          fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q=${encodeURIComponent(q)}`, {
+            headers: { 'Accept-Language': 'en,lt' },
+          }),
+          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`),
         ]);
 
         const postcodeJson = await postcodeRes.json();
@@ -202,12 +205,18 @@ export default function App() {
         setRemotePostcodeSuggestions(postcodeList.slice(0, 8));
 
         const placesJson = await placesRes.json();
-        const placeList = Array.isArray(placesJson)
-          ? placesJson
-              .map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim())
+        const nominatimList = Array.isArray(placesJson)
+          ? placesJson.map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim()).filter(Boolean)
+          : [];
+
+        const cityJson = await cityRes.json();
+        const openMeteoList = Array.isArray(cityJson?.results)
+          ? cityJson.results
+              .map((r: { name?: string; admin1?: string; country?: string }) => [r.name, r.admin1, r.country].filter(Boolean).join(', '))
               .filter(Boolean)
           : [];
-        setRemotePlaceSuggestions(placeList.slice(0, 8));
+
+        setRemotePlaceSuggestions(Array.from(new Set([...nominatimList, ...openMeteoList])).slice(0, 8));
       } catch {
         setRemotePostcodeSuggestions([]);
         setRemotePlaceSuggestions([]);
@@ -227,9 +236,12 @@ export default function App() {
 
     const timer = setTimeout(async () => {
       try {
-        const [postcodeRes, placesRes] = await Promise.all([
+        const [postcodeRes, placesRes, cityRes] = await Promise.all([
           fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
-          fetch(`https://geocode.maps.co/search?q=${encodeURIComponent(q)}`),
+          fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q=${encodeURIComponent(q)}`, {
+            headers: { 'Accept-Language': 'en,lt' },
+          }),
+          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`),
         ]);
 
         const postcodeJson = await postcodeRes.json();
@@ -237,12 +249,18 @@ export default function App() {
         setRemoteExactPostcodeSuggestions(postcodeList.slice(0, 8));
 
         const placesJson = await placesRes.json();
-        const placeList = Array.isArray(placesJson)
-          ? placesJson
-              .map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim())
+        const nominatimList = Array.isArray(placesJson)
+          ? placesJson.map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim()).filter(Boolean)
+          : [];
+
+        const cityJson = await cityRes.json();
+        const openMeteoList = Array.isArray(cityJson?.results)
+          ? cityJson.results
+              .map((r: { name?: string; admin1?: string; country?: string }) => [r.name, r.admin1, r.country].filter(Boolean).join(', '))
               .filter(Boolean)
           : [];
-        setRemoteExactPlaceSuggestions(placeList.slice(0, 8));
+
+        setRemoteExactPlaceSuggestions(Array.from(new Set([...nominatimList, ...openMeteoList])).slice(0, 8));
       } catch {
         setRemoteExactPostcodeSuggestions([]);
         setRemoteExactPlaceSuggestions([]);
@@ -376,10 +394,18 @@ export default function App() {
       .map((s) => s.trim())
       .filter((s) => s.length >= 2);
 
+    const fallback = q
+      ? [
+          `${area.trim()}, Lithuania`,
+          `${area.trim()}, Kaunas, Lithuania`,
+          `${area.trim()}, London, UK`,
+        ]
+      : [];
+
     const unique = Array.from(
-      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places])
+      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...fallback])
     );
-    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
+    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q) || x.toLowerCase().startsWith(q)) : unique;
     return matched.slice(0, 8);
   }, [events, area, remotePostcodeSuggestions, remotePlaceSuggestions]);
 
@@ -430,10 +456,18 @@ export default function App() {
 
     const places = source.map((s) => s.trim()).filter((s) => s.length >= 2);
 
+    const fallback = q
+      ? [
+          `${exactLocation.trim()}, Kaunas, Lithuania`,
+          `${exactLocation.trim()}, Vilnius, Lithuania`,
+          `${exactLocation.trim()}, Lithuania`,
+        ]
+      : [];
+
     const unique = Array.from(
-      new Set([...remoteExactPostcodeSuggestions, ...remoteExactPlaceSuggestions, ...postcodes, ...places])
+      new Set([...remoteExactPostcodeSuggestions, ...remoteExactPlaceSuggestions, ...postcodes, ...places, ...fallback])
     );
-    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
+    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q) || x.toLowerCase().startsWith(q)) : unique;
     return matched.slice(0, 8);
   }, [events, exactLocation, remoteExactPostcodeSuggestions, remoteExactPlaceSuggestions]);
 
