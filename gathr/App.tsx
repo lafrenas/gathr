@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { supabase } from './lib/supabase';
 
 type EventRow = {
@@ -73,6 +74,10 @@ export default function App() {
   const [area, setArea] = useState('');
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
+  const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
+  const [dateDraft, setDateDraft] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
@@ -140,6 +145,26 @@ export default function App() {
     const ts = Date.parse(exactTime);
     if (!Number.isFinite(ts)) return false;
     return Date.now() >= ts;
+  };
+
+  const exactTimeDisplay = eventDateTime ? eventDateTime.toLocaleString() : '';
+
+  const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (!selectedDate) return;
+    setDateDraft(selectedDate);
+    setShowTimePicker(true);
+  };
+
+  const onTimePicked = (_event: DateTimePickerEvent, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (!selectedTime) return;
+
+    const merged = new Date(dateDraft);
+    merged.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+
+    setEventDateTime(merged);
+    setExactTime(merged.toISOString());
   };
 
   const pendingForMyHostedEvents = useMemo(() => {
@@ -216,6 +241,7 @@ export default function App() {
     setArea('');
     setExactLocation('');
     setExactTime('');
+    setEventDateTime(null);
     await loadData();
   };
 
@@ -586,7 +612,25 @@ export default function App() {
 
         <TextInput style={styles.input} placeholder="Public area (shown to everyone)" placeholderTextColor="#9ca3af" value={area} onChangeText={setArea} />
         <TextInput style={styles.input} placeholder="Exact location (approved only)" placeholderTextColor="#9ca3af" value={exactLocation} onChangeText={setExactLocation} />
-        <TextInput style={styles.input} placeholder="Exact time (approved only)" placeholderTextColor="#9ca3af" value={exactTime} onChangeText={setExactTime} />
+
+        <TouchableOpacity
+          style={styles.mapBtn}
+          onPress={() => {
+            const base = eventDateTime ?? new Date();
+            setDateDraft(base);
+            setShowDatePicker(true);
+          }}
+        >
+          <Text style={styles.mapBtnText}>{eventDateTime ? 'Change date & time' : 'Select date & time'}</Text>
+        </TouchableOpacity>
+        {!!exactTimeDisplay && <Text style={styles.meta}>Selected: {exactTimeDisplay}</Text>}
+
+        {showDatePicker && (
+          <DateTimePicker value={dateDraft} mode="date" display="default" onChange={onDatePicked} />
+        )}
+        {showTimePicker && (
+          <DateTimePicker value={dateDraft} mode="time" display="default" onChange={onTimePicked} />
+        )}
 
         <TouchableOpacity style={styles.primaryBtn} onPress={createEvent}>
           <Text style={styles.primaryBtnText}>Create Event</Text>
