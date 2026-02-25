@@ -59,6 +59,12 @@ type UserReportRow = {
   reason: string;
 };
 
+type UserProfileRow = {
+  id: number;
+  display_name: string;
+  about_me?: string | null;
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState('Ignas');
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -66,6 +72,7 @@ export default function App() {
   const [ratings, setRatings] = useState<EventRatingRow[]>([]);
   const [blocks, setBlocks] = useState<UserBlockRow[]>([]);
   const [reports, setReports] = useState<UserReportRow[]>([]);
+  const [profiles, setProfiles] = useState<UserProfileRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
@@ -74,6 +81,7 @@ export default function App() {
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
+  const [aboutMe, setAboutMe] = useState('');
   const [area, setArea] = useState('');
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
@@ -145,12 +153,24 @@ export default function App() {
     setRatings((ratingData ?? []) as EventRatingRow[]);
     setBlocks((blockData ?? []) as UserBlockRow[]);
     setReports((reportData ?? []) as UserReportRow[]);
+
+    const { data: profileData, error: profileError } = await supabase.from('user_profiles').select('*').order('id', { ascending: false });
+    if (!profileError) {
+      setProfiles((profileData ?? []) as UserProfileRow[]);
+    }
+
     setBusy(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const me = currentUser.trim().toLowerCase();
+    const p = profiles.find((x) => x.display_name.toLowerCase() === me);
+    setAboutMe(p?.about_me ?? '');
+  }, [currentUser, profiles]);
 
   const hasEventEnded = (exactTime: string) => {
     const ts = Date.parse(exactTime);
@@ -359,6 +379,21 @@ export default function App() {
     await loadData();
   };
 
+  const saveProfile = async () => {
+    const me = currentUser.trim();
+    if (!me) return setError('Set your name first.');
+    setError(null);
+    const { error } = await supabase.from('user_profiles').upsert(
+      {
+        display_name: me,
+        about_me: aboutMe.trim() || null,
+      },
+      { onConflict: 'display_name' }
+    );
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
   const reportHost = async (hostName: string, reason: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
@@ -435,9 +470,25 @@ export default function App() {
     setBusy(false);
   };
 
-  const openMap = (query: string) => {
-    const encoded = encodeURIComponent(query);
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encoded}`);
+  const openMap = async (query: string) => {
+    const q = query.trim();
+    if (!q) return setError('Location is empty.');
+
+    const encoded = encodeURIComponent(q);
+    const googleWeb = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    const appleWeb = `https://maps.apple.com/?q=${encoded}`;
+
+    try {
+      const canGoogle = await Linking.canOpenURL(googleWeb);
+      if (canGoogle) return await Linking.openURL(googleWeb);
+
+      const canApple = await Linking.canOpenURL(appleWeb);
+      if (canApple) return await Linking.openURL(appleWeb);
+
+      setError('Could not open maps on this device.');
+    } catch {
+      setError('Could not open maps on this device.');
+    }
   };
 
   return (
@@ -456,6 +507,19 @@ export default function App() {
           placeholder="Your display name"
           placeholderTextColor="#9ca3af"
         />
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={aboutMe}
+          onChangeText={setAboutMe}
+          placeholder="About me"
+          placeholderTextColor="#9ca3af"
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
+        <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
+          <Text style={styles.mapBtnText}>Save profile</Text>
+        </TouchableOpacity>
       </View>
 
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
@@ -479,12 +543,19 @@ export default function App() {
           <Text style={styles.cardTitle}>Host profile: {selectedHost}</Text>
           {(() => {
             const stat = hostRatingStats[selectedHost.toLowerCase()];
+            const hostProfile = profiles.find((p) => p.display_name.toLowerCase() === selectedHost.toLowerCase());
             const reviews = ratings.filter((r) => r.rated_name.toLowerCase() === selectedHost.toLowerCase() && !!r.comment?.trim()).slice(0, 3);
-            if (!stat) return <Text style={styles.meta}>No ratings yet.</Text>;
             return (
               <>
-                <Text style={styles.meta}>Trust ⭐ {stat.trust.toFixed(1)} ({stat.count})</Text>
-                <Text style={styles.meta}>Skill ⭐ {stat.skill.toFixed(1)}</Text>
+                {!!hostProfile?.about_me?.trim() && <Text style={styles.meta}>About: {hostProfile.about_me}</Text>}
+                {stat ? (
+                  <>
+                    <Text style={styles.meta}>Trust ⭐ {stat.trust.toFixed(1)} ({stat.count})</Text>
+                    <Text style={styles.meta}>Skill ⭐ {stat.skill.toFixed(1)}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.meta}>No ratings yet.</Text>
+                )}
                 {reviews.map((r) => (
                   <Text key={r.id} style={styles.reviewSnippet}>• {r.comment}</Text>
                 ))}
