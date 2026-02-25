@@ -434,7 +434,11 @@ export default function App() {
   };
 
   const exactTimeDisplay = eventDateTime ? eventDateTime.toLocaleString() : '';
-  const exactTimeWebInput = eventDateTime ? new Date(eventDateTime.getTime() - eventDateTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+  const exactTimeWebLocal = eventDateTime
+    ? new Date(eventDateTime.getTime() - eventDateTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    : '';
+  const exactDateWeb = exactTimeWebLocal ? exactTimeWebLocal.slice(0, 10) : '';
+  const exactClockWeb = exactTimeWebLocal ? exactTimeWebLocal.slice(11, 16) : '';
 
   const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -1666,20 +1670,37 @@ export default function App() {
 
         {Platform.OS === 'web' ? (
           <>
-            <Text style={styles.ratingLabel}>Date & time</Text>
+            <Text style={styles.ratingLabel}>Date</Text>
             <TextInput
               style={styles.input}
-              placeholder="YYYY-MM-DDTHH:mm"
+              placeholder="YYYY-MM-DD"
               placeholderTextColor="#9ca3af"
-              value={exactTimeWebInput}
-              onChangeText={(t) => {
-                const d = new Date(t);
+              value={exactDateWeb}
+              onChangeText={(dPart) => {
+                const tPart = exactClockWeb || '12:00';
+                const d = new Date(`${dPart}T${tPart}`);
                 if (!Number.isFinite(d.getTime())) return;
                 setEventDateTime(d);
                 setExactTime(d.toISOString());
                 setDateDraft(d);
               }}
             />
+            <Text style={styles.ratingLabel}>Time</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="HH:mm"
+              placeholderTextColor="#9ca3af"
+              value={exactClockWeb}
+              onChangeText={(tPart) => {
+                const dPart = exactDateWeb || new Date().toISOString().slice(0, 10);
+                const d = new Date(`${dPart}T${tPart}`);
+                if (!Number.isFinite(d.getTime())) return;
+                setEventDateTime(d);
+                setExactTime(d.toISOString());
+                setDateDraft(d);
+              }}
+            />
+            {!!exactTimeDisplay && <Text style={styles.meta}>Selected: {exactTimeDisplay}</Text>}
           </>
         ) : (
           <>
