@@ -1,0 +1,6 @@
+-- Capacity cleanup note
+-- App now uses only: min_people, max_people, no_max.
+-- Legacy columns required_people/allow_overflow are no longer used by app logic.
+-- Optional (run later when safe):
+-- alter table public.events drop column if exists required_people;
+-- alter table public.events drop column if exists allow_overflow;

@@ -30,8 +30,6 @@ type EventRow = {
   title: string;
   category: string;
   description?: string | null;
-  required_people?: number | null; // legacy
-  allow_overflow?: boolean | null; // legacy
   min_people?: number | null;
   max_people?: number | null;
   no_max?: boolean | null;
@@ -1236,9 +1234,6 @@ export default function App() {
       min_people: min,
       max_people: noMax ? null : max,
       no_max: noMax,
-      // legacy mirrors
-      required_people: min,
-      allow_overflow: noMax,
       area: generatedArea,
       exact_location: isOnline ? 'Online session' : exactLocation.trim(),
       exact_lat: isOnline ? null : resolvedCoords?.latitude ?? null,
@@ -1275,8 +1270,8 @@ export default function App() {
   };
 
   function getEventCapacity(ev?: EventRow) {
-    const min = Number(ev?.min_people ?? ev?.required_people ?? 0);
-    const max = ev?.no_max ? null : Number(ev?.max_people ?? (ev?.allow_overflow ? null : ev?.required_people ?? 0));
+    const min = Number(ev?.min_people ?? 0);
+    const max = ev?.no_max ? null : Number(ev?.max_people ?? 0);
     return { min: Number.isFinite(min) ? min : 0, max: max && Number.isFinite(max) ? max : null };
   }
 
