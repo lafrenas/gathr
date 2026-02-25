@@ -23,6 +23,8 @@ type EventRow = {
   description?: string | null;
   area: string;
   exact_location: string;
+  exact_lat?: number | null;
+  exact_lng?: number | null;
   exact_time: string;
   host_name: string;
 };
@@ -105,6 +107,7 @@ export default function App() {
     longitudeDelta: 0.12,
   });
   const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [pickedExactCoords, setPickedExactCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
   const [dateDraft, setDateDraft] = useState<Date>(new Date());
@@ -548,13 +551,12 @@ export default function App() {
     const raw = address.trim();
     if (!raw) return raw;
     const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
-    if (parts.length <= 1) return `~3 km area around ${raw}`;
+    if (parts.length <= 1) return `~3 km radius near ${raw}`;
 
-    const country = parts[parts.length - 1];
-    const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2) ?? parts[Math.max(0, parts.length - 2)];
-
-    if (!cityLike || cityLike === country) return `~3 km area around ${parts[0]}, ${country}`;
-    return `~3 km area around ${cityLike}, ${country}`;
+    const primary = parts[0];
+    const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2);
+    const label = cityLike ? `${primary}, ${cityLike}` : primary;
+    return `~3 km radius near ${label}`;
   };
 
   const applyPickedLocation = (value: string) => {
@@ -564,6 +566,7 @@ export default function App() {
       setShowAreaSuggestions(false);
     } else {
       setExactLocation(value);
+      if (mapPin) setPickedExactCoords(mapPin);
       setShowExactLocationSuggestions(false);
     }
     setMapPickerVisible(false);
@@ -573,6 +576,20 @@ export default function App() {
     const saved = (e.area ?? '').trim();
     if (saved.startsWith('~')) return saved;
     return toBroadArea(e.exact_location || saved);
+  };
+
+  const roughCoordsForEvent = (e: EventRow) => {
+    if (typeof e.exact_lat !== 'number' || typeof e.exact_lng !== 'number') return undefined;
+
+    const km = 2.2;
+    const angle = ((e.id % 360) * Math.PI) / 180;
+    const latOffset = (km / 111) * Math.cos(angle);
+    const lngOffset = (km / (111 * Math.cos((e.exact_lat * Math.PI) / 180))) * Math.sin(angle);
+
+    return {
+      latitude: e.exact_lat + latOffset,
+      longitude: e.exact_lng + lngOffset,
+    };
   };
 
   const areaSuggestions = useMemo(() => {
@@ -779,6 +796,8 @@ export default function App() {
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
       area: generatedArea,
       exact_location: exactLocation.trim(),
+      exact_lat: pickedExactCoords?.latitude ?? null,
+      exact_lng: pickedExactCoords?.longitude ?? null,
       exact_time: exactTime.trim(),
       host_name: currentUser.trim() || 'Anonymous',
     });
@@ -793,6 +812,7 @@ export default function App() {
     setExactLocation('');
     setShowAreaSuggestions(false);
     setShowExactLocationSuggestions(false);
+    setPickedExactCoords(null);
     setGoogleAreaSuggestions([]);
     setGoogleExactSuggestions([]);
     setExactTime('');
@@ -998,13 +1018,16 @@ export default function App() {
     return q.replace(/^~\s*\d+\s*km\s*area\s*around\s*/i, '').trim();
   };
 
-  const openMap = async (query: string) => {
+  const openMap = async (query: string, coords?: { latitude: number; longitude: number }) => {
     const q = sanitizeMapQuery(query);
-    if (!q) return setError('Location is empty.');
+    if (!q && !coords) return setError('Location is empty.');
 
-    const encoded = encodeURIComponent(q);
-    const googleWeb = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-    const appleWeb = `https://maps.apple.com/?q=${encoded}`;
+    const googleWeb = coords
+      ? `https://www.google.com/maps/search/?api=1&query=${coords.latitude},${coords.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+    const appleWeb = coords
+      ? `https://maps.apple.com/?ll=${coords.latitude},${coords.longitude}`
+      : `https://maps.apple.com/?q=${encodeURIComponent(q)}`;
 
     try {
       const canGoogle = await Linking.canOpenURL(googleWeb);
@@ -1390,7 +1413,19 @@ export default function App() {
               })()}
               <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
 
-              <TouchableOpacity style={styles.mapBtn} onPress={() => openMap(approved ? item.exact_location : publicAreaForEvent(item))}>
+              <TouchableOpacity
+                style={styles.mapBtn}
+                onPress={() =>
+                  openMap(
+                    approved ? item.exact_location : publicAreaForEvent(item),
+                    approved
+                      ? (typeof item.exact_lat === 'number' && typeof item.exact_lng === 'number'
+                          ? { latitude: item.exact_lat, longitude: item.exact_lng }
+                          : undefined)
+                      : roughCoordsForEvent(item)
+                  )
+                }
+              >
                 <Text style={styles.mapBtnText}>{approved ? 'Open exact location in map' : 'Open rough area in map'}</Text>
               </TouchableOpacity>
 

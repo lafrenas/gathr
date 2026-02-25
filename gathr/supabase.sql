@@ -6,6 +6,8 @@ create table if not exists public.events (
   category text not null,
   area text not null,
   exact_location text not null,
+  exact_lat double precision,
+  exact_lng double precision,
   exact_time text not null,
   host_name text not null,
   host_user_id uuid references auth.users(id)
