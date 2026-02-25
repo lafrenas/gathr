@@ -13,8 +13,22 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import MapView, { Marker, MapPressEvent, Region } from 'react-native-maps';
 import { supabase } from './lib/supabase';
+
+let MapViewComp: any = View;
+let MarkerComp: any = null;
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapViewComp = Maps.default;
+  MarkerComp = Maps.Marker;
+}
+
+type MapRegion = {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+};
 
 type EventRow = {
   id: number;
@@ -131,7 +145,7 @@ export default function App() {
   const [mapTargetField, setMapTargetField] = useState<'area' | 'exact'>('area');
   const [mapSearchQuery, setMapSearchQuery] = useState('');
   const [mapSearchSuggestions, setMapSearchSuggestions] = useState<string[]>([]);
-  const [mapRegion, setMapRegion] = useState<Region>({
+  const [mapRegion, setMapRegion] = useState<MapRegion>({
     latitude: 54.6872,
     longitude: 25.2797,
     latitudeDelta: 0.12,
@@ -2078,20 +2092,20 @@ export default function App() {
               <Text style={styles.meta}>Search above and tap a suggestion, then use "Use this location".</Text>
             </View>
           ) : (
-            <MapView
+            <MapViewComp
               style={styles.mapView}
               region={mapRegion}
               onRegionChangeComplete={setMapRegion}
-              onPress={(e: MapPressEvent) => setMapPin(e.nativeEvent.coordinate)}
+              onPress={(e: any) => setMapPin(e.nativeEvent.coordinate)}
             >
-              {mapPin && (
-                <Marker
+              {mapPin && MarkerComp ? (
+                <MarkerComp
                   coordinate={mapPin}
                   draggable
-                  onDragEnd={(e) => setMapPin(e.nativeEvent.coordinate)}
+                  onDragEnd={(e: any) => setMapPin(e.nativeEvent.coordinate)}
                 />
-              )}
-            </MapView>
+              ) : null}
+            </MapViewComp>
           )}
 
           <View style={styles.rowGap}>
