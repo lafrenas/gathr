@@ -2110,7 +2110,9 @@ export default function App() {
               <Text style={styles.meta}>No new notifications.</Text>
             ) : (
               notifications.map((n) => (
-                <Text key={n.key} style={styles.meta}>• {n.text}</Text>
+                <View key={n.key} style={styles.notificationItem}>
+                  <Text style={styles.notificationText}>{n.text}</Text>
+                </View>
               ))
             )}
           </>
@@ -2640,4 +2642,14 @@ const styles = StyleSheet.create({
   mapModalRoot: { flex: 1, backgroundColor: '#0b1220', padding: 12 },
   mapModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', marginTop: 8 },
+  notificationItem: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  notificationText: { color: '#e2e8f0' },
 });
