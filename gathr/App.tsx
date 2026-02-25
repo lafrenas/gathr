@@ -168,6 +168,7 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState<'All' | 'Sports' | 'Social' | 'Online'>('All');
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
   const [radiusKm, setRadiusKm] = useState<'any' | '2' | '5' | '10' | '25'>('any');
+  const [includeUnknownLocation, setIncludeUnknownLocation] = useState(true);
   const [inviteEventId, setInviteEventId] = useState<number | null>(null);
   const [inviteName, setInviteName] = useState('');
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
@@ -907,7 +908,7 @@ export default function App() {
       let radiusOk = true;
       if (radiusKm !== 'any') {
         if (!userCoords || typeof e.exact_lat !== 'number' || typeof e.exact_lng !== 'number') {
-          radiusOk = false;
+          radiusOk = includeUnknownLocation;
         } else {
           const d = distanceKm(userCoords, { latitude: e.exact_lat, longitude: e.exact_lng });
           radiusOk = d <= Number(radiusKm);
@@ -920,7 +921,7 @@ export default function App() {
       const haystack = `${e.title} ${e.description ?? ''} ${eventCategory} ${eventActivity} ${e.category} ${e.area} ${e.host_name}`.toLowerCase();
       return fuzzyMatch(q, haystack);
     });
-  }, [visibleEvents, searchQuery, filterCategory, timeFilter, radiusKm, userCoords]);
+  }, [visibleEvents, searchQuery, filterCategory, timeFilter, radiusKm, userCoords, includeUnknownLocation]);
 
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -1688,6 +1689,33 @@ export default function App() {
         {Platform.OS === 'web' ? (
           <>
             <Text style={styles.ratingLabel}>Date</Text>
+            <View style={styles.rowGapWrap}>
+              {[
+                { label: 'Today', addDays: 0 },
+                { label: 'Tomorrow', addDays: 1 },
+                { label: '+3 days', addDays: 3 },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={styles.chipBtn}
+                  onPress={() => {
+                    const base = new Date();
+                    base.setDate(base.getDate() + opt.addDays);
+                    const dPart = new Date(base.getTime() - base.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                    const tPart = webTimeInput || '12:00';
+                    setWebDateInput(dPart);
+                    if (!/^\d{2}:\d{2}$/.test(tPart)) return;
+                    const d = new Date(`${dPart}T${tPart}`);
+                    if (!Number.isFinite(d.getTime())) return;
+                    setEventDateTime(d);
+                    setExactTime(d.toISOString());
+                    setDateDraft(d);
+                  }}
+                >
+                  <Text style={styles.chipBtnText}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <TextInput
               style={styles.input}
               placeholder="YYYY-MM-DD"
@@ -1909,6 +1937,11 @@ export default function App() {
             </TouchableOpacity>
           ))}
         </View>
+        {radiusKm !== 'any' && (
+          <TouchableOpacity style={[styles.chipBtn, includeUnknownLocation && styles.chipBtnActive]} onPress={() => setIncludeUnknownLocation((v) => !v)}>
+            <Text style={styles.chipBtnText}>{includeUnknownLocation ? 'Including unknown locations' : 'Excluding unknown locations'}</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.meta}>Showing {filteredEvents.length} event(s)</Text>
         <TouchableOpacity style={styles.mapBtn} onPress={() => setShowAllEvents((v) => !v)}>
