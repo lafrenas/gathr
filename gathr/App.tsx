@@ -466,7 +466,6 @@ export default function App() {
         body: JSON.stringify({
           input,
           languageCode: 'en',
-          includedRegionCodes: ['lt', 'lv', 'ee', 'fr', 'gb'],
         }),
       });
 
@@ -568,6 +567,12 @@ export default function App() {
       setShowExactLocationSuggestions(false);
     }
     setMapPickerVisible(false);
+  };
+
+  const publicAreaForEvent = (e: EventRow) => {
+    const saved = (e.area ?? '').trim();
+    if (saved.startsWith('~')) return saved;
+    return toBroadArea(e.exact_location || saved);
   };
 
   const areaSuggestions = useMemo(() => {
@@ -1239,42 +1244,10 @@ export default function App() {
         )}
 
         <Text style={styles.meta}>Public area is auto-generated (~3 km radius) from exact location.</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Exact location (hidden until approved)"
-          placeholderTextColor="#9ca3af"
-          value={exactLocation}
-          onFocus={() => setShowExactLocationSuggestions(true)}
-          onChangeText={(t) => {
-            setExactLocation(t);
-            setShowExactLocationSuggestions(true);
-          }}
-        />
-        {showExactLocationSuggestions && (
-          <View style={styles.suggestionBox}>
-            {exactLocationSuggestions.length > 0 ? (
-              exactLocationSuggestions.map((s) => (
-                <TouchableOpacity
-                  key={`exact-${s}`}
-                  style={styles.suggestionItem}
-                  onPress={() => {
-                    setExactLocation(s);
-                    setShowExactLocationSuggestions(false);
-                  }}
-                >
-                  <Text style={styles.suggestionText}>{s}</Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.suggestionItem}>
-                <Text style={styles.suggestionText}>Start typing a street, city, or postcode…</Text>
-              </View>
-            )}
-          </View>
-        )}
         <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
-          <Text style={styles.mapBtnText}>Pick exact location on map</Text>
+          <Text style={styles.mapBtnText}>{exactLocation.trim() ? 'Change location on map' : 'Pick location on map'}</Text>
         </TouchableOpacity>
+        {!!exactLocation.trim() && <Text style={styles.meta}>Selected location: {exactLocation}</Text>}
 
         <TouchableOpacity
           style={styles.mapBtn}
@@ -1409,9 +1382,9 @@ export default function App() {
                   </>
                 );
               })()}
-              <Text style={styles.meta}>Area: {item.area}</Text>
+              <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
 
-              <TouchableOpacity style={styles.mapBtn} onPress={() => openMap(approved ? item.exact_location : item.area)}>
+              <TouchableOpacity style={styles.mapBtn} onPress={() => openMap(approved ? item.exact_location : publicAreaForEvent(item))}>
                 <Text style={styles.mapBtnText}>{approved ? 'Open exact location in map' : 'Open rough area in map'}</Text>
               </TouchableOpacity>
 
