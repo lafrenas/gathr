@@ -436,6 +436,13 @@ export default function App() {
     );
   }, [events, requests, currentUser]);
 
+  const myInviteInbox = useMemo(() => {
+    const me = currentUser.trim().toLowerCase();
+    return requests
+      .filter((r) => r.requester_name.toLowerCase() === me && r.invite_source !== 'self')
+      .sort((a, b) => b.id - a.id);
+  }, [requests, currentUser]);
+
   const blockedByMe = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
     return new Set(blocks.filter((b) => b.blocker_name.toLowerCase() === me).map((b) => b.blocked_name.toLowerCase()));
@@ -1660,6 +1667,40 @@ export default function App() {
                     <Text style={styles.approveBtnText}>Reject</Text>
                   </TouchableOpacity>
                 </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {myInviteInbox.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Invites inbox</Text>
+          {myInviteInbox.map((r) => {
+            const ev = events.find((e) => e.id === r.event_id);
+            const statusLabel =
+              r.status === 'approved'
+                ? 'Approved ✅'
+                : r.status === 'rejected'
+                ? 'Declined/Rejected'
+                : r.invite_response === 'accepted'
+                ? 'Accepted • waiting host approval'
+                : 'Pending your response';
+            return (
+              <View key={`inbox-${r.id}`} style={styles.pendingItem}>
+                <Text style={styles.eventTitle}>{ev?.title ?? 'Event'}</Text>
+                <Text style={styles.meta}>From: {r.invited_by_name || (r.invite_source === 'host' ? 'Host' : 'Member')}</Text>
+                <Text style={styles.meta}>Status: {statusLabel}</Text>
+                {r.status === 'pending' && r.invite_response === 'pending' && (
+                  <View style={styles.rowGap}>
+                    <TouchableOpacity style={styles.approveBtn} onPress={() => respondToInvite(r.id, true)}>
+                      <Text style={styles.approveBtnText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.rejectBtn} onPress={() => respondToInvite(r.id, false)}>
+                      <Text style={styles.approveBtnText}>Decline</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           })}
