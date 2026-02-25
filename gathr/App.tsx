@@ -35,7 +35,9 @@ type JoinRequestRow = {
   event_id: number;
   requester_name: string;
   status: 'pending' | 'approved' | 'rejected';
-  invite_source?: 'host' | 'self';
+  invite_source?: 'host' | 'self' | 'member';
+  invited_by_name?: string | null;
+  invite_response?: 'pending' | 'accepted' | 'declined';
 };
 
 type EventRatingRow = {
@@ -391,7 +393,12 @@ export default function App() {
     const hostedEventIds = new Set(
       events.filter((e) => e.host_name.toLowerCase() === currentUser.trim().toLowerCase()).map((e) => e.id)
     );
-    return requests.filter((r) => r.status === 'pending' && hostedEventIds.has(r.event_id));
+    return requests.filter(
+      (r) =>
+        r.status === 'pending' &&
+        hostedEventIds.has(r.event_id) &&
+        (r.invite_source === 'self' || r.invite_response === 'accepted')
+    );
   }, [events, requests, currentUser]);
 
   const blockedByMe = useMemo(() => {
@@ -925,6 +932,7 @@ export default function App() {
       requester_name: name,
       status: 'pending',
       invite_source: 'self',
+      invite_response: 'accepted',
     });
 
     if (error) return setError(error.message);
@@ -932,15 +940,22 @@ export default function App() {
   };
 
   const inviteUserToEvent = async () => {
-    const host = currentUser.trim();
+    const inviter = currentUser.trim();
     const target = inviteName.trim();
     const eventId = inviteEventId;
-    if (!host || !target || !eventId) return;
-    if (host.toLowerCase() === target.toLowerCase()) return setError('You cannot invite yourself.');
+    if (!inviter || !target || !eventId) return;
+    if (inviter.toLowerCase() === target.toLowerCase()) return setError('You cannot invite yourself.');
 
     const ev = events.find((e) => e.id === eventId);
-    if (!ev || ev.host_name.toLowerCase() !== host.toLowerCase()) {
-      return setError('Only event host can invite.');
+    if (!ev) return setError('Event not found.');
+
+    const isHostInviter = ev.host_name.toLowerCase() === inviter.toLowerCase();
+    const isApprovedAttendee = requests.some(
+      (r) => r.event_id === eventId && r.requester_name.toLowerCase() === inviter.toLowerCase() && r.status === 'approved'
+    );
+
+    if (!isHostInviter && !isApprovedAttendee) {
+      return setError('Only host or approved attendee can invite.');
     }
 
     const required = Number(ev.required_people ?? 0);
@@ -949,6 +964,7 @@ export default function App() {
 
     setError(null);
 
+    const source: 'host' | 'member' = isHostInviter ? 'host' : 'member';
     const existing = requests.find(
       (r) => r.event_id === eventId && r.requester_name.toLowerCase() === target.toLowerCase()
     );
@@ -956,7 +972,7 @@ export default function App() {
     if (existing) {
       const { error } = await supabase
         .from('join_requests')
-        .update({ status: 'pending', invite_source: 'host' })
+        .update({ status: 'pending', invite_source: source, invited_by_name: inviter, invite_response: 'pending' })
         .eq('id', existing.id);
       if (error) return setError(error.message);
     } else {
@@ -964,7 +980,9 @@ export default function App() {
         event_id: eventId,
         requester_name: target,
         status: 'pending',
-        invite_source: 'host',
+        invite_source: source,
+        invited_by_name: inviter,
+        invite_response: 'pending',
       });
       if (error) return setError(error.message);
     }
@@ -974,12 +992,25 @@ export default function App() {
     await loadData();
   };
 
+  const respondToInvite = async (requestId: number, accept: boolean) => {
+    const payload = accept
+      ? { invite_response: 'accepted' as const, status: 'pending' as const }
+      : { invite_response: 'declined' as const, status: 'rejected' as const };
+
+    const { error } = await supabase.from('join_requests').update(payload).eq('id', requestId);
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
   const setRequestStatus = async (requestId: number, status: 'approved' | 'rejected') => {
     setError(null);
 
     if (status === 'approved') {
       const req = requests.find((r) => r.id === requestId);
       if (req) {
+        if (req.invite_source !== 'self' && req.invite_response !== 'accepted') {
+          return setError('Invitee must accept invitation before host approval.');
+        }
         const event = events.find((e) => e.id === req.event_id);
         const required = Number(event?.required_people ?? 0);
         if (required > 0) {
@@ -1491,7 +1522,7 @@ export default function App() {
             return (
               <View key={r.id} style={styles.pendingItem}>
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
-                <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : 'User request'}</Text>
+                <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : r.invite_source === 'member' ? `Member invite (${r.invited_by_name || 'member'})` : 'User request'}</Text>
                 <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
                 <View style={styles.rowGap}>
                   {!isFull ? (
@@ -1635,7 +1666,7 @@ export default function App() {
                 <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setSelectedHost(item.host_name)}>
                   <Text style={styles.mapBtnText}>Host profile</Text>
                 </TouchableOpacity>
-                {isHost ? (
+                {isHost || myReq?.status === 'approved' ? (
                   <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={() => setInviteEventId(item.id)}>
                     <Text style={styles.approveBtnText}>Invite people</Text>
                   </TouchableOpacity>
@@ -1669,9 +1700,23 @@ export default function App() {
               {!isHost && !myReq && isFull && <Text style={styles.rejectedText}>Event full</Text>}
 
               {!isHost && myReq?.status === 'pending' && (
-                <Text style={styles.pendingText}>
-                  {myReq.invite_source === 'host' ? 'You were invited. Awaiting host approval…' : 'Request pending host approval…'}
-                </Text>
+                myReq.invite_source !== 'self' && myReq.invite_response === 'pending' ? (
+                  <View>
+                    <Text style={styles.pendingText}>You were invited by {myReq.invited_by_name || 'a member'}.</Text>
+                    <View style={styles.rowGap}>
+                      <TouchableOpacity style={styles.approveBtn} onPress={() => respondToInvite(myReq.id, true)}>
+                        <Text style={styles.approveBtnText}>Accept invite</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.rejectBtn} onPress={() => respondToInvite(myReq.id, false)}>
+                        <Text style={styles.approveBtnText}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.pendingText}>
+                    {myReq.invite_source === 'self' ? 'Request pending host approval…' : 'Invite accepted. Awaiting host approval…'}
+                  </Text>
+                )
               )}
               {!isHost && myReq?.status === 'approved' && <Text style={styles.approvedText}>Approved ✅</Text>}
               {!isHost && myReq?.status === 'rejected' && <Text style={styles.rejectedText}>Request rejected</Text>}
