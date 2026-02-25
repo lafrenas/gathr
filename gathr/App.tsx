@@ -456,7 +456,7 @@ export default function App() {
     if (!key || input.trim().length < 2) return [] as string[];
 
     try {
-      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+      const autoRes = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -470,16 +470,40 @@ export default function App() {
         }),
       });
 
-      const json = await res.json();
-      const suggestions = Array.isArray(json?.suggestions) ? json.suggestions : [];
+      const autoJson = await autoRes.json();
+      const autoSuggestions = Array.isArray(autoJson?.suggestions) ? autoJson.suggestions : [];
 
-      const list: string[] = suggestions
+      const autoList: string[] = autoSuggestions
         .map((s: { placePrediction?: { text?: { text?: string } }; queryPrediction?: { text?: { text?: string } } }) =>
           (s.placePrediction?.text?.text ?? s.queryPrediction?.text?.text ?? '').trim()
         )
         .filter(Boolean);
 
-      return Array.from(new Set(list)).slice(0, 8);
+      if (autoList.length > 0) return Array.from(new Set(autoList)).slice(0, 8);
+
+      const textRes = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress',
+        },
+        body: JSON.stringify({
+          textQuery: input,
+          languageCode: 'en',
+          regionCode: 'LT',
+        }),
+      });
+
+      const textJson = await textRes.json();
+      const textPlaces = Array.isArray(textJson?.places) ? textJson.places : [];
+      const textList: string[] = textPlaces
+        .map((p: { displayName?: { text?: string }; formattedAddress?: string }) =>
+          (p.formattedAddress ?? p.displayName?.text ?? '').trim()
+        )
+        .filter(Boolean);
+
+      return Array.from(new Set(textList)).slice(0, 8);
     } catch {
       return [] as string[];
     }
