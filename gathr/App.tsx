@@ -585,7 +585,11 @@ export default function App() {
   const toBroadArea = (address: string) => {
     const raw = address.trim();
     if (!raw) return raw;
-    return 'Approx area';
+
+    const first = raw.split(',')[0]?.trim() || raw;
+    const withoutNumber = first.replace(/\b\d+[A-Za-z\-/]*\b/g, '').replace(/\s{2,}/g, ' ').trim();
+    const label = withoutNumber || first;
+    return `${label} area`;
   };
 
   const zoneLabelFromCoords = (latitude: number, longitude: number) => {
@@ -639,7 +643,6 @@ export default function App() {
   const publicAreaForEvent = (e: EventRow) => {
     const saved = (e.area ?? '').trim();
     if (!saved) return toBroadArea(e.exact_location || saved);
-    if (/^Area\s+[A-Z0-9]+\s*\(~?2km\)/i.test(saved)) return 'Nearby area (approx)';
     return saved;
   };
 
@@ -853,9 +856,7 @@ export default function App() {
     if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
     const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
-    const generatedArea = resolvedCoords
-      ? (await broadAreaFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)) || 'Nearby area (approx)'
-      : toBroadArea(exactLocation.trim());
+    const generatedArea = toBroadArea(exactLocation.trim());
 
     setError(null);
     const { error } = await supabase.from('events').insert({
