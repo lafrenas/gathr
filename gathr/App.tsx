@@ -1984,23 +1984,27 @@ export default function App() {
         />
         <Text style={styles.ratingLabel}>Participants</Text>
         <Text style={styles.ratingHelp}>Set minimum and optional maximum participants.</Text>
+        <Text style={styles.ratingLabel}>Min people</Text>
         <TextInput
           style={styles.input}
-          placeholder="Min people (e.g. 2)"
+          placeholder="e.g. 2"
           placeholderTextColor="#9ca3af"
           keyboardType="number-pad"
           value={minPeople}
           onChangeText={setMinPeople}
         />
         {!noMax && (
-          <TextInput
-            style={styles.input}
-            placeholder="Max people (e.g. 8)"
-            placeholderTextColor="#9ca3af"
-            keyboardType="number-pad"
-            value={maxPeople}
-            onChangeText={setMaxPeople}
-          />
+          <>
+            <Text style={styles.ratingLabel}>Max people</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 8"
+              placeholderTextColor="#9ca3af"
+              keyboardType="number-pad"
+              value={maxPeople}
+              onChangeText={setMaxPeople}
+            />
+          </>
         )}
         <TouchableOpacity style={[styles.chipBtn, noMax && styles.chipBtnActive]} onPress={() => setNoMax((v) => !v)}>
           <Text style={styles.chipBtnText}>{noMax ? 'No max: ON' : 'No max: OFF'}</Text>
