@@ -284,18 +284,52 @@ export default function App() {
     return matched.slice(0, 8);
   }, [events, area]);
 
+  const levenshtein = (a: string, b: string) => {
+    const m = a.length;
+    const n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+
+    const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      let prev = dp[0];
+      dp[0] = i;
+      for (let j = 1; j <= n; j++) {
+        const temp = dp[j];
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+        prev = temp;
+      }
+    }
+    return dp[n];
+  };
+
+  const fuzzyMatch = (query: string, text: string) => {
+    const q = query.trim().toLowerCase();
+    const t = text.toLowerCase();
+    if (!q) return true;
+    if (t.includes(q)) return true;
+
+    const qWords = q.split(/\s+/).filter(Boolean);
+    const words = t.split(/[^a-z0-9]+/).filter(Boolean);
+
+    return qWords.every((qw) =>
+      words.some((w) => w.startsWith(qw) || levenshtein(qw, w) <= (qw.length >= 6 ? 2 : 1))
+    );
+  };
+
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
     return visibleEvents.filter((e) => {
-      const [eventCategory = ''] = e.category.split(':');
+      const [eventCategory = '', eventActivity = ''] = e.category.split(':');
       const catOk = filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
       const timeOk = matchesTimeFilter(e.exact_time, timeFilter);
       if (!catOk || !timeOk) return false;
       if (!q) return true;
 
-      const haystack = `${e.title} ${e.description ?? ''} ${e.category} ${e.area} ${e.host_name}`.toLowerCase();
-      return haystack.includes(q);
+      const haystack = `${e.title} ${e.description ?? ''} ${eventCategory} ${eventActivity} ${e.category} ${e.area} ${e.host_name}`.toLowerCase();
+      return fuzzyMatch(q, haystack);
     });
   }, [visibleEvents, searchQuery, filterCategory, timeFilter]);
 
