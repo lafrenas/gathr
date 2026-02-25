@@ -443,7 +443,7 @@ export default function App() {
   const exactClockWeb = exactTimeWebLocal ? exactTimeWebLocal.slice(11, 16) : '';
   const [webDateInput, setWebDateInput] = useState(exactDateWeb);
   const [webTimeInput, setWebTimeInput] = useState(exactClockWeb);
-  const [webPicker, setWebPicker] = useState<'none' | 'year' | 'month' | 'day'>('none');
+  const [webPicker, setWebPicker] = useState<'none' | 'date'>('none');
 
   const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -1726,17 +1726,20 @@ export default function App() {
               return (
                 <>
                   <Text style={styles.ratingLabel}>Date</Text>
-                  <View style={styles.rowGapWrap}>
-                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'year' ? 'none' : 'year')}><Text style={styles.chipBtnText}>Year: {p.y}</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'month' ? 'none' : 'month')}><Text style={styles.chipBtnText}>Month: {p.m}</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'day' ? 'none' : 'day')}><Text style={styles.chipBtnText}>Day: {p.d}</Text></TouchableOpacity>
-                  </View>
+                  <TouchableOpacity style={styles.mapBtn} onPress={() => setWebPicker(webPicker === 'date' ? 'none' : 'date')}>
+                    <Text style={styles.mapBtnText}>{webDateInput || 'Select date'}</Text>
+                  </TouchableOpacity>
 
-                  {webPicker === 'year' && <View style={styles.rowGapWrap}>{years.map((y) => <TouchableOpacity key={`y-${y}`} style={[styles.chipBtn, p.y === y && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, y })}><Text style={styles.chipBtnText}>{y}</Text></TouchableOpacity>)}</View>}
-                  {webPicker === 'month' && <View style={styles.rowGapWrap}>{months.map((m) => <TouchableOpacity key={`m-${m}`} style={[styles.chipBtn, p.m === m && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, m })}><Text style={styles.chipBtnText}>{m}</Text></TouchableOpacity>)}</View>}
-                  {webPicker === 'day' && <View style={styles.rowGapWrap}>{days.map((d) => <TouchableOpacity key={`d-${d}`} style={[styles.chipBtn, p.d === d && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, d })}><Text style={styles.chipBtnText}>{d}</Text></TouchableOpacity>)}</View>}
-
-                  <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor="#9ca3af" value={webDateInput} onChangeText={setWebDateInput} />
+                  {webPicker === 'date' && (
+                    <>
+                      <Text style={styles.meta}>Year</Text>
+                      <View style={styles.rowGapWrap}>{years.map((y) => <TouchableOpacity key={`y-${y}`} style={[styles.chipBtn, p.y === y && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, y })}><Text style={styles.chipBtnText}>{y}</Text></TouchableOpacity>)}</View>
+                      <Text style={styles.meta}>Month</Text>
+                      <View style={styles.rowGapWrap}>{months.map((m) => <TouchableOpacity key={`m-${m}`} style={[styles.chipBtn, p.m === m && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, m })}><Text style={styles.chipBtnText}>{m}</Text></TouchableOpacity>)}</View>
+                      <Text style={styles.meta}>Day</Text>
+                      <View style={styles.rowGapWrap}>{days.map((d) => <TouchableOpacity key={`d-${d}`} style={[styles.chipBtn, p.d === d && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, d })}><Text style={styles.chipBtnText}>{d}</Text></TouchableOpacity>)}</View>
+                    </>
+                  )}
                   <TextInput style={styles.input} placeholder="HH:mm" placeholderTextColor="#9ca3af" value={webTimeInput} onChangeText={setWebTimeInput} />
                   <TouchableOpacity style={styles.mapBtn} onPress={() => {
                     const d = new Date(`${webDateInput}T${webTimeInput}`);
