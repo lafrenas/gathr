@@ -1367,7 +1367,6 @@ export default function App() {
 
     const event = events.find((e) => e.id === eventId);
     if (!event) return setError('Event not found.');
-    if (!hasEventEnded(event.exact_time)) return setError('Activity rating unlocks after event end time.');
 
     const score = Number(activityScore);
     if (!Number.isInteger(score) || score < 1 || score > 5) return setError('Activity score must be 1-5.');
@@ -2350,15 +2349,15 @@ export default function App() {
                 );
               })()}
 
-              {approved && hasEventEnded(item.exact_time) && (() => {
+              {approved && (() => {
                 const alreadyRatedActivity = activityRatings.some(
                   (ar) => ar.event_id === item.id && ar.rater_name.toLowerCase() === currentUser.trim().toLowerCase()
                 );
                 return alreadyRatedActivity ? (
                   <Text style={styles.approvedText}>You rated this activity ✅</Text>
                 ) : (
-                  <TouchableOpacity style={styles.mapBtn} onPress={() => setActivityRatingEventId(item.id)}>
-                    <Text style={styles.mapBtnText}>Rate activity quality</Text>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => setActivityRatingEventId(item.id)}>
+                    <Text style={styles.approveBtnText}>Rate activity quality</Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -2498,8 +2497,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
   },
-  cardTitle: { color: '#f9fafb', fontWeight: '700', marginBottom: 10 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTitle: { color: '#93c5fd', fontWeight: '800', marginBottom: 10 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.65)', justifyContent: 'center', padding: 16 },
   modalCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 12, maxHeight: '70%' },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 6 },
