@@ -549,13 +549,13 @@ export default function App() {
     const raw = address.trim();
     if (!raw) return raw;
     const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
-    if (parts.length <= 1) return raw;
+    if (parts.length <= 1) return `~3 km area around ${raw}`;
 
     const country = parts[parts.length - 1];
     const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2) ?? parts[Math.max(0, parts.length - 2)];
 
-    if (!cityLike || cityLike === country) return `${parts[0]}, ${country}`;
-    return `${cityLike}, ${country}`;
+    if (!cityLike || cityLike === country) return `~3 km area around ${parts[0]}, ${country}`;
+    return `~3 km area around ${cityLike}, ${country}`;
   };
 
   const applyPickedLocation = (value: string) => {
@@ -763,14 +763,16 @@ export default function App() {
   }, [ratings]);
 
   const createEvent = async () => {
-    if (!title.trim() || !area.trim() || !exactLocation.trim() || !exactTime.trim()) return;
+    if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
+
+    const generatedArea = toBroadArea(exactLocation.trim());
 
     setError(null);
     const { error } = await supabase.from('events').insert({
       title: title.trim(),
       description: description.trim() || null,
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
-      area: area.trim(),
+      area: generatedArea,
       exact_location: exactLocation.trim(),
       exact_time: exactTime.trim(),
       host_name: currentUser.trim() || 'Anonymous',
@@ -1236,45 +1238,10 @@ export default function App() {
           </View>
         )}
 
+        <Text style={styles.meta}>Public area is auto-generated (~3 km radius) from exact location.</Text>
         <TextInput
           style={styles.input}
-          placeholder="Public area or postcode (shown to everyone)"
-          placeholderTextColor="#9ca3af"
-          value={area}
-          onFocus={() => setShowAreaSuggestions(true)}
-          onChangeText={(t) => {
-            setArea(t);
-            setShowAreaSuggestions(true);
-          }}
-        />
-        {showAreaSuggestions && (
-          <View style={styles.suggestionBox}>
-            {areaSuggestions.length > 0 ? (
-              areaSuggestions.map((s) => (
-                <TouchableOpacity
-                  key={`area-${s}`}
-                  style={styles.suggestionItem}
-                  onPress={() => {
-                    setArea(s);
-                    setShowAreaSuggestions(false);
-                  }}
-                >
-                  <Text style={styles.suggestionText}>{s}</Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.suggestionItem}>
-                <Text style={styles.suggestionText}>No matches yet. Try postcode like E1 or area like Camden.</Text>
-              </View>
-            )}
-          </View>
-        )}
-        <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('area')}>
-          <Text style={styles.mapBtnText}>Pick public area on map</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={styles.input}
-          placeholder="Exact location (approved only)"
+          placeholder="Exact location (hidden until approved)"
           placeholderTextColor="#9ca3af"
           value={exactLocation}
           onFocus={() => setShowExactLocationSuggestions(true)}
