@@ -177,6 +177,7 @@ export default function App() {
   const [showLeaderboardSection, setShowLeaderboardSection] = useState(false);
   const [showNotificationsSection, setShowNotificationsSection] = useState(true);
   const [notificationTargetEventId, setNotificationTargetEventId] = useState<number | null>(null);
+  const [notificationDetailEventId, setNotificationDetailEventId] = useState<number | null>(null);
   const [showMapBrowse, setShowMapBrowse] = useState(false);
   const [mapBrowseSelectedEventId, setMapBrowseSelectedEventId] = useState<number | null>(null);
   const [mapBrowseGlobal, setMapBrowseGlobal] = useState(false);
@@ -2117,6 +2118,7 @@ export default function App() {
                   onPress={() => {
                     if (n.eventId) {
                       setNotificationTargetEventId(n.eventId);
+                      setNotificationDetailEventId(n.eventId);
                       setShowFeedSection(true);
                     }
                     if (n.kind === 'invite') setShowInvitesSection(true);
@@ -2460,6 +2462,48 @@ export default function App() {
       </View>
       )}
       </ScrollView>
+
+      <Modal visible={!!notificationDetailEventId} animationType="slide" onRequestClose={() => setNotificationDetailEventId(null)}>
+        <SafeAreaView style={styles.mapModalRoot}>
+          {(() => {
+            const ev = events.find((e) => e.id === notificationDetailEventId);
+            if (!ev) return <Text style={styles.meta}>Event not found.</Text>;
+
+            const approvedAttendees = requests
+              .filter((r) => r.event_id === ev.id && r.status === 'approved')
+              .map((r) => r.requester_name)
+              .filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+            const participants = [ev.host_name, ...approvedAttendees].filter(
+              (n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i
+            );
+
+            return (
+              <>
+                <View style={styles.mapModalHeader}>
+                  <Text style={styles.cardTitle}>{ev.title}</Text>
+                  <TouchableOpacity style={styles.rejectBtn} onPress={() => setNotificationDetailEventId(null)}>
+                    <Text style={styles.approveBtnText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                {!!ev.description?.trim() && <Text style={styles.meta}>{ev.description}</Text>}
+                <Text style={styles.meta}>When: {new Date(ev.exact_time).toLocaleString()}</Text>
+                <Text style={styles.meta}>Approx location: {publicAreaForEvent(ev)}</Text>
+                <Text style={styles.meta}>Capacity: {participants.length}/{Number(ev.required_people ?? 0) || '?'}</Text>
+
+                <Text style={[styles.cardTitle, { marginTop: 10 }]}>Participants</Text>
+                {participants.map((name) => {
+                  const stat = userRatingStats[name.toLowerCase()];
+                  return (
+                    <Text key={`nd-${ev.id}-${name}`} style={styles.meta}>
+                      • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count}) • Skill ⭐ ${stat.skill.toFixed(1)}` : '  New'}
+                    </Text>
+                  );
+                })}
+              </>
+            );
+          })()}
+        </SafeAreaView>
+      </Modal>
 
       <Modal visible={showMapBrowse} animationType="slide" onRequestClose={() => setShowMapBrowse(false)}>
         <SafeAreaView style={styles.mapModalRoot}>
