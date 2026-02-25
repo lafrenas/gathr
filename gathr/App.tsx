@@ -65,6 +65,8 @@ export default function App() {
   const [blocks, setBlocks] = useState<UserBlockRow[]>([]);
   const [reports, setReports] = useState<UserReportRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('Harassment');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('Basketball');
@@ -144,6 +146,11 @@ export default function App() {
   const blockedByMe = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
     return new Set(blocks.filter((b) => b.blocker_name.toLowerCase() === me).map((b) => b.blocked_name.toLowerCase()));
+  }, [blocks, currentUser]);
+
+  const blockedList = useMemo(() => {
+    const me = currentUser.trim().toLowerCase();
+    return blocks.filter((b) => b.blocker_name.toLowerCase() === me);
   }, [blocks, currentUser]);
 
   const visibleEvents = useMemo(() => {
@@ -301,14 +308,14 @@ export default function App() {
     await loadData();
   };
 
-  const reportHost = async (hostName: string) => {
+  const reportHost = async (hostName: string, reason: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
     setError(null);
     const { error } = await supabase.from('user_reports').insert({
       reporter_name: me,
       reported_name: hostName,
-      reason: 'General safety concern',
+      reason: reason.trim() || 'General safety concern',
     });
     if (error) return setError(error.message);
     await loadData();
@@ -322,6 +329,19 @@ export default function App() {
       { blocker_name: me, blocked_name: hostName },
       { onConflict: 'blocker_name,blocked_name' }
     );
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
+  const unblockHost = async (hostName: string) => {
+    const me = currentUser.trim();
+    if (!me) return;
+    setError(null);
+    const { error } = await supabase
+      .from('user_blocks')
+      .delete()
+      .eq('blocker_name', me)
+      .eq('blocked_name', hostName);
     if (error) return setError(error.message);
     await loadData();
   };
@@ -423,6 +443,52 @@ export default function App() {
           <TouchableOpacity style={styles.mapBtn} onPress={() => setSelectedHost(null)}>
             <Text style={styles.mapBtnText}>Close profile</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {reportTarget && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Report host: {reportTarget}</Text>
+          <Text style={styles.ratingHelp}>Choose reason</Text>
+          <View style={styles.rowGapWrap}>
+            {['Harassment', 'No-show', 'Unsafe behavior', 'Spam', 'Other'].map((reason) => (
+              <TouchableOpacity
+                key={reason}
+                style={[styles.chipBtn, reportReason === reason && styles.chipBtnActive]}
+                onPress={() => setReportReason(reason)}
+              >
+                <Text style={styles.chipBtnText}>{reason}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.rowGap}>
+            <TouchableOpacity
+              style={[styles.rejectBtn, { flex: 1 }]}
+              onPress={async () => {
+                await reportHost(reportTarget, reportReason);
+                setReportTarget(null);
+              }}
+            >
+              <Text style={styles.approveBtnText}>Submit report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setReportTarget(null)}>
+              <Text style={styles.mapBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {blockedList.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Blocked hosts</Text>
+          {blockedList.map((b) => (
+            <View key={b.id} style={styles.rowGap}>
+              <Text style={[styles.meta, { flex: 1 }]}>{b.blocked_name}</Text>
+              <TouchableOpacity style={styles.mapBtn} onPress={() => unblockHost(b.blocked_name)}>
+                <Text style={styles.mapBtnText}>Unblock</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
       )}
 
@@ -581,7 +647,7 @@ export default function App() {
                   <Text style={styles.mapBtnText}>Host profile</Text>
                 </TouchableOpacity>
                 {!isHost && (
-                  <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => reportHost(item.host_name)}>
+                  <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setReportTarget(item.host_name)}>
                     <Text style={styles.approveBtnText}>Report</Text>
                   </TouchableOpacity>
                 )}
