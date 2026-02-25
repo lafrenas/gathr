@@ -105,6 +105,13 @@ type ActivityRatingRow = {
   comment?: string | null;
 };
 
+type ModerationStatusRow = {
+  id: number;
+  user_name: string;
+  status: 'watchlist' | 'reviewed' | 'clear';
+  note?: string | null;
+};
+
 export default function App() {
   const testUsers = ['1', '2', '3', '4', '5'];
   const [currentUser, setCurrentUser] = useState('1');
@@ -117,6 +124,7 @@ export default function App() {
   const [profiles, setProfiles] = useState<UserProfileRow[]>([]);
   const [ratingSkips, setRatingSkips] = useState<RatingSkipRow[]>([]);
   const [activityRatings, setActivityRatings] = useState<ActivityRatingRow[]>([]);
+  const [moderationStatuses, setModerationStatuses] = useState<ModerationStatusRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
@@ -175,6 +183,7 @@ export default function App() {
   const [showInvitesSection, setShowInvitesSection] = useState(true);
   const [showFeedSection, setShowFeedSection] = useState(true);
   const [showLeaderboardSection, setShowLeaderboardSection] = useState(false);
+  const [showModerationSection, setShowModerationSection] = useState(false);
   const [showNotificationsSection, setShowNotificationsSection] = useState(true);
   const [notificationTargetEventId, setNotificationTargetEventId] = useState<number | null>(null);
   const [notificationDetailEventId, setNotificationDetailEventId] = useState<number | null>(null);
@@ -279,6 +288,11 @@ export default function App() {
       setActivityRatings((arData ?? []) as ActivityRatingRow[]);
     }
 
+    const { data: modData, error: modError } = await supabase.from('user_moderation_status').select('*').order('id', { ascending: false });
+    if (!modError) {
+      setModerationStatuses((modData ?? []) as ModerationStatusRow[]);
+    }
+
     setBusy(false);
   };
 
@@ -294,6 +308,7 @@ export default function App() {
     setShowInvitesSection(false);
     setShowFeedSection(false);
     setShowLeaderboardSection(false);
+    setShowModerationSection(false);
     setShowNotificationsSection(false);
   };
 
@@ -1108,6 +1123,28 @@ export default function App() {
     return byEvent;
   }, [events, activityRatings]);
 
+  const moderationQueue = useMemo(() => {
+    const byReported: Record<string, { count: number; latestReason: string }> = {};
+    for (const r of reports) {
+      const key = r.reported_name.trim().toLowerCase();
+      const prev = byReported[key] || { count: 0, latestReason: r.reason };
+      byReported[key] = { count: prev.count + 1, latestReason: r.reason || prev.latestReason };
+    }
+
+    return Object.entries(byReported)
+      .map(([k, v]) => {
+        const status = moderationStatuses.find((m) => m.user_name.toLowerCase() === k);
+        return {
+          user_name: k,
+          count: v.count,
+          latestReason: v.latestReason,
+          status: status?.status || 'watchlist',
+          note: status?.note || '',
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+  }, [reports, moderationStatuses]);
+
   const onlineGameLeaderboard = useMemo(() => {
     const onlineEventById: Record<number, string> = {};
     for (const e of events) {
@@ -1477,6 +1514,21 @@ export default function App() {
 
     const people = [hostName, ...approvedAttendees].filter((n) => n.toLowerCase() !== me);
     return people;
+  };
+
+  const setModerationStatus = async (userName: string, status: 'watchlist' | 'reviewed' | 'clear') => {
+    const admin = currentUser.trim();
+    if (admin !== '1') return setError('Admin only.');
+
+    const { error } = await supabase.from('user_moderation_status').upsert(
+      {
+        user_name: userName,
+        status,
+      },
+      { onConflict: 'user_name' }
+    );
+    if (error) return setError(error.message);
+    await loadData();
   };
 
   const submitActivityRating = async () => {
@@ -2249,6 +2301,41 @@ export default function App() {
           </>
         )}
       </View>
+
+      {currentUser.trim() === '1' && (
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowModerationSection((v) => !v)}>
+            <Text style={styles.cardTitle}>Moderation dashboard</Text>
+            <Text style={styles.meta}>{showModerationSection ? '▾' : '▸'}</Text>
+          </TouchableOpacity>
+          {showModerationSection && (
+            <>
+              {moderationQueue.length === 0 ? (
+                <Text style={styles.meta}>No reports yet.</Text>
+              ) : (
+                moderationQueue.map((m) => (
+                  <View key={`mod-${m.user_name}`} style={styles.pendingItem}>
+                    <Text style={styles.eventTitle}>{m.user_name}</Text>
+                    <Text style={styles.meta}>Reports: {m.count} • Latest: {m.latestReason}</Text>
+                    <Text style={styles.meta}>Status: {m.status}</Text>
+                    <View style={styles.rowGapWrap}>
+                      <TouchableOpacity style={[styles.chipBtn, m.status === 'watchlist' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'watchlist')}>
+                        <Text style={styles.chipBtnText}>Watchlist</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.chipBtn, m.status === 'reviewed' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'reviewed')}>
+                        <Text style={styles.chipBtnText}>Reviewed</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.chipBtn, m.status === 'clear' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'clear')}>
+                        <Text style={styles.chipBtnText}>Clear</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </>
+          )}
+        </View>
+      )}
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowLeaderboardSection((v) => !v)}>
