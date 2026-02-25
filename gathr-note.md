@@ -19,3 +19,9 @@
 - Host should be able to invite people.
 - Members should also be able to request/invite attendance, but host approval is still required.
 - Activities should include the required number of people.
+- Activity search should support multiple options:
+  - Free-text search bar (user types what they want).
+  - Filter by category + location + radius.
+  - Filter by location + radius only, to see all activities happening nearby at the selected time.
+- Time filters should include options like: today, tomorrow, this week, etc.
+- Users should also be able to browse a map view to see activities roughly in the area.
