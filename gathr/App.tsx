@@ -163,6 +163,7 @@ export default function App() {
   const [showPendingSection, setShowPendingSection] = useState(false);
   const [showInvitesSection, setShowInvitesSection] = useState(true);
   const [showFeedSection, setShowFeedSection] = useState(true);
+  const [showLeaderboardSection, setShowLeaderboardSection] = useState(false);
   const [showMapBrowse, setShowMapBrowse] = useState(false);
   const [mapBrowseSelectedEventId, setMapBrowseSelectedEventId] = useState<number | null>(null);
   const [mapBrowseGlobal, setMapBrowseGlobal] = useState(false);
@@ -979,6 +980,27 @@ export default function App() {
       return d <= 25;
     });
   }, [mappableEvents, mapBrowseGlobal, userCoords, isAdminUser]);
+
+  const onlineGameLeaderboard = useMemo(() => {
+    const onlineEventById: Record<number, string> = {};
+    for (const e of events) {
+      const [cat = '', activity = ''] = (e.category || '').split(':').map((x) => x.trim());
+      if (cat.toLowerCase() === 'online') onlineEventById[e.id] = activity || 'Unknown game';
+    }
+
+    const buckets: Record<string, { sum: number; count: number }> = {};
+    for (const r of ratings) {
+      const game = onlineEventById[r.event_id];
+      if (!game) continue;
+      if (!buckets[game]) buckets[game] = { sum: 0, count: 0 };
+      buckets[game].sum += Number(r.skill || 0);
+      buckets[game].count += 1;
+    }
+
+    return Object.entries(buckets)
+      .map(([game, v]) => ({ game, avg: v.count ? v.sum / v.count : 0, count: v.count }))
+      .sort((a, b) => b.avg - a.avg || b.count - a.count);
+  }, [events, ratings]);
 
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -1932,6 +1954,26 @@ export default function App() {
           )}
         </View>
       )}
+
+      <View style={styles.card}>
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowLeaderboardSection((v) => !v)}>
+          <Text style={styles.cardTitle}>Online game leaderboard (v1)</Text>
+          <Text style={styles.meta}>{showLeaderboardSection ? '▾' : '▸'}</Text>
+        </TouchableOpacity>
+        {showLeaderboardSection && (
+          <>
+            {onlineGameLeaderboard.length === 0 ? (
+              <Text style={styles.meta}>No online ratings yet. Create Online events and rate skill after sessions.</Text>
+            ) : (
+              onlineGameLeaderboard.map((g, idx) => (
+                <Text key={`gl-${g.game}`} style={styles.meta}>
+                  {idx + 1}. {g.game} • Skill ⭐ {g.avg.toFixed(1)} ({g.count})
+                </Text>
+              ))
+            )}
+          </>
+        )}
+      </View>
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowFeedSection((v) => !v)}>
