@@ -86,6 +86,8 @@ export default function App() {
   const [activityType, setActivityType] = useState('');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
   const [aboutMe, setAboutMe] = useState('');
+  const [userArea, setUserArea] = useState('');
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [area, setArea] = useState('');
   const [showAreaSuggestions, setShowAreaSuggestions] = useState(false);
   const [remotePostcodeSuggestions, setRemotePostcodeSuggestions] = useState<string[]>([]);
@@ -199,6 +201,21 @@ export default function App() {
     const p = profiles.find((x) => x.display_name.toLowerCase() === me);
     setAboutMe(p?.about_me ?? '');
   }, [currentUser, profiles]);
+
+  useEffect(() => {
+    const q = userArea.trim();
+    if (q.length < 2) {
+      setUserCoords(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const point = await geocodeAddress(q);
+      setUserCoords(point ?? null);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [userArea]);
 
   useEffect(() => {
     const q = area.trim();
@@ -577,7 +594,33 @@ export default function App() {
     const latBucket = Math.floor((latitude + 90) / latStep);
     const lngBucket = Math.floor((longitude + 180) / lngStep);
 
-    return `Zone ${latBucket.toString(36).toUpperCase()}-${lngBucket.toString(36).toUpperCase()} (~2km)`;
+    return `Area ${latBucket.toString(36).toUpperCase()}${lngBucket.toString(36).toUpperCase()} (~2km)`;
+  };
+
+  const broadAreaFromCoords = async (latitude: number, longitude: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+      const json = await res.json();
+      const a = json?.address ?? {};
+      const district = (a.borough || a.city_district || a.suburb || a.neighbourhood || a.quarter || '').trim();
+      const city = (a.city || a.town || a.municipality || a.county || '').trim();
+      if (district) return `${district} (approx)`;
+      if (city) return `${city} (approx)`;
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
+  const distanceKm = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLng = toRad(b.longitude - a.longitude);
+    const x =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(x));
   };
 
   const applyPickedLocation = (value: string) => {
@@ -810,7 +853,8 @@ export default function App() {
 
     const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
     const generatedArea = resolvedCoords
-      ? zoneLabelFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)
+      ? (await broadAreaFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)) ||
+        zoneLabelFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)
       : toBroadArea(exactLocation.trim());
 
     setError(null);
@@ -1092,6 +1136,13 @@ export default function App() {
           numberOfLines={3}
           textAlignVertical="top"
         />
+        <TextInput
+          style={styles.input}
+          value={userArea}
+          onChangeText={setUserArea}
+          placeholder="Your area (for distance estimate)"
+          placeholderTextColor="#9ca3af"
+        />
         <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
           <Text style={styles.mapBtnText}>Save profile</Text>
         </TouchableOpacity>
@@ -1296,7 +1347,7 @@ export default function App() {
           </View>
         )}
 
-        <Text style={styles.meta}>Public area is auto-generated as a privacy-safe zone (~2km).</Text>
+        <Text style={styles.meta}>Public area is auto-generated as approximate district/area (privacy-safe).</Text>
         <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
           <Text style={styles.mapBtnText}>{exactLocation.trim() ? 'Change location on map' : 'Pick location on map'}</Text>
         </TouchableOpacity>
@@ -1436,6 +1487,12 @@ export default function App() {
                 );
               })()}
               <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
+              {(() => {
+                if (!userCoords || typeof item.exact_lat !== 'number' || typeof item.exact_lng !== 'number') return null;
+                const rough = roughCoordsForEvent(item) ?? { latitude: item.exact_lat, longitude: item.exact_lng };
+                const km = distanceKm(userCoords, rough);
+                return <Text style={styles.meta}>Approx distance: ~{km.toFixed(1)} km</Text>;
+              })()}
 
               {approved ? (
                 <TouchableOpacity
