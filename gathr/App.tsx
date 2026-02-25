@@ -30,8 +30,11 @@ type EventRow = {
   title: string;
   category: string;
   description?: string | null;
-  required_people?: number | null;
-  allow_overflow?: boolean | null;
+  required_people?: number | null; // legacy
+  allow_overflow?: boolean | null; // legacy
+  min_people?: number | null;
+  max_people?: number | null;
+  no_max?: boolean | null;
   area: string;
   exact_location: string;
   exact_lat?: number | null;
@@ -130,8 +133,9 @@ export default function App() {
   const [reportReason, setReportReason] = useState('Harassment');
   const [title, setTitle] = useState('Test Basketball Run');
   const [description, setDescription] = useState('Quick test event');
-  const [requiredPeople, setRequiredPeople] = useState('4');
-  const [allowOverflow, setAllowOverflow] = useState(false);
+  const [minPeople, setMinPeople] = useState('2');
+  const [maxPeople, setMaxPeople] = useState('6');
+  const [noMax, setNoMax] = useState(false);
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('Basketball');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
@@ -607,12 +611,12 @@ export default function App() {
     }
 
     // Capacity reached alerts for host
-    for (const e of events.filter((x) => x.host_name.toLowerCase() === me && !x.allow_overflow)) {
-      const required = Number(e.required_people ?? 0);
-      if (required <= 0) continue;
+    for (const e of events.filter((x) => x.host_name.toLowerCase() === me)) {
+      const { max } = getEventCapacity(e);
+      if (!max) continue;
       const approvedCount = 1 + requests.filter((r) => r.event_id === e.id && r.status === 'approved').length;
-      if (approvedCount >= required) {
-        items.push({ key: `full-${e.id}`, text: `📌 ${e.title} reached required capacity (${approvedCount}/${required})`, eventId: e.id, kind: 'capacity' });
+      if (approvedCount >= max) {
+        items.push({ key: `full-${e.id}`, text: `📌 ${e.title} reached max capacity (${approvedCount}/${max})`, eventId: e.id, kind: 'capacity' });
       }
     }
 
@@ -1203,9 +1207,15 @@ export default function App() {
     if (!title.trim() || !exactTime.trim()) return;
     if (!isOnline && !exactLocation.trim()) return;
 
-    const required = Number(requiredPeople);
-    if (!Number.isInteger(required) || required < 1 || required > 200) {
-      return setError('Required people must be a whole number between 1 and 200.');
+    const min = Number(minPeople);
+    const max = Number(maxPeople);
+    if (!Number.isInteger(min) || min < 1 || min > 200) {
+      return setError('Min people must be a whole number between 1 and 200.');
+    }
+    if (!noMax) {
+      if (!Number.isInteger(max) || max < min || max > 500) {
+        return setError('Max people must be a whole number >= Min and <= 500.');
+      }
     }
 
     const resolvedCoords = isOnline ? null : (pickedExactCoords ?? (await geocodeAddress(exactLocation.trim())));
@@ -1216,8 +1226,12 @@ export default function App() {
       title: title.trim(),
       description: description.trim() || null,
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
-      required_people: required,
-      allow_overflow: allowOverflow,
+      min_people: min,
+      max_people: noMax ? null : max,
+      no_max: noMax,
+      // legacy mirrors
+      required_people: min,
+      allow_overflow: noMax,
       area: generatedArea,
       exact_location: isOnline ? 'Online session' : exactLocation.trim(),
       exact_lat: isOnline ? null : resolvedCoords?.latitude ?? null,
@@ -1232,8 +1246,9 @@ export default function App() {
     nextEventDate.setSeconds(0, 0);
     setTitle('Test Basketball Run');
     setDescription('Quick test event');
-    setRequiredPeople('4');
-    setAllowOverflow(false);
+    setMinPeople('2');
+    setMaxPeople('6');
+    setNoMax(false);
     setCategory('Sports');
     setActivityType('Basketball');
     setArea('');
@@ -1250,6 +1265,12 @@ export default function App() {
     setWebDateInput(nextLocal.slice(0, 10));
     setWebTimeInput(nextLocal.slice(11, 16));
     await loadData();
+  };
+
+  const getEventCapacity = (ev?: EventRow) => {
+    const min = Number(ev?.min_people ?? ev?.required_people ?? 0);
+    const max = ev?.no_max ? null : Number(ev?.max_people ?? (ev?.allow_overflow ? null : ev?.required_people ?? 0));
+    return { min: Number.isFinite(min) ? min : 0, max: max && Number.isFinite(max) ? max : null };
   };
 
   const requestJoin = async (eventId: number) => {
@@ -1320,10 +1341,9 @@ export default function App() {
       return setError('Only host or approved attendee can invite.');
     }
 
-    const required = Number(ev.required_people ?? 0);
-    const allow = !!ev.allow_overflow;
+    const { max } = getEventCapacity(ev);
     const approvedCount = 1 + requests.filter((r) => r.event_id === eventId && r.status === 'approved').length;
-    if (!allow && required > 0 && approvedCount >= required) return setError('Event is full.');
+    if (max && approvedCount >= max) return setError('Event is full.');
 
     setError(null);
 
@@ -1381,12 +1401,11 @@ export default function App() {
           return setError('Invitee must accept invitation before host approval.');
         }
         const event = events.find((e) => e.id === req.event_id);
-        const required = Number(event?.required_people ?? 0);
-        const allow = !!event?.allow_overflow;
-        if (!allow && required > 0) {
+        const { max } = getEventCapacity(event);
+        if (max) {
           const approvedCount = 1 + requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').length;
-          if (approvedCount >= required) {
-            return setError('Event is full. Increase required people or enable flexible capacity.');
+          if (approvedCount >= max) {
+            return setError('Event is full. Increase max people or enable no max.');
           }
         }
       }
@@ -1963,20 +1982,29 @@ export default function App() {
           numberOfLines={3}
           textAlignVertical="top"
         />
-        <Text style={styles.ratingLabel}>Required people</Text>
-        <Text style={styles.ratingHelp}>How many people are needed for this activity?</Text>
+        <Text style={styles.ratingLabel}>Participants</Text>
+        <Text style={styles.ratingHelp}>Set minimum and optional maximum participants.</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter number (e.g. 4)"
+          placeholder="Min people (e.g. 2)"
           placeholderTextColor="#9ca3af"
           keyboardType="number-pad"
-          value={requiredPeople}
-          onChangeText={setRequiredPeople}
+          value={minPeople}
+          onChangeText={setMinPeople}
         />
-        <TouchableOpacity style={[styles.chipBtn, allowOverflow && styles.chipBtnActive]} onPress={() => setAllowOverflow((v) => !v)}>
-          <Text style={styles.chipBtnText}>{allowOverflow ? 'Flexible capacity: ON' : 'Flexible capacity: OFF'}</Text>
+        {!noMax && (
+          <TextInput
+            style={styles.input}
+            placeholder="Max people (e.g. 8)"
+            placeholderTextColor="#9ca3af"
+            keyboardType="number-pad"
+            value={maxPeople}
+            onChangeText={setMaxPeople}
+          />
+        )}
+        <TouchableOpacity style={[styles.chipBtn, noMax && styles.chipBtnActive]} onPress={() => setNoMax((v) => !v)}>
+          <Text style={styles.chipBtnText}>{noMax ? 'No max: ON' : 'No max: OFF'}</Text>
         </TouchableOpacity>
-        <Text style={styles.ratingHelp}>If ON, people can keep joining after required count is reached.</Text>
 
         <Text style={styles.ratingLabel}>Category</Text>
         <View style={styles.rowGapWrap}>
@@ -2153,17 +2181,16 @@ export default function App() {
           <>
           {pendingForMyHostedEvents.map((r) => {
             const event = events.find((e) => e.id === r.event_id);
-            const required = Number(event?.required_people ?? 0);
-            const allow = !!event?.allow_overflow;
+            const { min, max } = getEventCapacity(event);
             const approvedCount = 1 + requests.filter((x) => x.event_id === r.event_id && x.status === 'approved').length;
-            const isFull = !allow && required > 0 && approvedCount >= required;
+            const isFull = !!max && approvedCount >= max;
             const reqStat = userRatingStats[r.requester_name.toLowerCase()];
             return (
               <View key={r.id} style={styles.pendingItem}>
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
                 <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : r.invite_source === 'member' ? `Member invite (${r.invited_by_name || 'member'})` : 'User request'}</Text>
                 <Text style={styles.meta}>Requester: {reqStat ? `Trust ⭐ ${reqStat.trust.toFixed(1)} (${reqStat.count}) • Skill ⭐ ${reqStat.skill.toFixed(1)}` : 'New / no ratings yet'}</Text>
-                <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}{allow ? ' • Flexible' : ''}</Text>
+                <Text style={styles.meta}>Capacity: {approvedCount} / min {min}{max ? ` / max ${max}` : ' / no max'}</Text>
                 <View style={styles.rowGap}>
                   {!isFull ? (
                     <TouchableOpacity style={styles.approveBtn} onPress={() => setRequestStatus(r.id, 'approved')}>
@@ -2467,9 +2494,8 @@ export default function App() {
             (n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i
           );
           const approvedCount = participants.length;
-          const required = Number(item.required_people ?? 0);
-          const allowOverflowEvent = !!item.allow_overflow;
-          const isFull = !allowOverflowEvent && required > 0 && approvedCount >= required;
+          const { min: minPeopleEvent, max: maxPeopleEvent } = getEventCapacity(item);
+          const isFull = !!maxPeopleEvent && approvedCount >= maxPeopleEvent;
           const approved = isHost || myReq?.status === 'approved';
 
           return (
@@ -2477,7 +2503,7 @@ export default function App() {
               <Text style={styles.eventTitle}>{item.title}</Text>
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
-              <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}{allowOverflowEvent ? ' • Flexible' : ''}</Text>
+              <Text style={styles.meta}>Capacity: {approvedCount} / min {minPeopleEvent}{maxPeopleEvent ? ` / max ${maxPeopleEvent}` : ' / no max'}</Text>
               {activityRatingStats[item.id] && (
                 <Text style={styles.meta}>Activity quality ⭐ {activityRatingStats[item.id].avg.toFixed(1)} ({activityRatingStats[item.id].count})</Text>
               )}
@@ -2713,7 +2739,10 @@ export default function App() {
                 {!!ev.description?.trim() && <Text style={styles.meta}>{ev.description}</Text>}
                 <Text style={styles.meta}>When: {new Date(ev.exact_time).toLocaleString()}</Text>
                 <Text style={styles.meta}>Approx location: {publicAreaForEvent(ev)}</Text>
-                <Text style={styles.meta}>Capacity: {participants.length}/{Number(ev.required_people ?? 0) || '?'}</Text>
+                {(() => {
+                  const { min, max } = getEventCapacity(ev);
+                  return <Text style={styles.meta}>Capacity: {participants.length} / min {min}{max ? ` / max ${max}` : ' / no max'}</Text>;
+                })()}
 
                 {(() => {
                   const me = currentUser.trim().toLowerCase();
