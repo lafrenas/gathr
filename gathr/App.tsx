@@ -936,7 +936,7 @@ export default function App() {
         const event = events.find((e) => e.id === req.event_id);
         const required = Number(event?.required_people ?? 0);
         if (required > 0) {
-          const approvedCount = requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').length;
+          const approvedCount = 1 + requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').length;
           if (approvedCount >= required) {
             return setError('Event is full. Increase required people or reject pending requests.');
           }
@@ -1418,7 +1418,7 @@ export default function App() {
           {pendingForMyHostedEvents.map((r) => {
             const event = events.find((e) => e.id === r.event_id);
             const required = Number(event?.required_people ?? 0);
-            const approvedCount = requests.filter((x) => x.event_id === r.event_id && x.status === 'approved').length;
+            const approvedCount = 1 + requests.filter((x) => x.event_id === r.event_id && x.status === 'approved').length;
             const isFull = required > 0 && approvedCount >= required;
             return (
               <View key={r.id} style={styles.pendingItem}>
@@ -1510,7 +1510,7 @@ export default function App() {
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
           );
-          const approvedCount = requests.filter((r) => r.event_id === item.id && r.status === 'approved').length;
+          const approvedCount = 1 + requests.filter((r) => r.event_id === item.id && r.status === 'approved').length;
           const required = Number(item.required_people ?? 0);
           const isFull = required > 0 && approvedCount >= required;
           const approved = isHost || myReq?.status === 'approved';
