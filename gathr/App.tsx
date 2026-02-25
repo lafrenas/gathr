@@ -96,6 +96,14 @@ type RatingSkipRow = {
   skipped_name: string;
 };
 
+type ActivityRatingRow = {
+  id: number;
+  event_id: number;
+  rater_name: string;
+  activity_score: number;
+  comment?: string | null;
+};
+
 export default function App() {
   const testUsers = ['1', '2', '3', '4', '5'];
   const [currentUser, setCurrentUser] = useState('1');
@@ -107,6 +115,7 @@ export default function App() {
   const [reports, setReports] = useState<UserReportRow[]>([]);
   const [profiles, setProfiles] = useState<UserProfileRow[]>([]);
   const [ratingSkips, setRatingSkips] = useState<RatingSkipRow[]>([]);
+  const [activityRatings, setActivityRatings] = useState<ActivityRatingRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
@@ -182,6 +191,9 @@ export default function App() {
   const [friendlinessRating, setFriendlinessRating] = useState('5');
   const [reliabilityRating, setReliabilityRating] = useState('5');
   const [ratingComment, setRatingComment] = useState('');
+  const [activityRatingEventId, setActivityRatingEventId] = useState<number | null>(null);
+  const [activityScore, setActivityScore] = useState('5');
+  const [activityComment, setActivityComment] = useState('');
   const [communicationRating, setCommunicationRating] = useState('5');
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
@@ -255,6 +267,11 @@ export default function App() {
     const { data: skipData, error: skipError } = await supabase.from('event_rating_skips').select('*').order('id', { ascending: false });
     if (!skipError) {
       setRatingSkips((skipData ?? []) as RatingSkipRow[]);
+    }
+
+    const { data: arData, error: arError } = await supabase.from('event_activity_ratings').select('*').order('id', { ascending: false });
+    if (!arError) {
+      setActivityRatings((arData ?? []) as ActivityRatingRow[]);
     }
 
     setBusy(false);
@@ -981,6 +998,19 @@ export default function App() {
     });
   }, [mappableEvents, mapBrowseGlobal, userCoords, isAdminUser]);
 
+  const activityRatingStats = useMemo(() => {
+    const byEvent: Record<number, { avg: number; count: number }> = {};
+    for (const e of events) {
+      const rs = activityRatings.filter((r) => r.event_id === e.id);
+      if (!rs.length) continue;
+      byEvent[e.id] = {
+        avg: rs.reduce((s, r) => s + Number(r.activity_score || 0), 0) / rs.length,
+        count: rs.length,
+      };
+    }
+    return byEvent;
+  }, [events, activityRatings]);
+
   const onlineGameLeaderboard = useMemo(() => {
     const onlineEventById: Record<number, string> = {};
     for (const e of events) {
@@ -1330,6 +1360,35 @@ export default function App() {
     return people;
   };
 
+  const submitActivityRating = async () => {
+    const rater = currentUser.trim();
+    const eventId = activityRatingEventId;
+    if (!rater || !eventId) return;
+
+    const event = events.find((e) => e.id === eventId);
+    if (!event) return setError('Event not found.');
+    if (!hasEventEnded(event.exact_time)) return setError('Activity rating unlocks after event end time.');
+
+    const score = Number(activityScore);
+    if (!Number.isInteger(score) || score < 1 || score > 5) return setError('Activity score must be 1-5.');
+
+    const { error } = await supabase.from('event_activity_ratings').upsert(
+      {
+        event_id: eventId,
+        rater_name: rater,
+        activity_score: score,
+        comment: activityComment.trim() || null,
+      },
+      { onConflict: 'event_id,rater_name' }
+    );
+    if (error) return setError(error.message);
+
+    setActivityRatingEventId(null);
+    setActivityScore('5');
+    setActivityComment('');
+    await loadData();
+  };
+
   const reportHost = async (hostName: string, reason: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
@@ -1382,6 +1441,12 @@ export default function App() {
     if (rb.error) {
       setBusy(false);
       return setError(rb.error.message);
+    }
+
+    const ars = await supabase.from('event_activity_ratings').delete().neq('id', -1);
+    if (ars.error && !ars.error.message.toLowerCase().includes('does not exist')) {
+      setBusy(false);
+      return setError(ars.error.message);
     }
 
     const rs = await supabase.from('event_rating_skips').delete().neq('id', -1);
@@ -1636,6 +1701,22 @@ export default function App() {
               </TouchableOpacity>
             </View>
           ))}
+        </View>
+      )}
+
+      {activityRatingEventId && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Rate activity quality</Text>
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={activityScore} onChangeText={setActivityScore} />
+          <TextInput style={styles.input} placeholder="Comment (optional)" placeholderTextColor="#9ca3af" value={activityComment} onChangeText={setActivityComment} />
+          <View style={styles.rowGap}>
+            <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={submitActivityRating}>
+              <Text style={styles.approveBtnText}>Submit activity rating</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setActivityRatingEventId(null)}>
+              <Text style={styles.approveBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -2102,6 +2183,9 @@ export default function App() {
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
               <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
+              {activityRatingStats[item.id] && (
+                <Text style={styles.meta}>Activity quality ⭐ {activityRatingStats[item.id].avg.toFixed(1)} ({activityRatingStats[item.id].count})</Text>
+              )}
               {isFull && <Text style={styles.pendingText}>Event is full</Text>}
               {(() => {
                 const stat = userRatingStats[item.host_name.toLowerCase()];
@@ -2263,6 +2347,19 @@ export default function App() {
                       );
                     })}
                   </View>
+                );
+              })()}
+
+              {approved && hasEventEnded(item.exact_time) && (() => {
+                const alreadyRatedActivity = activityRatings.some(
+                  (ar) => ar.event_id === item.id && ar.rater_name.toLowerCase() === currentUser.trim().toLowerCase()
+                );
+                return alreadyRatedActivity ? (
+                  <Text style={styles.approvedText}>You rated this activity ✅</Text>
+                ) : (
+                  <TouchableOpacity style={styles.mapBtn} onPress={() => setActivityRatingEventId(item.id)}>
+                    <Text style={styles.mapBtnText}>Rate activity quality</Text>
+                  </TouchableOpacity>
                 );
               })()}
 
