@@ -1431,21 +1431,23 @@ export default function App() {
               })()}
               <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
 
-              <TouchableOpacity
-                style={styles.mapBtn}
-                onPress={() =>
-                  openMap(
-                    approved ? item.exact_location : publicAreaForEvent(item),
-                    approved
-                      ? (typeof item.exact_lat === 'number' && typeof item.exact_lng === 'number'
-                          ? { latitude: item.exact_lat, longitude: item.exact_lng }
-                          : undefined)
-                      : roughCoordsForEvent(item)
-                  )
-                }
-              >
-                <Text style={styles.mapBtnText}>{approved ? 'Open exact location in map' : 'Open rough area in map'}</Text>
-              </TouchableOpacity>
+              {approved ? (
+                <TouchableOpacity
+                  style={styles.mapBtn}
+                  onPress={() =>
+                    openMap(
+                      item.exact_location,
+                      typeof item.exact_lat === 'number' && typeof item.exact_lng === 'number'
+                        ? { latitude: item.exact_lat, longitude: item.exact_lng }
+                        : undefined
+                    )
+                  }
+                >
+                  <Text style={styles.mapBtnText}>Open exact location in map</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.meta}>Approx area: {publicAreaForEvent(item)}</Text>
+              )}
 
               <View style={styles.rowGap}>
                 <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setSelectedHost(item.host_name)}>
