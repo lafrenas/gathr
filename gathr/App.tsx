@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -433,6 +434,7 @@ export default function App() {
   };
 
   const exactTimeDisplay = eventDateTime ? eventDateTime.toLocaleString() : '';
+  const exactTimeWebInput = eventDateTime ? new Date(eventDateTime.getTime() - eventDateTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
 
   const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -1662,23 +1664,44 @@ export default function App() {
         </TouchableOpacity>
         {!!exactLocation.trim() && <Text style={styles.meta}>Selected location: {exactLocation}</Text>}
 
-        <TouchableOpacity
-          style={styles.mapBtn}
-          onPress={() => {
-            const base = eventDateTime ?? new Date();
-            setDateDraft(base);
-            setShowDatePicker(true);
-          }}
-        >
-          <Text style={styles.mapBtnText}>{eventDateTime ? 'Change date & time' : 'Select date & time'}</Text>
-        </TouchableOpacity>
-        {!!exactTimeDisplay && <Text style={styles.meta}>Selected: {exactTimeDisplay}</Text>}
+        {Platform.OS === 'web' ? (
+          <>
+            <Text style={styles.ratingLabel}>Date & time</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="YYYY-MM-DDTHH:mm"
+              placeholderTextColor="#9ca3af"
+              value={exactTimeWebInput}
+              onChangeText={(t) => {
+                const d = new Date(t);
+                if (!Number.isFinite(d.getTime())) return;
+                setEventDateTime(d);
+                setExactTime(d.toISOString());
+                setDateDraft(d);
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.mapBtn}
+              onPress={() => {
+                const base = eventDateTime ?? new Date();
+                setDateDraft(base);
+                setShowDatePicker(true);
+              }}
+            >
+              <Text style={styles.mapBtnText}>{eventDateTime ? 'Change date & time' : 'Select date & time'}</Text>
+            </TouchableOpacity>
+            {!!exactTimeDisplay && <Text style={styles.meta}>Selected: {exactTimeDisplay}</Text>}
 
-        {showDatePicker && (
-          <DateTimePicker value={dateDraft} mode="date" display="default" onChange={onDatePicked} />
-        )}
-        {showTimePicker && (
-          <DateTimePicker value={dateDraft} mode="time" display="default" onChange={onTimePicked} />
+            {showDatePicker && (
+              <DateTimePicker value={dateDraft} mode="date" display="default" onChange={onDatePicked} />
+            )}
+            {showTimePicker && (
+              <DateTimePicker value={dateDraft} mode="time" display="default" onChange={onTimePicked} />
+            )}
+          </>
         )}
 
         <TouchableOpacity style={styles.primaryBtn} onPress={createEvent}>
