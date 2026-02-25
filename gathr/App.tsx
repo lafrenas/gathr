@@ -249,20 +249,38 @@ export default function App() {
   const searchSuggestions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
+    const categoryFiltered = visibleEvents.filter((e) => {
+      const [eventCategory = ''] = e.category.split(':');
+      return filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
+    });
+
+    const activityPool = categoryFiltered
+      .map((e) => (e.category.split(':')[1] ?? '').trim())
+      .filter((x) => x.length >= 2);
+
     const candidates: string[] = [];
-    for (const e of visibleEvents) {
+    for (const e of categoryFiltered) {
       const [cat = '', act = ''] = e.category.split(':').map((x) => x.trim());
-      candidates.push(e.title, e.area, e.host_name, cat, act, e.description ?? '');
+      candidates.push(act, e.title, e.area, e.host_name, cat, e.description ?? '');
     }
 
     const cleaned = candidates
       .map((x) => x.trim())
       .filter((x) => x.length >= 2);
 
-    const unique = Array.from(new Set(cleaned));
+    const unique = Array.from(new Set([...activityPool, ...cleaned]));
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
-    return matched.slice(0, 8);
-  }, [visibleEvents, searchQuery]);
+
+    const rank = (s: string) => {
+      const v = s.toLowerCase();
+      if (!q) return 2;
+      if (v.startsWith(q)) return 0;
+      if (v.includes(q)) return 1;
+      return 2;
+    };
+
+    return matched.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 8);
+  }, [visibleEvents, searchQuery, filterCategory]);
 
   const areaSuggestions = useMemo(() => {
     const q = area.trim().toLowerCase();
