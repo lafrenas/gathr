@@ -545,10 +545,23 @@ export default function App() {
     setMapPickerVisible(true);
   };
 
+  const toBroadArea = (address: string) => {
+    const raw = address.trim();
+    if (!raw) return raw;
+    const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length <= 1) return raw;
+
+    const country = parts[parts.length - 1];
+    const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2) ?? parts[Math.max(0, parts.length - 2)];
+
+    if (!cityLike || cityLike === country) return `${parts[0]}, ${country}`;
+    return `${cityLike}, ${country}`;
+  };
+
   const applyPickedLocation = (value: string) => {
     if (!value.trim()) return;
     if (mapTargetField === 'area') {
-      setArea(value);
+      setArea(toBroadArea(value));
       setShowAreaSuggestions(false);
     } else {
       setExactLocation(value);
