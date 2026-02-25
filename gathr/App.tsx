@@ -71,6 +71,7 @@ export default function App() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('Basketball');
+  const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
   const [area, setArea] = useState('');
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
@@ -94,7 +95,15 @@ export default function App() {
   const activityOptions: Record<string, string[]> = {
     Sports: ['Basketball', 'Football', 'Tennis', 'Running', 'Gym'],
     Social: ['Coffee', 'Dinner', 'Walk', 'Board Games', 'Networking'],
+    Online: ['CS2', 'League of Legends', 'Valorant', 'Dota 2', 'Fortnite'],
   };
+
+  const activitySuggestions = useMemo(() => {
+    const q = activityType.trim().toLowerCase();
+    const pool = activityOptions[category] ?? [];
+    if (!q) return pool.slice(0, 8);
+    return pool.filter((a) => a.toLowerCase().includes(q)).slice(0, 8);
+  }, [activityType, category]);
 
   const loadData = async () => {
     setBusy(true);
@@ -590,6 +599,7 @@ export default function App() {
               onPress={() => {
                 setCategory(cat);
                 setActivityType(activityOptions[cat][0]);
+                setShowActivitySuggestions(false);
               }}
             >
               <Text style={styles.chipBtnText}>{cat}</Text>
@@ -598,17 +608,33 @@ export default function App() {
         </View>
 
         <Text style={styles.ratingLabel}>Activity</Text>
-        <View style={styles.rowGapWrap}>
-          {(activityOptions[category] ?? ['General']).map((act) => (
-            <TouchableOpacity
-              key={act}
-              style={[styles.chipBtn, activityType === act && styles.chipBtnActive]}
-              onPress={() => setActivityType(act)}
-            >
-              <Text style={styles.chipBtnText}>{act}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Type activity (e.g., Basketball)"
+          placeholderTextColor="#9ca3af"
+          value={activityType}
+          onFocus={() => setShowActivitySuggestions(true)}
+          onChangeText={(t) => {
+            setActivityType(t);
+            setShowActivitySuggestions(true);
+          }}
+        />
+        {showActivitySuggestions && activitySuggestions.length > 0 && (
+          <View style={styles.suggestionBox}>
+            {activitySuggestions.map((act) => (
+              <TouchableOpacity
+                key={act}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setActivityType(act);
+                  setShowActivitySuggestions(false);
+                }}
+              >
+                <Text style={styles.suggestionText}>{act}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <TextInput style={styles.input} placeholder="Public area (shown to everyone)" placeholderTextColor="#9ca3af" value={area} onChangeText={setArea} />
         <TextInput style={styles.input} placeholder="Exact location (approved only)" placeholderTextColor="#9ca3af" value={exactLocation} onChangeText={setExactLocation} />
@@ -772,6 +798,21 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#1f2937', color: '#f9fafb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
   },
+  suggestionBox: {
+    backgroundColor: '#0f172a',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 10,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+  },
+  suggestionText: { color: '#e2e8f0' },
   list: { paddingBottom: 24 },
   eventCard: {
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
