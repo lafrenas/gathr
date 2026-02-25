@@ -992,8 +992,14 @@ export default function App() {
     setBusy(false);
   };
 
-  const openMap = async (query: string) => {
+  const sanitizeMapQuery = (query: string) => {
     const q = query.trim();
+    if (!q) return q;
+    return q.replace(/^~\s*\d+\s*km\s*area\s*around\s*/i, '').trim();
+  };
+
+  const openMap = async (query: string) => {
+    const q = sanitizeMapQuery(query);
     if (!q) return setError('Location is empty.');
 
     const encoded = encodeURIComponent(q);
