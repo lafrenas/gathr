@@ -70,7 +70,7 @@ export default function App() {
   const [reportReason, setReportReason] = useState('Harassment');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Sports');
-  const [activityType, setActivityType] = useState('Basketball');
+  const [activityType, setActivityType] = useState('');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
   const [area, setArea] = useState('');
   const [exactLocation, setExactLocation] = useState('');
@@ -235,7 +235,7 @@ export default function App() {
     setError(null);
     const { error } = await supabase.from('events').insert({
       title: title.trim(),
-      category: `${category.trim()}:${activityType.trim()}`,
+      category: `${category.trim()}:${activityType.trim() || 'General'}`,
       area: area.trim(),
       exact_location: exactLocation.trim(),
       exact_time: exactTime.trim(),
@@ -246,7 +246,7 @@ export default function App() {
 
     setTitle('');
     setCategory('Sports');
-    setActivityType('Basketball');
+    setActivityType('');
     setArea('');
     setExactLocation('');
     setExactTime('');
@@ -598,7 +598,7 @@ export default function App() {
               style={[styles.chipBtn, category === cat && styles.chipBtnActive]}
               onPress={() => {
                 setCategory(cat);
-                setActivityType(activityOptions[cat][0]);
+                setActivityType('');
                 setShowActivitySuggestions(false);
               }}
             >
