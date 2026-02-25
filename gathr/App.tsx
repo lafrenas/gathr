@@ -136,6 +136,7 @@ export default function App() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1145,6 +1146,7 @@ export default function App() {
     const me = currentUser.trim();
     if (!me) return setError('Set your name first.');
     setError(null);
+    setInfo(null);
     const { error } = await supabase.from('user_profiles').upsert(
       {
         display_name: me,
@@ -1158,6 +1160,7 @@ export default function App() {
       { onConflict: 'display_name' }
     );
     if (error) return setError(error.message);
+    setInfo('Profile saved ✅');
     await loadData();
   };
 
@@ -1370,6 +1373,7 @@ export default function App() {
       </View>
 
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
+      {!!info && <Text style={styles.approvedText}>{info}</Text>}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Debug</Text>
