@@ -21,6 +21,7 @@ type EventRow = {
   title: string;
   category: string;
   description?: string | null;
+  required_people?: number | null;
   area: string;
   exact_location: string;
   exact_lat?: number | null;
@@ -82,6 +83,7 @@ export default function App() {
   const [reportReason, setReportReason] = useState('Harassment');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [requiredPeople, setRequiredPeople] = useState('4');
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
@@ -855,6 +857,11 @@ export default function App() {
   const createEvent = async () => {
     if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
+    const required = Number(requiredPeople);
+    if (!Number.isInteger(required) || required < 1 || required > 200) {
+      return setError('Required people must be a whole number between 1 and 200.');
+    }
+
     const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
     const generatedArea = toBroadArea(exactLocation.trim());
 
@@ -863,6 +870,7 @@ export default function App() {
       title: title.trim(),
       description: description.trim() || null,
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
+      required_people: required,
       area: generatedArea,
       exact_location: exactLocation.trim(),
       exact_lat: resolvedCoords?.latitude ?? null,
@@ -875,6 +883,7 @@ export default function App() {
 
     setTitle('');
     setDescription('');
+    setRequiredPeople('4');
     setCategory('Sports');
     setActivityType('');
     setArea('');
@@ -920,6 +929,21 @@ export default function App() {
 
   const setRequestStatus = async (requestId: number, status: 'approved' | 'rejected') => {
     setError(null);
+
+    if (status === 'approved') {
+      const req = requests.find((r) => r.id === requestId);
+      if (req) {
+        const event = events.find((e) => e.id === req.event_id);
+        const required = Number(event?.required_people ?? 0);
+        if (required > 0) {
+          const approvedCount = requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').length;
+          if (approvedCount >= required) {
+            return setError('Event is full. Increase required people or reject pending requests.');
+          }
+        }
+      }
+    }
+
     const { error } = await supabase.from('join_requests').update({ status }).eq('id', requestId);
     if (error) return setError(error.message);
     await loadData();
@@ -1301,6 +1325,14 @@ export default function App() {
           numberOfLines={3}
           textAlignVertical="top"
         />
+        <TextInput
+          style={styles.input}
+          placeholder="Required people (e.g. 4)"
+          placeholderTextColor="#9ca3af"
+          keyboardType="number-pad"
+          value={requiredPeople}
+          onChangeText={setRequiredPeople}
+        />
 
         <Text style={styles.ratingLabel}>Category</Text>
         <View style={styles.rowGapWrap}>
@@ -1383,13 +1415,23 @@ export default function App() {
           <Text style={styles.cardTitle}>Pending approvals</Text>
           {pendingForMyHostedEvents.map((r) => {
             const event = events.find((e) => e.id === r.event_id);
+            const required = Number(event?.required_people ?? 0);
+            const approvedCount = requests.filter((x) => x.event_id === r.event_id && x.status === 'approved').length;
+            const isFull = required > 0 && approvedCount >= required;
             return (
               <View key={r.id} style={styles.pendingItem}>
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
+                <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
                 <View style={styles.rowGap}>
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => setRequestStatus(r.id, 'approved')}>
-                    <Text style={styles.approveBtnText}>Approve</Text>
-                  </TouchableOpacity>
+                  {!isFull ? (
+                    <TouchableOpacity style={styles.approveBtn} onPress={() => setRequestStatus(r.id, 'approved')}>
+                      <Text style={styles.approveBtnText}>Approve</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.approveBtn, { opacity: 0.4 }]}>
+                      <Text style={styles.approveBtnText}>Full</Text>
+                    </View>
+                  )}
                   <TouchableOpacity style={styles.rejectBtn} onPress={() => setRequestStatus(r.id, 'rejected')}>
                     <Text style={styles.approveBtnText}>Reject</Text>
                   </TouchableOpacity>
@@ -1466,6 +1508,9 @@ export default function App() {
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
           );
+          const approvedCount = requests.filter((r) => r.event_id === item.id && r.status === 'approved').length;
+          const required = Number(item.required_people ?? 0);
+          const isFull = required > 0 && approvedCount >= required;
           const approved = isHost || myReq?.status === 'approved';
 
           return (
@@ -1473,6 +1518,8 @@ export default function App() {
               <Text style={styles.eventTitle}>{item.title}</Text>
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
+              <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
+              {isFull && <Text style={styles.pendingText}>Event is full</Text>}
               {(() => {
                 const stat = hostRatingStats[item.host_name.toLowerCase()];
                 if (!stat) return <Text style={styles.meta}>Trust: New • Skill: New</Text>;
@@ -1539,11 +1586,12 @@ export default function App() {
                 <Text style={styles.hiddenText}>🔒 Exact location/time hidden until host approval</Text>
               )}
 
-              {!isHost && !myReq && (
+              {!isHost && !myReq && !isFull && (
                 <TouchableOpacity style={styles.primaryBtn} onPress={() => requestJoin(item.id)}>
                   <Text style={styles.primaryBtnText}>Request to Join</Text>
                 </TouchableOpacity>
               )}
+              {!isHost && !myReq && isFull && <Text style={styles.rejectedText}>Event full</Text>}
 
               {!isHost && myReq?.status === 'pending' && <Text style={styles.pendingText}>Request pending host approval…</Text>}
               {!isHost && myReq?.status === 'approved' && <Text style={styles.approvedText}>Approved ✅</Text>}
