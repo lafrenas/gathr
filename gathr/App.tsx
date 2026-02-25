@@ -83,6 +83,7 @@ export default function App() {
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
   const [aboutMe, setAboutMe] = useState('');
   const [area, setArea] = useState('');
+  const [showAreaSuggestions, setShowAreaSuggestions] = useState(false);
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
@@ -262,6 +263,26 @@ export default function App() {
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
     return matched.slice(0, 8);
   }, [visibleEvents, searchQuery]);
+
+  const areaSuggestions = useMemo(() => {
+    const q = area.trim().toLowerCase();
+
+    const postcodeRegex = /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/gi;
+    const source = events.flatMap((e) => [e.area ?? '', e.exact_location ?? '']);
+
+    const postcodes = source.flatMap((s) => {
+      const matches = s.match(postcodeRegex) ?? [];
+      return matches.map((m) => m.toUpperCase().replace(/\s+/, ' ').trim());
+    });
+
+    const places = source
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2);
+
+    const unique = Array.from(new Set([...postcodes, ...places]));
+    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
+    return matched.slice(0, 8);
+  }, [events, area]);
 
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -780,7 +801,33 @@ export default function App() {
           </View>
         )}
 
-        <TextInput style={styles.input} placeholder="Public area (shown to everyone)" placeholderTextColor="#9ca3af" value={area} onChangeText={setArea} />
+        <TextInput
+          style={styles.input}
+          placeholder="Public area or postcode (shown to everyone)"
+          placeholderTextColor="#9ca3af"
+          value={area}
+          onFocus={() => setShowAreaSuggestions(true)}
+          onChangeText={(t) => {
+            setArea(t);
+            setShowAreaSuggestions(true);
+          }}
+        />
+        {showAreaSuggestions && areaSuggestions.length > 0 && (
+          <View style={styles.suggestionBox}>
+            {areaSuggestions.map((s) => (
+              <TouchableOpacity
+                key={`area-${s}`}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setArea(s);
+                  setShowAreaSuggestions(false);
+                }}
+              >
+                <Text style={styles.suggestionText}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <TextInput style={styles.input} placeholder="Exact location (approved only)" placeholderTextColor="#9ca3af" value={exactLocation} onChangeText={setExactLocation} />
 
         <TouchableOpacity
