@@ -598,6 +598,33 @@ export default function App() {
 
       if (gNeighborhood) return gNeighborhood;
       if (nNeighborhood) return nNeighborhood;
+
+      if (city.toLowerCase().includes('kaunas')) {
+        const kaunasDistricts = [
+          { name: 'Kalniečiai', lat: 54.93, lng: 23.98 },
+          { name: 'Dainava', lat: 54.90, lng: 23.97 },
+          { name: 'Eiguliai', lat: 54.94, lng: 23.92 },
+          { name: 'Šilainiai', lat: 54.92, lng: 23.88 },
+          { name: 'Vilijampolė', lat: 54.91, lng: 23.88 },
+          { name: 'Aleksotas', lat: 54.88, lng: 23.90 },
+          { name: 'Žaliakalnis', lat: 54.91, lng: 23.94 },
+          { name: 'Centras', lat: 54.90, lng: 23.91 },
+          { name: 'Panemunė', lat: 54.87, lng: 23.95 },
+          { name: 'Petrašiūnai', lat: 54.89, lng: 24.00 },
+        ];
+
+        let best = kaunasDistricts[0];
+        let bestDist = Number.POSITIVE_INFINITY;
+        for (const d of kaunasDistricts) {
+          const dist = Math.hypot(latitude - d.lat, longitude - d.lng);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = d;
+          }
+        }
+        return best.name;
+      }
+
       if (city) return city;
       return '';
     } catch {
