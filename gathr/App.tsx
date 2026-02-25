@@ -84,6 +84,7 @@ export default function App() {
   const [aboutMe, setAboutMe] = useState('');
   const [area, setArea] = useState('');
   const [showAreaSuggestions, setShowAreaSuggestions] = useState(false);
+  const [remotePostcodeSuggestions, setRemotePostcodeSuggestions] = useState<string[]>([]);
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
@@ -177,6 +178,27 @@ export default function App() {
     setAboutMe(p?.about_me ?? '');
   }, [currentUser, profiles]);
 
+  useEffect(() => {
+    const q = area.trim();
+    if (q.length < 2) {
+      setRemotePostcodeSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`);
+        const json = await res.json();
+        const list = Array.isArray(json?.result) ? json.result : [];
+        setRemotePostcodeSuggestions(list.slice(0, 8));
+      } catch {
+        setRemotePostcodeSuggestions([]);
+      }
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [area]);
+
   const hasEventEnded = (exactTime: string) => {
     const ts = Date.parse(exactTime);
     if (!Number.isFinite(ts)) return false;
@@ -258,6 +280,8 @@ export default function App() {
       .map((e) => (e.category.split(':')[1] ?? '').trim())
       .filter((x) => x.length >= 2);
 
+    const allCatalogActivities = Array.from(new Set(Object.values(activityOptions).flat()));
+
     const candidates: string[] = [];
     for (const e of categoryFiltered) {
       const [cat = '', act = ''] = e.category.split(':').map((x) => x.trim());
@@ -268,7 +292,7 @@ export default function App() {
       .map((x) => x.trim())
       .filter((x) => x.length >= 2);
 
-    const unique = Array.from(new Set([...activityPool, ...cleaned]));
+    const unique = Array.from(new Set([...allCatalogActivities, ...activityPool, ...cleaned]));
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
 
     const rank = (s: string) => {
@@ -308,10 +332,10 @@ export default function App() {
       'Birmingham B1',
     ];
 
-    const unique = Array.from(new Set([...postcodes, ...places, ...starterSuggestions]));
+    const unique = Array.from(new Set([...remotePostcodeSuggestions, ...postcodes, ...places, ...starterSuggestions]));
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
     return matched.slice(0, 8);
-  }, [events, area]);
+  }, [events, area, remotePostcodeSuggestions]);
 
   const levenshtein = (a: string, b: string) => {
     const m = a.length;
