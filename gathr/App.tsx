@@ -286,6 +286,24 @@ export default function App() {
     loadData();
   }, []);
 
+  const collapseAllSections = () => {
+    setShowProfileSection(false);
+    setShowDebugSection(false);
+    setShowCreateSection(false);
+    setShowPendingSection(false);
+    setShowInvitesSection(false);
+    setShowFeedSection(false);
+    setShowLeaderboardSection(false);
+    setShowNotificationsSection(false);
+  };
+
+  const expandMainSections = () => {
+    setShowCreateSection(true);
+    setShowInvitesSection(true);
+    setShowFeedSection(true);
+    setShowNotificationsSection(true);
+  };
+
   useEffect(() => {
     const me = currentUser.trim().toLowerCase();
     const p = profiles.find((x) => x.display_name.toLowerCase() === me);
@@ -1607,6 +1625,14 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>gathr</Text>
       <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
+      <View style={styles.rowGap}>
+        <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={collapseAllSections}>
+          <Text style={styles.mapBtnText}>Collapse all</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={expandMainSections}>
+          <Text style={styles.mapBtnText}>Open main</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowProfileSection((v) => !v)}>
