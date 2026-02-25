@@ -80,6 +80,7 @@ type UserReportRow = {
   reporter_name: string;
   reported_name: string;
   reason: string;
+  details?: string | null;
 };
 
 type UserProfileRow = {
@@ -131,6 +132,7 @@ export default function App() {
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
+  const [reportDetails, setReportDetails] = useState('');
   const [title, setTitle] = useState('Test Basketball Run');
   const [description, setDescription] = useState('Quick test event');
   const [minPeople, setMinPeople] = useState('2');
@@ -1578,7 +1580,7 @@ export default function App() {
     await loadData();
   };
 
-  const reportHost = async (hostName: string, reason: string) => {
+  const reportHost = async (hostName: string, reason: string, details?: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
     setError(null);
@@ -1586,6 +1588,7 @@ export default function App() {
       reporter_name: me,
       reported_name: hostName,
       reason: reason.trim() || 'General safety concern',
+      details: details?.trim() || null,
     });
     if (error) return setError(error.message);
     await loadData();
@@ -1870,17 +1873,28 @@ export default function App() {
               </TouchableOpacity>
             ))}
           </View>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="What happened? (optional details)"
+            placeholderTextColor="#9ca3af"
+            value={reportDetails}
+            onChangeText={setReportDetails}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
           <View style={styles.rowGap}>
             <TouchableOpacity
               style={[styles.rejectBtn, { flex: 1 }]}
               onPress={async () => {
-                await reportHost(reportTarget, reportReason);
+                await reportHost(reportTarget, reportReason, reportDetails);
+                setReportDetails('');
                 setReportTarget(null);
               }}
             >
               <Text style={styles.approveBtnText}>Submit report</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setReportTarget(null)}>
+            <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => { setReportDetails(''); setReportTarget(null); }}>
               <Text style={styles.mapBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>

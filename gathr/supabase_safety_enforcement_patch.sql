@@ -4,7 +4,8 @@ create table if not exists public.user_reports (
   created_at timestamptz not null default now(),
   reporter_name text not null,
   reported_name text not null,
-  reason text not null default 'General safety concern'
+  reason text not null default 'General safety concern',
+  details text
 );
 
 create table if not exists public.user_blocks (
