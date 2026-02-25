@@ -860,8 +860,9 @@ export default function App() {
   const createEvent = async () => {
     if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
-    const broadFromCoords = pickedExactCoords
-      ? await broadAreaFromCoords(pickedExactCoords.latitude, pickedExactCoords.longitude)
+    const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
+    const broadFromCoords = resolvedCoords
+      ? await broadAreaFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)
       : '';
     const generatedArea = broadFromCoords || toBroadArea(exactLocation.trim());
 
@@ -872,8 +873,8 @@ export default function App() {
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
       area: generatedArea,
       exact_location: exactLocation.trim(),
-      exact_lat: pickedExactCoords?.latitude ?? null,
-      exact_lng: pickedExactCoords?.longitude ?? null,
+      exact_lat: resolvedCoords?.latitude ?? null,
+      exact_lng: resolvedCoords?.longitude ?? null,
       exact_time: exactTime.trim(),
       host_name: currentUser.trim() || 'Anonymous',
     });
