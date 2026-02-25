@@ -12,3 +12,10 @@
   - Email (for verification)
   - Photo
   - Full name
+- Location input should support postcode suggestions/autocomplete.
+- Users should also be able to drop a pin on a map for precise spots (e.g., a specific basketball court in a park).
+- When creating an activity, users should be able to add a description.
+- Profiles should include an “About me” description.
+- Host should be able to invite people.
+- Members should also be able to request/invite attendance, but host approval is still required.
+- Activities should include the required number of people.
