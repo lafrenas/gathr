@@ -167,6 +167,7 @@ export default function App() {
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [filterCategory, setFilterCategory] = useState<'All' | 'Sports' | 'Social' | 'Online'>('All');
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
+  const [radiusKm, setRadiusKm] = useState<'any' | '2' | '5' | '10' | '25'>('any');
   const [inviteEventId, setInviteEventId] = useState<number | null>(null);
   const [inviteName, setInviteName] = useState('');
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
@@ -902,13 +903,24 @@ export default function App() {
       const [eventCategory = '', eventActivity = ''] = e.category.split(':');
       const catOk = filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
       const timeOk = matchesTimeFilter(e.exact_time, timeFilter);
-      if (!catOk || !timeOk) return false;
+
+      let radiusOk = true;
+      if (radiusKm !== 'any') {
+        if (!userCoords || typeof e.exact_lat !== 'number' || typeof e.exact_lng !== 'number') {
+          radiusOk = false;
+        } else {
+          const d = distanceKm(userCoords, { latitude: e.exact_lat, longitude: e.exact_lng });
+          radiusOk = d <= Number(radiusKm);
+        }
+      }
+
+      if (!catOk || !timeOk || !radiusOk) return false;
       if (!q) return true;
 
       const haystack = `${e.title} ${e.description ?? ''} ${eventCategory} ${eventActivity} ${e.category} ${e.area} ${e.host_name}`.toLowerCase();
       return fuzzyMatch(q, haystack);
     });
-  }, [visibleEvents, searchQuery, filterCategory, timeFilter]);
+  }, [visibleEvents, searchQuery, filterCategory, timeFilter, radiusKm, userCoords]);
 
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -1878,6 +1890,22 @@ export default function App() {
           ] as const).map((t) => (
             <TouchableOpacity key={t.key} style={[styles.chipBtn, timeFilter === t.key && styles.chipBtnActive]} onPress={() => setTimeFilter(t.key)}>
               <Text style={styles.chipBtnText}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.ratingLabel}>Radius filter</Text>
+        <Text style={styles.ratingHelp}>Uses your profile field: "Your area (for distance estimate)"</Text>
+        <View style={styles.rowGapWrap}>
+          {([
+            { key: 'any', label: 'Any' },
+            { key: '2', label: '2 km' },
+            { key: '5', label: '5 km' },
+            { key: '10', label: '10 km' },
+            { key: '25', label: '25 km' },
+          ] as const).map((r) => (
+            <TouchableOpacity key={r.key} style={[styles.chipBtn, radiusKm === r.key && styles.chipBtnActive]} onPress={() => setRadiusKm(r.key)}>
+              <Text style={styles.chipBtnText}>{r.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
