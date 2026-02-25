@@ -70,6 +70,11 @@ type UserReportRow = {
 type UserProfileRow = {
   id: number;
   display_name: string;
+  full_name?: string | null;
+  gender?: string | null;
+  age_group?: string | null;
+  based_in?: string | null;
+  interests_csv?: string | null;
   about_me?: string | null;
 };
 
@@ -92,6 +97,12 @@ export default function App() {
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('Basketball');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [gender, setGender] = useState('');
+  const [ageGroup, setAgeGroup] = useState('');
+  const [basedIn, setBasedIn] = useState('');
+  const [interestQuery, setInterestQuery] = useState('');
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [aboutMe, setAboutMe] = useState('');
   const [userArea, setUserArea] = useState('');
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -156,6 +167,15 @@ export default function App() {
     return pool.filter((a) => a.toLowerCase().includes(q)).slice(0, 8);
   }, [activityType, category]);
 
+  const interestCatalog = useMemo(() => Array.from(new Set(Object.values(activityOptions).flat())), [activityOptions]);
+  const interestSuggestions = useMemo(() => {
+    const q = interestQuery.trim().toLowerCase();
+    return interestCatalog
+      .filter((x) => !selectedInterests.includes(x))
+      .filter((x) => !q || x.toLowerCase().includes(q))
+      .slice(0, 12);
+  }, [interestCatalog, interestQuery, selectedInterests]);
+
   const loadData = async () => {
     setBusy(true);
     setError(null);
@@ -210,6 +230,16 @@ export default function App() {
   useEffect(() => {
     const me = currentUser.trim().toLowerCase();
     const p = profiles.find((x) => x.display_name.toLowerCase() === me);
+    setFullName(p?.full_name ?? '');
+    setGender(p?.gender ?? '');
+    setAgeGroup(p?.age_group ?? '');
+    setBasedIn(p?.based_in ?? '');
+    setSelectedInterests(
+      (p?.interests_csv ?? '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+    );
     setAboutMe(p?.about_me ?? '');
   }, [currentUser, profiles]);
 
@@ -1105,6 +1135,12 @@ export default function App() {
     await loadData();
   };
 
+  const toggleInterest = (name: string) => {
+    setSelectedInterests((prev) =>
+      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
+    );
+  };
+
   const saveProfile = async () => {
     const me = currentUser.trim();
     if (!me) return setError('Set your name first.');
@@ -1112,6 +1148,11 @@ export default function App() {
     const { error } = await supabase.from('user_profiles').upsert(
       {
         display_name: me,
+        full_name: fullName.trim() || null,
+        gender: gender.trim() || null,
+        age_group: ageGroup.trim() || null,
+        based_in: basedIn.trim() || null,
+        interests_csv: selectedInterests.join(', '),
         about_me: aboutMe.trim() || null,
       },
       { onConflict: 'display_name' }
@@ -1250,6 +1291,58 @@ export default function App() {
                 }}
               >
                 <Text style={styles.chipBtnText}>{u}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        <TextInput
+          style={styles.input}
+          value={fullName}
+          onChangeText={setFullName}
+          placeholder="Full name"
+          placeholderTextColor="#9ca3af"
+        />
+        <View style={styles.rowGapWrap}>
+          {['male', 'female'].map((g) => (
+            <TouchableOpacity key={g} style={[styles.chipBtn, gender === g && styles.chipBtnActive]} onPress={() => setGender(g)}>
+              <Text style={styles.chipBtnText}>{g}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.rowGapWrap}>
+          {['14 and under', '15–18', '19–25', '26–40', '41+'].map((a) => (
+            <TouchableOpacity key={a} style={[styles.chipBtn, ageGroup === a && styles.chipBtnActive]} onPress={() => setAgeGroup(a)}>
+              <Text style={styles.chipBtnText}>{a}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TextInput
+          style={styles.input}
+          value={basedIn}
+          onChangeText={setBasedIn}
+          placeholder="Based in (city/area)"
+          placeholderTextColor="#9ca3af"
+        />
+        <Text style={styles.ratingLabel}>Interests</Text>
+        <TextInput
+          style={styles.input}
+          value={interestQuery}
+          onChangeText={setInterestQuery}
+          placeholder="Search interests (Basketball, Tennis...)"
+          placeholderTextColor="#9ca3af"
+        />
+        <View style={styles.rowGapWrap}>
+          {interestSuggestions.map((i) => (
+            <TouchableOpacity key={i} style={styles.chipBtn} onPress={() => toggleInterest(i)}>
+              <Text style={styles.chipBtnText}>{i}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {selectedInterests.length > 0 && (
+          <View style={styles.rowGapWrap}>
+            {selectedInterests.map((i) => (
+              <TouchableOpacity key={`sel-${i}`} style={styles.chipBtnActive} onPress={() => toggleInterest(i)}>
+                <Text style={styles.chipBtnText}>{i} ✕</Text>
               </TouchableOpacity>
             ))}
           </View>

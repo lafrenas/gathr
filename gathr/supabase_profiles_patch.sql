@@ -1,8 +1,13 @@
--- Basic user profiles for About Me and display identity.
+-- Basic user profiles for onboarding + identity.
 create table if not exists public.user_profiles (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
   display_name text not null unique,
+  full_name text,
+  gender text,
+  age_group text,
+  based_in text,
+  interests_csv text,
   about_me text
 );
 
