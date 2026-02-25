@@ -297,7 +297,18 @@ export default function App() {
       .map((s) => s.trim())
       .filter((s) => s.length >= 2);
 
-    const unique = Array.from(new Set([...postcodes, ...places]));
+    const starterSuggestions = [
+      'E1 6AN',
+      'SW1A 1AA',
+      'SE1 9SG',
+      'Camden, London',
+      'Shoreditch, London',
+      'Canary Wharf, London',
+      'Manchester M1',
+      'Birmingham B1',
+    ];
+
+    const unique = Array.from(new Set([...postcodes, ...places, ...starterSuggestions]));
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
     return matched.slice(0, 8);
   }, [events, area]);
@@ -864,20 +875,26 @@ export default function App() {
             setShowAreaSuggestions(true);
           }}
         />
-        {showAreaSuggestions && areaSuggestions.length > 0 && (
+        {showAreaSuggestions && (
           <View style={styles.suggestionBox}>
-            {areaSuggestions.map((s) => (
-              <TouchableOpacity
-                key={`area-${s}`}
-                style={styles.suggestionItem}
-                onPress={() => {
-                  setArea(s);
-                  setShowAreaSuggestions(false);
-                }}
-              >
-                <Text style={styles.suggestionText}>{s}</Text>
-              </TouchableOpacity>
-            ))}
+            {areaSuggestions.length > 0 ? (
+              areaSuggestions.map((s) => (
+                <TouchableOpacity
+                  key={`area-${s}`}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    setArea(s);
+                    setShowAreaSuggestions(false);
+                  }}
+                >
+                  <Text style={styles.suggestionText}>{s}</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>No matches yet. Try postcode like E1 or area like Camden.</Text>
+              </View>
+            )}
           </View>
         )}
         <TextInput style={styles.input} placeholder="Exact location (approved only)" placeholderTextColor="#9ca3af" value={exactLocation} onChangeText={setExactLocation} />
