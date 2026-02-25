@@ -568,68 +568,16 @@ export default function App() {
   const toBroadArea = (address: string) => {
     const raw = address.trim();
     if (!raw) return raw;
-    const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
-    if (parts.length <= 1) return raw;
-
-    const districtLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2);
-    return districtLike || parts[1] || parts[0];
+    return 'Approx area';
   };
 
-  const broadAreaFromCoords = async (latitude: number, longitude: number) => {
-    const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const zoneLabelFromCoords = (latitude: number, longitude: number) => {
+    const latStep = 0.02; // ~2.2km
+    const lngStep = 0.03; // ~2km around LT latitudes
+    const latBucket = Math.floor((latitude + 90) / latStep);
+    const lngBucket = Math.floor((longitude + 180) / lngStep);
 
-    try {
-      const [googleJson, nominatimJson] = await Promise.all([
-        key
-          ? fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`).then((r) => r.json())
-          : Promise.resolve(null),
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`).then((r) => r.json()),
-      ]);
-
-      const components = googleJson?.results?.[0]?.address_components ?? [];
-      const pickGoogle = (...types: string[]) =>
-        components.find((c: { types?: string[] }) => types.some((t) => (c.types ?? []).includes(t)))?.long_name ?? '';
-
-      const gNeighborhood = pickGoogle('neighborhood', 'sublocality_level_1', 'sublocality', 'postal_town');
-
-      const a = nominatimJson?.address ?? {};
-      const nNeighborhood = (a.suburb || a.neighbourhood || a.city_district || a.quarter || a.residential || '').trim();
-      const city = (a.city || a.town || a.municipality || pickGoogle('locality', 'administrative_area_level_2', 'administrative_area_level_1') || '').trim();
-
-      if (gNeighborhood) return gNeighborhood;
-      if (nNeighborhood) return nNeighborhood;
-
-      if (city.toLowerCase().includes('kaunas')) {
-        const kaunasDistricts = [
-          { name: 'Kalniečiai', lat: 54.93, lng: 23.98 },
-          { name: 'Dainava', lat: 54.90, lng: 23.97 },
-          { name: 'Eiguliai', lat: 54.94, lng: 23.92 },
-          { name: 'Šilainiai', lat: 54.92, lng: 23.88 },
-          { name: 'Vilijampolė', lat: 54.91, lng: 23.88 },
-          { name: 'Aleksotas', lat: 54.88, lng: 23.90 },
-          { name: 'Žaliakalnis', lat: 54.91, lng: 23.94 },
-          { name: 'Centras', lat: 54.90, lng: 23.91 },
-          { name: 'Panemunė', lat: 54.87, lng: 23.95 },
-          { name: 'Petrašiūnai', lat: 54.89, lng: 24.00 },
-        ];
-
-        let best = kaunasDistricts[0];
-        let bestDist = Number.POSITIVE_INFINITY;
-        for (const d of kaunasDistricts) {
-          const dist = Math.hypot(latitude - d.lat, longitude - d.lng);
-          if (dist < bestDist) {
-            bestDist = dist;
-            best = d;
-          }
-        }
-        return best.name;
-      }
-
-      if (city) return city;
-      return '';
-    } catch {
-      return '';
-    }
+    return `Zone ${latBucket.toString(36).toUpperCase()}-${lngBucket.toString(36).toUpperCase()} (~2km)`;
   };
 
   const applyPickedLocation = (value: string) => {
@@ -861,10 +809,9 @@ export default function App() {
     if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
     const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
-    const broadFromCoords = resolvedCoords
-      ? await broadAreaFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)
-      : '';
-    const generatedArea = broadFromCoords || toBroadArea(exactLocation.trim());
+    const generatedArea = resolvedCoords
+      ? zoneLabelFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)
+      : toBroadArea(exactLocation.trim());
 
     setError(null);
     const { error } = await supabase.from('events').insert({
@@ -1349,7 +1296,7 @@ export default function App() {
           </View>
         )}
 
-        <Text style={styles.meta}>Public area is auto-generated as district/area from exact location.</Text>
+        <Text style={styles.meta}>Public area is auto-generated as a privacy-safe zone (~2km).</Text>
         <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
           <Text style={styles.mapBtnText}>{exactLocation.trim() ? 'Change location on map' : 'Pick location on map'}</Text>
         </TouchableOpacity>
