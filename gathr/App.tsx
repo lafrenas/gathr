@@ -54,6 +54,8 @@ type EventRatingRow = {
   comment?: string;
 };
 
+
+
 type UserBlockRow = {
   id: number;
   blocker_name: string;
@@ -78,6 +80,13 @@ type UserProfileRow = {
   about_me?: string | null;
 };
 
+type RatingSkipRow = {
+  id: number;
+  event_id: number;
+  skipper_name: string;
+  skipped_name: string;
+};
+
 export default function App() {
   const testUsers = ['1', '2', '3', '4', '5'];
   const [currentUser, setCurrentUser] = useState('1');
@@ -88,6 +97,7 @@ export default function App() {
   const [blocks, setBlocks] = useState<UserBlockRow[]>([]);
   const [reports, setReports] = useState<UserReportRow[]>([]);
   const [profiles, setProfiles] = useState<UserProfileRow[]>([]);
+  const [ratingSkips, setRatingSkips] = useState<RatingSkipRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
@@ -225,6 +235,11 @@ export default function App() {
     const { data: profileData, error: profileError } = await supabase.from('user_profiles').select('*').order('id', { ascending: false });
     if (!profileError) {
       setProfiles((profileData ?? []) as UserProfileRow[]);
+    }
+
+    const { data: skipData, error: skipError } = await supabase.from('event_rating_skips').select('*').order('id', { ascending: false });
+    if (!skipError) {
+      setRatingSkips((skipData ?? []) as RatingSkipRow[]);
     }
 
     setBusy(false);
@@ -1177,6 +1192,32 @@ export default function App() {
     await loadData();
   };
 
+  const skipRatingForNow = async (eventId: number, skippedName: string) => {
+    const skipper = currentUser.trim();
+    if (!skipper) return;
+    const { error } = await supabase.from('event_rating_skips').upsert(
+      {
+        event_id: eventId,
+        skipper_name: skipper,
+        skipped_name: skippedName,
+      },
+      { onConflict: 'event_id,skipper_name,skipped_name' }
+    );
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
+  const getRateTargets = (eventId: number, hostName: string) => {
+    const me = currentUser.trim().toLowerCase();
+    const approvedAttendees = requests
+      .filter((r) => r.event_id === eventId && r.status === 'approved')
+      .map((r) => r.requester_name)
+      .filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+
+    const people = [hostName, ...approvedAttendees].filter((n) => n.toLowerCase() !== me);
+    return people;
+  };
+
   const reportHost = async (hostName: string, reason: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
@@ -1229,6 +1270,12 @@ export default function App() {
     if (rb.error) {
       setBusy(false);
       return setError(rb.error.message);
+    }
+
+    const rs = await supabase.from('event_rating_skips').delete().neq('id', -1);
+    if (rs.error && !rs.error.message.toLowerCase().includes('does not exist')) {
+      setBusy(false);
+      return setError(rs.error.message);
     }
 
     const r1 = await supabase.from('event_ratings').delete().neq('id', -1);
@@ -1899,22 +1946,49 @@ export default function App() {
               {!isHost && myReq?.status === 'approved' && <Text style={styles.approvedText}>Approved ✅</Text>}
               {!isHost && myReq?.status === 'rejected' && <Text style={styles.rejectedText}>Request rejected</Text>}
 
-              {approved && !isHost && (() => {
-                const alreadyRated = ratings.some(
-                  (r) => r.event_id === item.id && r.rater_name.toLowerCase() === currentUser.trim().toLowerCase() && r.rated_name.toLowerCase() === item.host_name.toLowerCase()
-                );
-                if (alreadyRated) return <Text style={styles.approvedText}>You rated this host ✅</Text>;
+              {approved && (() => {
                 if (!hasEventEnded(item.exact_time)) {
                   return <Text style={styles.pendingText}>Ratings unlock after event end time.</Text>;
                 }
+
+                const targets = getRateTargets(item.id, item.host_name);
+                if (targets.length === 0) return <Text style={styles.meta}>No one to rate yet.</Text>;
+
                 return (
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => openRatingForm(item.id, item.host_name)}>
-                    <Text style={styles.approveBtnText}>Rate host</Text>
-                  </TouchableOpacity>
+                  <View style={styles.rowGapWrap}>
+                    {targets.map((target) => {
+                      const alreadyRated = ratings.some(
+                        (r) =>
+                          r.event_id === item.id &&
+                          r.rater_name.toLowerCase() === currentUser.trim().toLowerCase() &&
+                          r.rated_name.toLowerCase() === target.toLowerCase()
+                      );
+                      const skipped = ratingSkips.some(
+                        (s) =>
+                          s.event_id === item.id &&
+                          s.skipper_name.toLowerCase() === currentUser.trim().toLowerCase() &&
+                          s.skipped_name.toLowerCase() === target.toLowerCase()
+                      );
+
+                      if (alreadyRated) return <Text key={`rated-${target}`} style={styles.approvedText}>Rated {target} ✅</Text>;
+                      if (skipped) return <Text key={`skipped-${target}`} style={styles.meta}>Skipped {target}</Text>;
+
+                      return (
+                        <View key={`actions-${target}`} style={styles.rowGap}>
+                          <TouchableOpacity style={styles.approveBtn} onPress={() => openRatingForm(item.id, target)}>
+                            <Text style={styles.approveBtnText}>Rate {target}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.mapBtn} onPress={() => skipRatingForNow(item.id, target)}>
+                            <Text style={styles.mapBtnText}>Skip</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
                 );
               })()}
 
-              <Text style={styles.ratingHint}>After event end: rate trust + skill</Text>
+              <Text style={styles.ratingHint}>After event end: rate or skip each participant</Text>
             </View>
           );
         })}
