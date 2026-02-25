@@ -547,6 +547,24 @@ export default function App() {
     setMapPickerVisible(true);
   };
 
+  useEffect(() => {
+    if (!mapPickerVisible) return;
+    const seed = (mapTargetField === 'area' ? area : exactLocation).trim();
+    if (!seed) return;
+
+    (async () => {
+      const point = await geocodeAddress(seed);
+      if (!point) return;
+      setMapPin(point);
+      setMapRegion({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    })();
+  }, [mapPickerVisible, mapTargetField]);
+
   const toBroadArea = (address: string) => {
     const raw = address.trim();
     if (!raw) return raw;
@@ -1514,7 +1532,12 @@ export default function App() {
                     const point = await geocodeAddress(s);
                     if (point) {
                       setMapPin(point);
-                      setMapRegion({ ...mapRegion, ...point });
+                      setMapRegion({
+                        latitude: point.latitude,
+                        longitude: point.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      });
                     }
                   }}
                 >
