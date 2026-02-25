@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import MapView, { Marker, MapPressEvent, Region } from 'react-native-maps';
 import { supabase } from './lib/supabase';
 
 type EventRow = {
@@ -92,6 +94,17 @@ export default function App() {
   const [remoteExactPostcodeSuggestions, setRemoteExactPostcodeSuggestions] = useState<string[]>([]);
   const [remoteExactPlaceSuggestions, setRemoteExactPlaceSuggestions] = useState<string[]>([]);
   const [googleExactSuggestions, setGoogleExactSuggestions] = useState<string[]>([]);
+  const [mapPickerVisible, setMapPickerVisible] = useState(false);
+  const [mapTargetField, setMapTargetField] = useState<'area' | 'exact'>('area');
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [mapSearchSuggestions, setMapSearchSuggestions] = useState<string[]>([]);
+  const [mapRegion, setMapRegion] = useState<Region>({
+    latitude: 54.6872,
+    longitude: 25.2797,
+    latitudeDelta: 0.12,
+    longitudeDelta: 0.12,
+  });
+  const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
   const [dateDraft, setDateDraft] = useState<Date>(new Date());
@@ -280,6 +293,22 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [exactLocation]);
 
+  useEffect(() => {
+    if (!mapPickerVisible) return;
+    const q = mapSearchQuery.trim();
+    if (q.length < 2) {
+      setMapSearchSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const list = await fetchGoogleAutocomplete(q);
+      setMapSearchSuggestions(list);
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [mapSearchQuery, mapPickerVisible]);
+
   const hasEventEnded = (exactTime: string) => {
     const ts = Date.parse(exactTime);
     if (!Number.isFinite(ts)) return false;
@@ -395,7 +424,7 @@ export default function App() {
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
 
-  const fetchGoogleAutocomplete = async (input: string) => {
+  const fetchGoogleAutocomplete = async (input: string): Promise<string[]> => {
     const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
     if (!key || input.trim().length < 2) return [] as string[];
 
@@ -417,7 +446,7 @@ export default function App() {
       const json = await res.json();
       const suggestions = Array.isArray(json?.suggestions) ? json.suggestions : [];
 
-      const list = suggestions
+      const list: string[] = suggestions
         .map((s: { placePrediction?: { text?: { text?: string } }; queryPrediction?: { text?: { text?: string } } }) =>
           (s.placePrediction?.text?.text ?? s.queryPrediction?.text?.text ?? '').trim()
         )
@@ -427,6 +456,54 @@ export default function App() {
     } catch {
       return [] as string[];
     }
+  };
+
+  const geocodeAddress = async (address: string) => {
+    const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!key) return null;
+
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${key}`);
+      const json = await res.json();
+      const loc = json?.results?.[0]?.geometry?.location;
+      if (!loc) return null;
+      return { latitude: Number(loc.lat), longitude: Number(loc.lng) };
+    } catch {
+      return null;
+    }
+  };
+
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!key) return '';
+
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`);
+      const json = await res.json();
+      return (json?.results?.[0]?.formatted_address ?? '').trim();
+    } catch {
+      return '';
+    }
+  };
+
+  const openMapPicker = (target: 'area' | 'exact') => {
+    setMapTargetField(target);
+    const seed = target === 'area' ? area : exactLocation;
+    setMapSearchQuery(seed);
+    setMapSearchSuggestions([]);
+    setMapPickerVisible(true);
+  };
+
+  const applyPickedLocation = (value: string) => {
+    if (!value.trim()) return;
+    if (mapTargetField === 'area') {
+      setArea(value);
+      setShowAreaSuggestions(false);
+    } else {
+      setExactLocation(value);
+      setShowExactLocationSuggestions(false);
+    }
+    setMapPickerVisible(false);
   };
 
   const areaSuggestions = useMemo(() => {
@@ -1128,6 +1205,9 @@ export default function App() {
             )}
           </View>
         )}
+        <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('area')}>
+          <Text style={styles.mapBtnText}>Pick public area on map</Text>
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Exact location (approved only)"
@@ -1161,6 +1241,9 @@ export default function App() {
             )}
           </View>
         )}
+        <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
+          <Text style={styles.mapBtnText}>Pick exact location on map</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.mapBtn}
@@ -1358,6 +1441,78 @@ export default function App() {
         })}
       </View>
       </ScrollView>
+
+      <Modal visible={mapPickerVisible} animationType="slide" onRequestClose={() => setMapPickerVisible(false)}>
+        <SafeAreaView style={styles.mapModalRoot}>
+          <View style={styles.mapModalHeader}>
+            <Text style={styles.cardTitle}>{mapTargetField === 'area' ? 'Pick public area' : 'Pick exact location'}</Text>
+            <TouchableOpacity style={styles.rejectBtn} onPress={() => setMapPickerVisible(false)}>
+              <Text style={styles.approveBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Search place or address"
+            placeholderTextColor="#9ca3af"
+            value={mapSearchQuery}
+            onChangeText={setMapSearchQuery}
+          />
+          {mapSearchSuggestions.length > 0 && (
+            <View style={styles.suggestionBox}>
+              {mapSearchSuggestions.slice(0, 5).map((s) => (
+                <TouchableOpacity
+                  key={`map-s-${s}`}
+                  style={styles.suggestionItem}
+                  onPress={async () => {
+                    setMapSearchQuery(s);
+                    const point = await geocodeAddress(s);
+                    if (point) {
+                      setMapPin(point);
+                      setMapRegion({ ...mapRegion, ...point });
+                    }
+                  }}
+                >
+                  <Text style={styles.suggestionText}>{s}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <MapView
+            style={styles.mapView}
+            region={mapRegion}
+            onRegionChangeComplete={setMapRegion}
+            onPress={(e: MapPressEvent) => setMapPin(e.nativeEvent.coordinate)}
+          >
+            {mapPin && (
+              <Marker
+                coordinate={mapPin}
+                draggable
+                onDragEnd={(e) => setMapPin(e.nativeEvent.coordinate)}
+              />
+            )}
+          </MapView>
+
+          <View style={styles.rowGap}>
+            <TouchableOpacity
+              style={[styles.mapBtn, { flex: 1 }]}
+              onPress={async () => {
+                if (mapSearchQuery.trim()) {
+                  applyPickedLocation(mapSearchQuery.trim());
+                } else if (mapPin) {
+                  const addr = await reverseGeocode(mapPin.latitude, mapPin.longitude);
+                  applyPickedLocation(addr || `${mapPin.latitude.toFixed(5)}, ${mapPin.longitude.toFixed(5)}`);
+                } else {
+                  setError('Select a place or drop a pin first.');
+                }
+              }}
+            >
+              <Text style={styles.mapBtnText}>Use this location</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1430,4 +1585,7 @@ const styles = StyleSheet.create({
   ratingHelp: { color: '#94a3b8', marginBottom: 6, fontSize: 12 },
   warnBadge: { color: '#fca5a5', marginTop: 6, fontWeight: '700' },
   reviewSnippet: { color: '#cbd5e1', marginTop: 6, fontStyle: 'italic' },
+  mapModalRoot: { flex: 1, backgroundColor: '#0b1220', padding: 12 },
+  mapModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', marginTop: 8 },
 });
