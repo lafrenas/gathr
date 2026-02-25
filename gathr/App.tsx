@@ -969,13 +969,16 @@ export default function App() {
     [filteredEvents]
   );
 
+  const isAdminUser = currentUser.trim() === '1';
+
   const mapBrowseEvents = useMemo(() => {
-    if (mapBrowseGlobal || !userCoords) return mappableEvents;
+    const allowGlobal = isAdminUser && mapBrowseGlobal;
+    if (allowGlobal || !userCoords) return mappableEvents;
     return mappableEvents.filter((e) => {
       const d = distanceKm(userCoords, { latitude: e.exact_lat, longitude: e.exact_lng });
       return d <= 25;
     });
-  }, [mappableEvents, mapBrowseGlobal, userCoords]);
+  }, [mappableEvents, mapBrowseGlobal, userCoords, isAdminUser]);
 
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -2232,11 +2235,13 @@ export default function App() {
             <TouchableOpacity style={[styles.chipBtn, !mapBrowseGlobal && styles.chipBtnActive]} onPress={() => setMapBrowseGlobal(false)}>
               <Text style={styles.chipBtnText}>Near me (25km)</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.chipBtn, mapBrowseGlobal && styles.chipBtnActive]} onPress={() => setMapBrowseGlobal(true)}>
-              <Text style={styles.chipBtnText}>Global</Text>
-            </TouchableOpacity>
+            {isAdminUser && (
+              <TouchableOpacity style={[styles.chipBtn, mapBrowseGlobal && styles.chipBtnActive]} onPress={() => setMapBrowseGlobal(true)}>
+                <Text style={styles.chipBtnText}>Global (admin)</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {!userCoords && !mapBrowseGlobal && <Text style={styles.meta}>Set "Your area" in profile to enable nearby map browse.</Text>}
+          {!userCoords && (!isAdminUser || !mapBrowseGlobal) && <Text style={styles.meta}>Set "Your area" in profile to enable nearby map browse.</Text>}
 
           <EventMapBrowse
             style={styles.mapView}
