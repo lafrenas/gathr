@@ -993,8 +993,14 @@ export default function App() {
   };
 
   const respondToInvite = async (requestId: number, accept: boolean) => {
+    const req = requests.find((r) => r.id === requestId);
+    if (!req) return;
+
     const payload = accept
-      ? { invite_response: 'accepted' as const, status: 'pending' as const }
+      ? {
+          invite_response: 'accepted' as const,
+          status: req.invite_source === 'host' ? ('approved' as const) : ('pending' as const),
+        }
       : { invite_response: 'declined' as const, status: 'rejected' as const };
 
     const { error } = await supabase.from('join_requests').update(payload).eq('id', requestId);
