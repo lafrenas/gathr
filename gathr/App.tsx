@@ -1694,10 +1694,12 @@ export default function App() {
             const required = Number(event?.required_people ?? 0);
             const approvedCount = 1 + requests.filter((x) => x.event_id === r.event_id && x.status === 'approved').length;
             const isFull = required > 0 && approvedCount >= required;
+            const reqStat = userRatingStats[r.requester_name.toLowerCase()];
             return (
               <View key={r.id} style={styles.pendingItem}>
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
                 <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : r.invite_source === 'member' ? `Member invite (${r.invited_by_name || 'member'})` : 'User request'}</Text>
+                <Text style={styles.meta}>Requester: {reqStat ? `Trust ⭐ ${reqStat.trust.toFixed(1)} (${reqStat.count}) • Skill ⭐ ${reqStat.skill.toFixed(1)}` : 'New / no ratings yet'}</Text>
                 <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
                 <View style={styles.rowGap}>
                   {!isFull ? (
@@ -1839,7 +1841,10 @@ export default function App() {
             .filter((r) => r.event_id === item.id && r.status === 'approved')
             .map((r) => r.requester_name)
             .filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
-          const approvedCount = 1 + approvedAttendees.length;
+          const participants = [item.host_name, ...approvedAttendees].filter(
+            (n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i
+          );
+          const approvedCount = participants.length;
           const required = Number(item.required_people ?? 0);
           const isFull = required > 0 && approvedCount >= required;
           const approved = isHost || myReq?.status === 'approved';
@@ -1866,17 +1871,26 @@ export default function App() {
                 );
               })()}
               <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
-              {approvedAttendees.length > 0 && (
+              {participants.length > 0 && (
                 <View style={{ marginTop: 6 }}>
-                  <Text style={styles.meta}>Going:</Text>
-                  {approvedAttendees.map((name) => {
+                  <Text style={styles.meta}>Participants:</Text>
+                  {participants.map((name) => {
                     const stat = userRatingStats[name.toLowerCase()];
+                    const role = name.toLowerCase() === item.host_name.toLowerCase() ? 'host' : 'member';
                     return (
                       <Text key={`going-${item.id}-${name}`} style={styles.meta}>
-                        • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}
+                        • {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}
                       </Text>
                     );
                   })}
+                  {(() => {
+                    const rated = participants
+                      .map((n) => userRatingStats[n.toLowerCase()])
+                      .filter(Boolean) as Array<{ trust: number }>;
+                    if (rated.length === 0) return null;
+                    const avg = rated.reduce((s, x) => s + x.trust, 0) / rated.length;
+                    return <Text style={styles.meta}>Group trust avg: ⭐ {avg.toFixed(1)}</Text>;
+                  })()}
                 </View>
               )}
               {(() => {
