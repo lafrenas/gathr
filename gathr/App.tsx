@@ -607,7 +607,9 @@ export default function App() {
     );
     const myRelevantEventIds = new Set<number>([
       ...events.filter((e) => e.host_name.toLowerCase() === me).map((e) => e.id),
-      ...requests.filter((r) => r.requester_name.toLowerCase() === me && r.status === 'approved').map((r) => r.event_id),
+      ...requests
+        .filter((r) => r.requester_name.toLowerCase() === me && (r.status === 'approved' || r.status === 'pending'))
+        .map((r) => r.event_id),
     ]);
 
     for (const eid of myRelevantEventIds) {
@@ -1218,6 +1220,24 @@ export default function App() {
     if (!name) return setError('Set your name first.');
 
     setError(null);
+
+    const event = events.find((e) => e.id === eventId);
+    if (event) {
+      const reportedByMe = new Set(
+        reports
+          .filter((rp) => rp.reporter_name.toLowerCase() === name.toLowerCase())
+          .map((rp) => rp.reported_name.toLowerCase())
+      );
+      const attendees = [
+        event.host_name,
+        ...requests
+          .filter((r) => r.event_id === eventId && (r.status === 'approved' || r.status === 'pending'))
+          .map((r) => r.requester_name),
+      ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+
+      const hit = attendees.find((n) => reportedByMe.has(n.toLowerCase()) && n.toLowerCase() !== name.toLowerCase());
+      if (hit) setInfo(`⚠️ Heads up: ${hit} (previously reported by you) is in this event.`);
+    }
 
     const existing = requests.find(
       (r) => r.event_id === eventId && r.requester_name.toLowerCase() === name.toLowerCase()
