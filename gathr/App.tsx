@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -2071,20 +2072,27 @@ export default function App() {
             mapSearchQuery.trim().length >= 2 ? <Text style={styles.meta}>No matches yet. Try a fuller address or drop a pin.</Text> : null
           )}
 
-          <MapView
-            style={styles.mapView}
-            region={mapRegion}
-            onRegionChangeComplete={setMapRegion}
-            onPress={(e: MapPressEvent) => setMapPin(e.nativeEvent.coordinate)}
-          >
-            {mapPin && (
-              <Marker
-                coordinate={mapPin}
-                draggable
-                onDragEnd={(e) => setMapPin(e.nativeEvent.coordinate)}
-              />
-            )}
-          </MapView>
+          {Platform.OS === 'web' ? (
+            <View style={[styles.mapView, { alignItems: 'center', justifyContent: 'center', padding: 16 }]}> 
+              <Text style={styles.meta}>Map picker is limited on web preview.</Text>
+              <Text style={styles.meta}>Search above and tap a suggestion, then use "Use this location".</Text>
+            </View>
+          ) : (
+            <MapView
+              style={styles.mapView}
+              region={mapRegion}
+              onRegionChangeComplete={setMapRegion}
+              onPress={(e: MapPressEvent) => setMapPin(e.nativeEvent.coordinate)}
+            >
+              {mapPin && (
+                <Marker
+                  coordinate={mapPin}
+                  draggable
+                  onDragEnd={(e) => setMapPin(e.nativeEvent.coordinate)}
+                />
+              )}
+            </MapView>
+          )}
 
           <View style={styles.rowGap}>
             <TouchableOpacity
