@@ -439,6 +439,8 @@ export default function App() {
     : '';
   const exactDateWeb = exactTimeWebLocal ? exactTimeWebLocal.slice(0, 10) : '';
   const exactClockWeb = exactTimeWebLocal ? exactTimeWebLocal.slice(11, 16) : '';
+  const [webDateInput, setWebDateInput] = useState(exactDateWeb);
+  const [webTimeInput, setWebTimeInput] = useState(exactClockWeb);
 
   const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -984,6 +986,9 @@ export default function App() {
     setExactTime(nextEventDate.toISOString());
     setEventDateTime(nextEventDate);
     setDateDraft(nextEventDate);
+    const nextLocal = new Date(nextEventDate.getTime() - nextEventDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setWebDateInput(nextLocal.slice(0, 10));
+    setWebTimeInput(nextLocal.slice(11, 16));
     await loadData();
   };
 
@@ -1675,9 +1680,11 @@ export default function App() {
               style={styles.input}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#9ca3af"
-              value={exactDateWeb}
+              value={webDateInput}
               onChangeText={(dPart) => {
-                const tPart = exactClockWeb || '12:00';
+                setWebDateInput(dPart);
+                const tPart = webTimeInput || '12:00';
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dPart) || !/^\d{2}:\d{2}$/.test(tPart)) return;
                 const d = new Date(`${dPart}T${tPart}`);
                 if (!Number.isFinite(d.getTime())) return;
                 setEventDateTime(d);
@@ -1690,9 +1697,11 @@ export default function App() {
               style={styles.input}
               placeholder="HH:mm"
               placeholderTextColor="#9ca3af"
-              value={exactClockWeb}
+              value={webTimeInput}
               onChangeText={(tPart) => {
-                const dPart = exactDateWeb || new Date().toISOString().slice(0, 10);
+                setWebTimeInput(tPart);
+                const dPart = webDateInput || new Date().toISOString().slice(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dPart) || !/^\d{2}:\d{2}$/.test(tPart)) return;
                 const d = new Date(`${dPart}T${tPart}`);
                 if (!Number.isFinite(d.getTime())) return;
                 setEventDateTime(d);
