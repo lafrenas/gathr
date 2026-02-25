@@ -1173,6 +1173,27 @@ export default function App() {
 
     setError(null);
 
+    const event = events.find((e) => e.id === eventId);
+    if (event) {
+      const attendees = [
+        event.host_name,
+        ...requests.filter((r) => r.event_id === eventId && r.status === 'approved').map((r) => r.requester_name),
+      ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+
+      const conflict = attendees.find((person) => {
+        if (person.toLowerCase() === name.toLowerCase()) return false;
+        return blocks.some(
+          (b) =>
+            (b.blocker_name.toLowerCase() === name.toLowerCase() && b.blocked_name.toLowerCase() === person.toLowerCase()) ||
+            (b.blocked_name.toLowerCase() === name.toLowerCase() && b.blocker_name.toLowerCase() === person.toLowerCase())
+        );
+      });
+
+      if (conflict) {
+        return setError(`You cannot join this event because of a blocked user conflict (${conflict}).`);
+      }
+    }
+
     const existing = requests.find(
       (r) => r.event_id === eventId && r.requester_name.toLowerCase() === name.toLowerCase()
     );
@@ -1278,6 +1299,27 @@ export default function App() {
           return setError('Invitee must accept invitation before host approval.');
         }
         const event = events.find((e) => e.id === req.event_id);
+
+        if (event) {
+          const attendees = [
+            event.host_name,
+            ...requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').map((r) => r.requester_name),
+          ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+
+          const conflict = attendees.find((person) => {
+            if (person.toLowerCase() === req.requester_name.toLowerCase()) return false;
+            return blocks.some(
+              (b) =>
+                (b.blocker_name.toLowerCase() === req.requester_name.toLowerCase() && b.blocked_name.toLowerCase() === person.toLowerCase()) ||
+                (b.blocked_name.toLowerCase() === req.requester_name.toLowerCase() && b.blocker_name.toLowerCase() === person.toLowerCase())
+            );
+          });
+
+          if (conflict) {
+            return setError(`Cannot approve: blocked user conflict with ${conflict}.`);
+          }
+        }
+
         const required = Number(event?.required_people ?? 0);
         const allow = !!event?.allow_overflow;
         if (!allow && required > 0) {
@@ -2362,10 +2404,16 @@ export default function App() {
                         {participants.map((name) => {
                           const stat = userRatingStats[name.toLowerCase()];
                           const role = name.toLowerCase() === item.host_name.toLowerCase() ? 'host' : 'member';
+                          const canBlock = hasEventEnded(item.exact_time) && name.toLowerCase() !== currentUser.trim().toLowerCase();
                           return (
-                            <Text key={`going-${item.id}-${name}`} style={styles.meta}>
-                              • {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}
-                            </Text>
+                            <View key={`going-${item.id}-${name}`} style={styles.rowGap}>
+                              <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
+                              {canBlock && (
+                                <TouchableOpacity style={styles.rejectBtn} onPress={() => blockHost(name)}>
+                                  <Text style={styles.approveBtnText}>Ban from my future events</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           );
                         })}
                         {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
