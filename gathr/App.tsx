@@ -400,34 +400,24 @@ export default function App() {
       .map((s) => s.trim())
       .filter((s) => s.length >= 2);
 
-    const lithuaniaSeed = [
-      'Vilnius, Lithuania',
-      'Kaunas, Lithuania',
-      'Klaipėda, Lithuania',
-      'Šiauliai, Lithuania',
-      'Panevėžys, Lithuania',
-      'Alytus, Lithuania',
-      'Marijampolė, Lithuania',
-      'Mažeikiai, Lithuania',
-      'Jonava, Lithuania',
-      'Utena, Lithuania',
-      'Kėdainiai, Lithuania',
-      'Telšiai, Lithuania',
-      'Tauragė, Lithuania',
-      'Kretinga, Lithuania',
+    const balticSeed = [
+      'Vilnius, Lithuania', 'Kaunas, Lithuania', 'Klaipėda, Lithuania', 'Šiauliai, Lithuania', 'Panevėžys, Lithuania',
+      'Palanga, Lithuania', 'Kretinga, Lithuania',
+      'Riga, Latvia', 'Jūrmala, Latvia', 'Liepāja, Latvia',
+      'Tallinn, Estonia', 'Tartu, Estonia',
     ];
 
     const fallback = q
       ? [
+          area.trim(),
           `${area.trim()}, Lithuania`,
-          `${area.trim()}, Kaunas, Lithuania`,
-          `${area.trim()}, Vilnius, Lithuania`,
-          `${area.trim()}, London, UK`,
+          `${area.trim()}, Latvia`,
+          `${area.trim()}, Estonia`,
         ]
       : [];
 
     const unique = Array.from(
-      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...lithuaniaSeed, ...fallback])
+      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...balticSeed, ...fallback])
     );
     const nq = normalize(q);
     const matched = q
@@ -436,7 +426,17 @@ export default function App() {
           return nx.includes(nq) || nx.startsWith(nq);
         })
       : unique;
-    return matched.slice(0, 8);
+
+    const rank = (x: string) => {
+      const nx = normalize(x);
+      if (!q) return 2;
+      if (nx === nq) return 0;
+      if (nx.startsWith(nq)) return 1;
+      if (nx.includes(nq)) return 2;
+      return 3;
+    };
+
+    return matched.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 8);
   }, [events, area, remotePostcodeSuggestions, remotePlaceSuggestions]);
 
   const levenshtein = (a: string, b: string) => {
@@ -488,15 +488,19 @@ export default function App() {
 
     const streetSeed = [
       'Landsbergio-Žemkalnio g., Kaunas, Lithuania',
+      'Savanorių pr., Kaunas, Lithuania',
       'Gedimino pr., Vilnius, Lithuania',
       'Laisvės al., Kaunas, Lithuania',
       'Maironio g., Kaunas, Lithuania',
       'Kęstučio g., Kaunas, Lithuania',
-      'Kretinga, Lithuania',
+      'J. Basanavičiaus g., Vilnius, Lithuania',
+      'Riga, Latvia',
+      'Palanga, Lithuania',
     ];
 
     const fallback = q
       ? [
+          exactLocation.trim(),
           `${exactLocation.trim()}, Kaunas, Lithuania`,
           `${exactLocation.trim()}, Vilnius, Lithuania`,
           `${exactLocation.trim()}, Lithuania`,
@@ -513,7 +517,17 @@ export default function App() {
           return nx.includes(nq) || nx.startsWith(nq);
         })
       : unique;
-    return matched.slice(0, 8);
+
+    const rank = (x: string) => {
+      const nx = normalize(x);
+      if (!q) return 2;
+      if (nx === nq) return 0;
+      if (nx.startsWith(nq)) return 1;
+      if (nx.includes(nq)) return 2;
+      return 3;
+    };
+
+    return matched.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 8);
   }, [events, exactLocation, remoteExactPostcodeSuggestions, remoteExactPlaceSuggestions]);
 
   const filteredEvents = useMemo(() => {
