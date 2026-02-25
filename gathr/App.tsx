@@ -138,6 +138,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showProfileSection, setShowProfileSection] = useState(false);
+  const [showDebugSection, setShowDebugSection] = useState(false);
+  const [showCreateSection, setShowCreateSection] = useState(true);
+  const [showPendingSection, setShowPendingSection] = useState(false);
+  const [showInvitesSection, setShowInvitesSection] = useState(true);
+  const [showFeedSection, setShowFeedSection] = useState(true);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -1285,115 +1291,96 @@ export default function App() {
       <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>You are</Text>
-        <TouchableOpacity style={styles.mapBtn} onPress={() => setShowUserPicker((v) => !v)}>
-          <Text style={styles.mapBtnText}>User: {currentUser} (tap to switch)</Text>
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowProfileSection((v) => !v)}>
+          <Text style={styles.cardTitle}>You are</Text>
+          <Text style={styles.meta}>{showProfileSection ? '▾' : '▸'}</Text>
         </TouchableOpacity>
-        {showUserPicker && (
-          <View style={styles.rowGapWrap}>
-            {testUsers.map((u) => (
-              <TouchableOpacity
-                key={u}
-                style={[styles.chipBtn, currentUser === u && styles.chipBtnActive]}
-                onPress={() => {
-                  setCurrentUser(u);
-                  setShowUserPicker(false);
-                }}
-              >
-                <Text style={styles.chipBtnText}>{u}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        {showProfileSection && (
+          <>
+            <TouchableOpacity style={styles.mapBtn} onPress={() => setShowUserPicker((v) => !v)}>
+              <Text style={styles.mapBtnText}>User: {currentUser} (tap to switch)</Text>
+            </TouchableOpacity>
+            {showUserPicker && (
+              <View style={styles.rowGapWrap}>
+                {testUsers.map((u) => (
+                  <TouchableOpacity
+                    key={u}
+                    style={[styles.chipBtn, currentUser === u && styles.chipBtnActive]}
+                    onPress={() => {
+                      setCurrentUser(u);
+                      setShowUserPicker(false);
+                    }}
+                  >
+                    <Text style={styles.chipBtnText}>{u}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Full name" placeholderTextColor="#9ca3af" />
+            <View style={styles.rowGapWrap}>
+              {['male', 'female'].map((g) => (
+                <TouchableOpacity key={g} style={[styles.chipBtn, gender === g && styles.chipBtnActive]} onPress={() => setGender(g)}>
+                  <Text style={styles.chipBtnText}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.rowGapWrap}>
+              {['14 and under', '15–18', '19–25', '26–40', '41+'].map((a) => (
+                <TouchableOpacity key={a} style={[styles.chipBtn, ageGroup === a && styles.chipBtnActive]} onPress={() => setAgeGroup(a)}>
+                  <Text style={styles.chipBtnText}>{a}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput style={styles.input} value={basedIn} onChangeText={setBasedIn} placeholder="Based in (city/area)" placeholderTextColor="#9ca3af" />
+            <Text style={styles.ratingLabel}>Interests</Text>
+            <TextInput style={styles.input} value={interestQuery} onChangeText={setInterestQuery} placeholder="Search interests (Basketball, Tennis...)" placeholderTextColor="#9ca3af" />
+            <View style={styles.rowGapWrap}>
+              {interestSuggestions.map((i) => (
+                <TouchableOpacity key={i} style={styles.chipBtn} onPress={() => toggleInterest(i)}>
+                  <Text style={styles.chipBtnText}>{i}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedInterests.length > 0 && (
+              <View style={styles.rowGapWrap}>
+                {selectedInterests.map((i) => (
+                  <TouchableOpacity key={`sel-${i}`} style={styles.chipBtnActive} onPress={() => toggleInterest(i)}>
+                    <Text style={styles.chipBtnText}>{i} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            <TextInput style={[styles.input, styles.textArea]} value={aboutMe} onChangeText={setAboutMe} placeholder="About me" placeholderTextColor="#9ca3af" multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
+            <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
+              <Text style={styles.mapBtnText}>Save profile</Text>
+            </TouchableOpacity>
+          </>
         )}
-        <TextInput
-          style={styles.input}
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder="Full name"
-          placeholderTextColor="#9ca3af"
-        />
-        <View style={styles.rowGapWrap}>
-          {['male', 'female'].map((g) => (
-            <TouchableOpacity key={g} style={[styles.chipBtn, gender === g && styles.chipBtnActive]} onPress={() => setGender(g)}>
-              <Text style={styles.chipBtnText}>{g}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.rowGapWrap}>
-          {['14 and under', '15–18', '19–25', '26–40', '41+'].map((a) => (
-            <TouchableOpacity key={a} style={[styles.chipBtn, ageGroup === a && styles.chipBtnActive]} onPress={() => setAgeGroup(a)}>
-              <Text style={styles.chipBtnText}>{a}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TextInput
-          style={styles.input}
-          value={basedIn}
-          onChangeText={setBasedIn}
-          placeholder="Based in (city/area)"
-          placeholderTextColor="#9ca3af"
-        />
-        <Text style={styles.ratingLabel}>Interests</Text>
-        <TextInput
-          style={styles.input}
-          value={interestQuery}
-          onChangeText={setInterestQuery}
-          placeholder="Search interests (Basketball, Tennis...)"
-          placeholderTextColor="#9ca3af"
-        />
-        <View style={styles.rowGapWrap}>
-          {interestSuggestions.map((i) => (
-            <TouchableOpacity key={i} style={styles.chipBtn} onPress={() => toggleInterest(i)}>
-              <Text style={styles.chipBtnText}>{i}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {selectedInterests.length > 0 && (
-          <View style={styles.rowGapWrap}>
-            {selectedInterests.map((i) => (
-              <TouchableOpacity key={`sel-${i}`} style={styles.chipBtnActive} onPress={() => toggleInterest(i)}>
-                <Text style={styles.chipBtnText}>{i} ✕</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={aboutMe}
-          onChangeText={setAboutMe}
-          placeholder="About me"
-          placeholderTextColor="#9ca3af"
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
-        <TextInput
-          style={styles.input}
-          value={userArea}
-          onChangeText={setUserArea}
-          placeholder="Your area (for distance estimate)"
-          placeholderTextColor="#9ca3af"
-        />
-        <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
-          <Text style={styles.mapBtnText}>Save profile</Text>
-        </TouchableOpacity>
       </View>
 
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
       {!!info && <Text style={styles.approvedText}>{info}</Text>}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Debug</Text>
-        <Text style={styles.meta}>Status: {busy ? 'Loading…' : 'Ready'}</Text>
-        <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length} • Ratings: {ratings.length} • Reports: {reports.length}</Text>
-        <View style={styles.rowGap}>
-          <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={loadData}>
-            <Text style={styles.mapBtnText}>Refresh data</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={clearTestData}>
-            <Text style={styles.approveBtnText}>Clear test data</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowDebugSection((v) => !v)}>
+          <Text style={styles.cardTitle}>Debug</Text>
+          <Text style={styles.meta}>{showDebugSection ? '▾' : '▸'}</Text>
+        </TouchableOpacity>
+        {showDebugSection && (
+          <>
+            <Text style={styles.meta}>Status: {busy ? 'Loading…' : 'Ready'}</Text>
+            <Text style={styles.meta}>Events: {events.length} • Requests: {requests.length} • Ratings: {ratings.length} • Reports: {reports.length}</Text>
+            <View style={styles.rowGap}>
+              <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={loadData}>
+                <Text style={styles.mapBtnText}>Refresh data</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={clearTestData}>
+                <Text style={styles.approveBtnText}>Clear test data</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </View>
 
       {selectedHost && (
@@ -1541,7 +1528,12 @@ export default function App() {
       )}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Create event</Text>
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowCreateSection((v) => !v)}>
+          <Text style={styles.cardTitle}>Create event</Text>
+          <Text style={styles.meta}>{showCreateSection ? '▾' : '▸'}</Text>
+        </TouchableOpacity>
+        {showCreateSection && (
+          <>
         <TextInput style={styles.input} placeholder="Title" placeholderTextColor="#9ca3af" value={title} onChangeText={setTitle} />
         <TextInput
           style={[styles.input, styles.textArea]}
@@ -1638,11 +1630,18 @@ export default function App() {
         <TouchableOpacity style={styles.primaryBtn} onPress={createEvent}>
           <Text style={styles.primaryBtnText}>Create Event</Text>
         </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {pendingForMyHostedEvents.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Pending approvals</Text>
+          <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowPendingSection((v) => !v)}>
+            <Text style={styles.cardTitle}>Pending approvals</Text>
+            <Text style={styles.meta}>{showPendingSection ? '▾' : '▸'}</Text>
+          </TouchableOpacity>
+          {showPendingSection && (
+          <>
           {pendingForMyHostedEvents.map((r) => {
             const event = events.find((e) => e.id === r.event_id);
             const required = Number(event?.required_people ?? 0);
@@ -1670,12 +1669,19 @@ export default function App() {
               </View>
             );
           })}
+          </>
+          )}
         </View>
       )}
 
       {myInviteInbox.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Invites inbox</Text>
+          <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowInvitesSection((v) => !v)}>
+            <Text style={styles.cardTitle}>Invites inbox</Text>
+            <Text style={styles.meta}>{showInvitesSection ? '▾' : '▸'}</Text>
+          </TouchableOpacity>
+          {showInvitesSection && (
+          <>
           {myInviteInbox.map((r) => {
             const ev = events.find((e) => e.id === r.event_id);
             const statusLabel =
@@ -1704,12 +1710,18 @@ export default function App() {
               </View>
             );
           })}
+          </>
+          )}
         </View>
       )}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Event feed</Text>
-
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowFeedSection((v) => !v)}>
+          <Text style={styles.cardTitle}>Event feed</Text>
+          <Text style={styles.meta}>{showFeedSection ? '▾' : '▸'}</Text>
+        </TouchableOpacity>
+        {showFeedSection && (
+          <>
         <TextInput
           style={styles.input}
           placeholder="Search by title, activity, area, host..."
@@ -1765,8 +1777,11 @@ export default function App() {
         <TouchableOpacity style={styles.mapBtn} onPress={() => setShowAllEvents((v) => !v)}>
           <Text style={styles.mapBtnText}>{showAllEvents ? 'Show latest 8 only' : 'Show all events'}</Text>
         </TouchableOpacity>
+          </>
+        )}
       </View>
 
+      {showFeedSection && (
       <View style={styles.list}>
         {(showAllEvents ? filteredEvents : filteredEvents.slice(0, 8)).map((item) => {
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
@@ -1904,6 +1919,7 @@ export default function App() {
           );
         })}
       </View>
+      )}
       </ScrollView>
 
       <Modal visible={mapPickerVisible} animationType="slide" onRequestClose={() => setMapPickerVisible(false)}>
@@ -1998,6 +2014,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
   },
   cardTitle: { color: '#f9fafb', fontWeight: '700', marginBottom: 10 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   input: {
     backgroundColor: '#1f2937', color: '#f9fafb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
   },
