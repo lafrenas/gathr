@@ -198,7 +198,15 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [filterCategory, setFilterCategory] = useState<'All' | 'Sports' | 'Social' | 'Online'>('All');
-  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
+  const [filterActivity, setFilterActivity] = useState('All');
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [showActivityMenu, setShowActivityMenu] = useState(false);
+  const [filterDate, setFilterDate] = useState<string | null>(null); // YYYY-MM-DD
+  const [filterDateModalVisible, setFilterDateModalVisible] = useState(false);
+  const [filterMonthCursor, setFilterMonthCursor] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [radiusKm, setRadiusKm] = useState<'any' | '2' | '5' | '10' | '25'>('any');
   const [includeUnknownLocation, setIncludeUnknownLocation] = useState(true);
   const [inviteEventId, setInviteEventId] = useState<number | null>(null);
@@ -314,6 +322,8 @@ export default function App() {
     setShowLeaderboardSection(false);
     setShowModerationSection(false);
     setShowNotificationsSection(false);
+    setShowCategoryMenu(false);
+    setShowActivityMenu(false);
   };
 
   const expandMainSections = () => {
@@ -1075,7 +1085,18 @@ export default function App() {
     return visibleEvents.filter((e) => {
       const [eventCategory = '', eventActivity = ''] = e.category.split(':');
       const catOk = filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
-      const timeOk = matchesTimeFilter(e.exact_time, timeFilter);
+      const activityOk = filterActivity === 'All' || eventActivity.trim().toLowerCase() === filterActivity.toLowerCase();
+
+      let dateOk = true;
+      if (filterDate) {
+        const ts = Date.parse(e.exact_time);
+        if (!Number.isFinite(ts)) dateOk = false;
+        else {
+          const d = new Date(ts);
+          const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+          dateOk = local === filterDate;
+        }
+      }
 
       let radiusOk = true;
       if (radiusKm !== 'any') {
@@ -1087,13 +1108,13 @@ export default function App() {
         }
       }
 
-      if (!catOk || !timeOk || !radiusOk) return false;
+      if (!catOk || !activityOk || !dateOk || !radiusOk) return false;
       if (!q) return true;
 
       const haystack = `${e.title} ${e.description ?? ''} ${eventCategory} ${eventActivity} ${e.category} ${e.area} ${e.host_name}`.toLowerCase();
       return fuzzyMatch(q, haystack);
     });
-  }, [visibleEvents, searchQuery, filterCategory, timeFilter, radiusKm, userCoords, includeUnknownLocation]);
+  }, [visibleEvents, searchQuery, filterCategory, filterActivity, filterDate, radiusKm, userCoords, includeUnknownLocation]);
 
   const mappableEvents = useMemo(
     () =>
@@ -2436,28 +2457,56 @@ export default function App() {
           </View>
         )}
 
-        <Text style={styles.ratingLabel}>Category filter</Text>
-        <View style={styles.rowGapWrap}>
-          {(['All', 'Sports', 'Social', 'Online'] as const).map((c) => (
-            <TouchableOpacity key={c} style={[styles.chipBtn, filterCategory === c && styles.chipBtnActive]} onPress={() => setFilterCategory(c)}>
-              <Text style={styles.chipBtnText}>{c}</Text>
+        <Text style={styles.ratingLabel}>Categories</Text>
+        <TouchableOpacity style={styles.mapBtn} onPress={() => setShowCategoryMenu((v) => !v)}>
+          <Text style={styles.mapBtnText}>Categories: {filterCategory}{filterActivity !== 'All' ? ` / ${filterActivity}` : ''}</Text>
+        </TouchableOpacity>
+        {showCategoryMenu && (
+          <View style={styles.rowGapWrap}>
+            {(['All', 'Sports', 'Social', 'Online'] as const).map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.chipBtn, filterCategory === c && styles.chipBtnActive]}
+                onPress={() => {
+                  setFilterCategory(c);
+                  setFilterActivity('All');
+                  setShowActivityMenu(true);
+                }}
+              >
+                <Text style={styles.chipBtnText}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        {showActivityMenu && filterCategory !== 'All' && (
+          <View style={styles.rowGapWrap}>
+            <TouchableOpacity style={[styles.chipBtn, filterActivity === 'All' && styles.chipBtnActive]} onPress={() => setFilterActivity('All')}>
+              <Text style={styles.chipBtnText}>All {filterCategory}</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+            {(activityOptions[filterCategory] ?? []).map((a) => (
+              <TouchableOpacity key={`fa-${a}`} style={[styles.chipBtn, filterActivity === a && styles.chipBtnActive]} onPress={() => setFilterActivity(a)}>
+                <Text style={styles.chipBtnText}>{a}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
-        <Text style={styles.ratingLabel}>Time filter</Text>
-        <View style={styles.rowGapWrap}>
-          {([
-            { key: 'all', label: 'All' },
-            { key: 'today', label: 'Today' },
-            { key: 'tomorrow', label: 'Tomorrow' },
-            { key: 'week', label: 'This week' },
-          ] as const).map((t) => (
-            <TouchableOpacity key={t.key} style={[styles.chipBtn, timeFilter === t.key && styles.chipBtnActive]} onPress={() => setTimeFilter(t.key)}>
-              <Text style={styles.chipBtnText}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={styles.ratingLabel}>Date</Text>
+        <TouchableOpacity
+          style={styles.mapBtn}
+          onPress={() => {
+            setFilterDateModalVisible(true);
+            const base = filterDate ? new Date(`${filterDate}T12:00`) : new Date();
+            setFilterMonthCursor(new Date(base.getFullYear(), base.getMonth(), 1));
+          }}
+        >
+          <Text style={styles.mapBtnText}>{filterDate ? `Date: ${filterDate}` : 'Any date'}</Text>
+        </TouchableOpacity>
+        {!!filterDate && (
+          <TouchableOpacity style={styles.chipBtn} onPress={() => setFilterDate(null)}>
+            <Text style={styles.chipBtnText}>Clear date</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.ratingLabel}>Radius filter</Text>
         <Text style={styles.ratingHelp}>Uses your profile field: "Your area (for distance estimate)"</Text>
@@ -2730,6 +2779,54 @@ export default function App() {
       </View>
       )}
       </ScrollView>
+
+      <Modal visible={filterDateModalVisible} transparent animationType="fade" onRequestClose={() => setFilterDateModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.sectionHeader}>
+              <TouchableOpacity style={styles.chipBtn} onPress={() => setFilterMonthCursor(new Date(filterMonthCursor.getFullYear(), filterMonthCursor.getMonth() - 1, 1))}>
+                <Text style={styles.chipBtnText}>‹</Text>
+              </TouchableOpacity>
+              <Text style={styles.cardTitle}>
+                {filterMonthCursor.toLocaleString(undefined, { month: 'long' })} {filterMonthCursor.getFullYear()}
+              </Text>
+              <TouchableOpacity style={styles.chipBtn} onPress={() => setFilterMonthCursor(new Date(filterMonthCursor.getFullYear(), filterMonthCursor.getMonth() + 1, 1))}>
+                <Text style={styles.chipBtnText}>›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dayGrid}>
+              {Array.from({ length: new Date(filterMonthCursor.getFullYear(), filterMonthCursor.getMonth() + 1, 0).getDate() }, (_, i) => i + 1).map((d) => {
+                const dateStr = `${filterMonthCursor.getFullYear().toString().padStart(4, '0')}-${(filterMonthCursor.getMonth() + 1)
+                  .toString()
+                  .padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+                const active = filterDate === dateStr;
+                return (
+                  <TouchableOpacity
+                    key={`filter-day-${dateStr}`}
+                    style={[styles.dayChip, active && styles.chipBtnActive]}
+                    onPress={() => {
+                      setFilterDate(dateStr);
+                      setFilterDateModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.chipBtnText}>{d}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.rowGap}>
+              <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => { setFilterDate(new Date().toISOString().slice(0, 10)); setFilterDateModalVisible(false); }}>
+                <Text style={styles.mapBtnText}>Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setFilterDateModalVisible(false)}>
+                <Text style={styles.approveBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!notificationDetailEventId} animationType="slide" onRequestClose={() => setNotificationDetailEventId(null)}>
         <SafeAreaView style={styles.mapModalRoot}>
