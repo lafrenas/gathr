@@ -1130,11 +1130,15 @@ export default function App() {
   }, [events, activityRatings]);
 
   const moderationQueue = useMemo(() => {
-    const byReported: Record<string, { count: number; latestReason: string }> = {};
+    const byReported: Record<string, { count: number; latestReason: string; latestDetails: string }> = {};
     for (const r of reports) {
       const key = r.reported_name.trim().toLowerCase();
-      const prev = byReported[key] || { count: 0, latestReason: r.reason };
-      byReported[key] = { count: prev.count + 1, latestReason: r.reason || prev.latestReason };
+      const prev = byReported[key] || { count: 0, latestReason: r.reason, latestDetails: r.details || '' };
+      byReported[key] = {
+        count: prev.count + 1,
+        latestReason: r.reason || prev.latestReason,
+        latestDetails: r.details || prev.latestDetails,
+      };
     }
 
     return Object.entries(byReported)
@@ -1144,6 +1148,7 @@ export default function App() {
           user_name: k,
           count: v.count,
           latestReason: v.latestReason,
+          latestDetails: v.latestDetails,
           status: status?.status || 'watchlist',
           note: status?.note || '',
         };
@@ -2360,6 +2365,7 @@ export default function App() {
                   <View key={`mod-${m.user_name}`} style={styles.pendingItem}>
                     <Text style={styles.eventTitle}>{m.user_name}</Text>
                     <Text style={styles.meta}>Reports: {m.count} • Latest: {m.latestReason}</Text>
+                    {!!m.latestDetails && <Text style={styles.meta}>Comment: {m.latestDetails}</Text>}
                     <Text style={styles.meta}>Status: {m.status}</Text>
                     <View style={styles.rowGapWrap}>
                       <TouchableOpacity style={[styles.chipBtn, m.status === 'watchlist' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'watchlist')}>
