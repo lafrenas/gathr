@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
   Modal,
-  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -14,14 +13,7 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { supabase } from './lib/supabase';
-
-let MapViewComp: any = View;
-let MarkerComp: any = null;
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapViewComp = Maps.default;
-  MarkerComp = Maps.Marker;
-}
+import { MapCanvas } from './components/MapCanvas';
 
 type MapRegion = {
   latitude: number;
@@ -2086,27 +2078,14 @@ export default function App() {
             mapSearchQuery.trim().length >= 2 ? <Text style={styles.meta}>No matches yet. Try a fuller address or drop a pin.</Text> : null
           )}
 
-          {Platform.OS === 'web' ? (
-            <View style={[styles.mapView, { alignItems: 'center', justifyContent: 'center', padding: 16 }]}> 
-              <Text style={styles.meta}>Map picker is limited on web preview.</Text>
-              <Text style={styles.meta}>Search above and tap a suggestion, then use "Use this location".</Text>
-            </View>
-          ) : (
-            <MapViewComp
-              style={styles.mapView}
-              region={mapRegion}
-              onRegionChangeComplete={setMapRegion}
-              onPress={(e: any) => setMapPin(e.nativeEvent.coordinate)}
-            >
-              {mapPin && MarkerComp ? (
-                <MarkerComp
-                  coordinate={mapPin}
-                  draggable
-                  onDragEnd={(e: any) => setMapPin(e.nativeEvent.coordinate)}
-                />
-              ) : null}
-            </MapViewComp>
-          )}
+          <MapCanvas
+            style={styles.mapView}
+            region={mapRegion}
+            onRegionChangeComplete={setMapRegion}
+            onPress={(e: any) => setMapPin(e.nativeEvent.coordinate)}
+            mapPin={mapPin}
+            onPinChange={setMapPin}
+          />
 
           <View style={styles.rowGap}>
             <TouchableOpacity
