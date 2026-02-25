@@ -18,6 +18,7 @@ type EventRow = {
   created_at: string;
   title: string;
   category: string;
+  description?: string | null;
   area: string;
   exact_location: string;
   exact_time: string;
@@ -69,6 +70,7 @@ export default function App() {
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
@@ -235,6 +237,7 @@ export default function App() {
     setError(null);
     const { error } = await supabase.from('events').insert({
       title: title.trim(),
+      description: description.trim() || null,
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
       area: area.trim(),
       exact_location: exactLocation.trim(),
@@ -245,6 +248,7 @@ export default function App() {
     if (error) return setError(error.message);
 
     setTitle('');
+    setDescription('');
     setCategory('Sports');
     setActivityType('');
     setArea('');
@@ -589,6 +593,16 @@ export default function App() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Create event</Text>
         <TextInput style={styles.input} placeholder="Title" placeholderTextColor="#9ca3af" value={title} onChangeText={setTitle} />
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Description (optional)"
+          placeholderTextColor="#9ca3af"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
 
         <Text style={styles.ratingLabel}>Category</Text>
         <View style={styles.rowGapWrap}>
@@ -703,6 +717,7 @@ export default function App() {
           return (
             <View key={item.id} style={styles.eventCard}>
               <Text style={styles.eventTitle}>{item.title}</Text>
+              {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
               {(() => {
                 const stat = hostRatingStats[item.host_name.toLowerCase()];
@@ -797,6 +812,9 @@ const styles = StyleSheet.create({
   cardTitle: { color: '#f9fafb', fontWeight: '700', marginBottom: 10 },
   input: {
     backgroundColor: '#1f2937', color: '#f9fafb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
+  },
+  textArea: {
+    minHeight: 76,
   },
   suggestionBox: {
     backgroundColor: '#0f172a',

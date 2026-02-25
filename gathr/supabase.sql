@@ -2,6 +2,7 @@ create table if not exists public.events (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
   title text not null,
+  description text,
   category text not null,
   area text not null,
   exact_location text not null,
