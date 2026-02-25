@@ -165,6 +165,7 @@ export default function App() {
   const [showFeedSection, setShowFeedSection] = useState(true);
   const [showMapBrowse, setShowMapBrowse] = useState(false);
   const [mapBrowseSelectedEventId, setMapBrowseSelectedEventId] = useState<number | null>(null);
+  const [mapBrowseGlobal, setMapBrowseGlobal] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -967,6 +968,14 @@ export default function App() {
       ) as Array<EventRow & { exact_lat: number; exact_lng: number }>,
     [filteredEvents]
   );
+
+  const mapBrowseEvents = useMemo(() => {
+    if (mapBrowseGlobal || !userCoords) return mappableEvents;
+    return mappableEvents.filter((e) => {
+      const d = distanceKm(userCoords, { latitude: e.exact_lat, longitude: e.exact_lng });
+      return d <= 25;
+    });
+  }, [mappableEvents, mapBrowseGlobal, userCoords]);
 
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -2219,9 +2228,19 @@ export default function App() {
             </TouchableOpacity>
           </View>
 
+          <View style={styles.rowGap}>
+            <TouchableOpacity style={[styles.chipBtn, !mapBrowseGlobal && styles.chipBtnActive]} onPress={() => setMapBrowseGlobal(false)}>
+              <Text style={styles.chipBtnText}>Near me (25km)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.chipBtn, mapBrowseGlobal && styles.chipBtnActive]} onPress={() => setMapBrowseGlobal(true)}>
+              <Text style={styles.chipBtnText}>Global</Text>
+            </TouchableOpacity>
+          </View>
+          {!userCoords && !mapBrowseGlobal && <Text style={styles.meta}>Set "Your area" in profile to enable nearby map browse.</Text>}
+
           <EventMapBrowse
             style={styles.mapView}
-            events={mappableEvents.map((e) => ({
+            events={mapBrowseEvents.map((e) => ({
               id: e.id,
               title: e.title,
               area: publicAreaForEvent(e),
