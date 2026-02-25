@@ -83,7 +83,7 @@ export default function App() {
   const [reportReason, setReportReason] = useState('Harassment');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [requiredPeople, setRequiredPeople] = useState('4');
+  const [requiredPeople, setRequiredPeople] = useState('');
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
@@ -883,7 +883,7 @@ export default function App() {
 
     setTitle('');
     setDescription('');
-    setRequiredPeople('4');
+    setRequiredPeople('');
     setCategory('Sports');
     setActivityType('');
     setArea('');
@@ -1325,9 +1325,11 @@ export default function App() {
           numberOfLines={3}
           textAlignVertical="top"
         />
+        <Text style={styles.ratingLabel}>Required people</Text>
+        <Text style={styles.ratingHelp}>How many people are needed for this activity?</Text>
         <TextInput
           style={styles.input}
-          placeholder="Required people (e.g. 4)"
+          placeholder="Enter number (e.g. 4)"
           placeholderTextColor="#9ca3af"
           keyboardType="number-pad"
           value={requiredPeople}
