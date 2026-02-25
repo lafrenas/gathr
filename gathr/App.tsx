@@ -74,7 +74,9 @@ type UserProfileRow = {
 };
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState('Ignas');
+  const testUsers = ['1', '2', '3', '4', '5'];
+  const [currentUser, setCurrentUser] = useState('1');
+  const [showUserPicker, setShowUserPicker] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [requests, setRequests] = useState<JoinRequestRow[]>([]);
   const [ratings, setRatings] = useState<EventRatingRow[]>([]);
@@ -84,11 +86,11 @@ export default function App() {
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [requiredPeople, setRequiredPeople] = useState('');
+  const [title, setTitle] = useState('Test Basketball Run');
+  const [description, setDescription] = useState('Quick test event');
+  const [requiredPeople, setRequiredPeople] = useState('4');
   const [category, setCategory] = useState('Sports');
-  const [activityType, setActivityType] = useState('');
+  const [activityType, setActivityType] = useState('Basketball');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
   const [aboutMe, setAboutMe] = useState('');
   const [userArea, setUserArea] = useState('');
@@ -98,7 +100,7 @@ export default function App() {
   const [remotePostcodeSuggestions, setRemotePostcodeSuggestions] = useState<string[]>([]);
   const [remotePlaceSuggestions, setRemotePlaceSuggestions] = useState<string[]>([]);
   const [googleAreaSuggestions, setGoogleAreaSuggestions] = useState<string[]>([]);
-  const [exactLocation, setExactLocation] = useState('');
+  const [exactLocation, setExactLocation] = useState('Central Park, New York, NY, USA');
   const [showExactLocationSuggestions, setShowExactLocationSuggestions] = useState(false);
   const [remoteExactPostcodeSuggestions, setRemoteExactPostcodeSuggestions] = useState<string[]>([]);
   const [remoteExactPlaceSuggestions, setRemoteExactPlaceSuggestions] = useState<string[]>([]);
@@ -115,9 +117,11 @@ export default function App() {
   });
   const [mapPin, setMapPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pickedExactCoords, setPickedExactCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [exactTime, setExactTime] = useState('');
-  const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
-  const [dateDraft, setDateDraft] = useState<Date>(new Date());
+  const initialEventDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  initialEventDate.setSeconds(0, 0);
+  const [exactTime, setExactTime] = useState(initialEventDate.toISOString());
+  const [eventDateTime, setEventDateTime] = useState<Date | null>(initialEventDate);
+  const [dateDraft, setDateDraft] = useState<Date>(initialEventDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -891,20 +895,23 @@ export default function App() {
 
     if (error) return setError(error.message);
 
-    setTitle('');
-    setDescription('');
-    setRequiredPeople('');
+    const nextEventDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    nextEventDate.setSeconds(0, 0);
+    setTitle('Test Basketball Run');
+    setDescription('Quick test event');
+    setRequiredPeople('4');
     setCategory('Sports');
-    setActivityType('');
+    setActivityType('Basketball');
     setArea('');
-    setExactLocation('');
+    setExactLocation('Central Park, New York, NY, USA');
     setShowAreaSuggestions(false);
     setShowExactLocationSuggestions(false);
     setPickedExactCoords(null);
     setGoogleAreaSuggestions([]);
     setGoogleExactSuggestions([]);
-    setExactTime('');
-    setEventDateTime(null);
+    setExactTime(nextEventDate.toISOString());
+    setEventDateTime(nextEventDate);
+    setDateDraft(nextEventDate);
     await loadData();
   };
 
@@ -1228,13 +1235,25 @@ export default function App() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>You are</Text>
-        <TextInput
-          style={styles.input}
-          value={currentUser}
-          onChangeText={setCurrentUser}
-          placeholder="Your display name"
-          placeholderTextColor="#9ca3af"
-        />
+        <TouchableOpacity style={styles.mapBtn} onPress={() => setShowUserPicker((v) => !v)}>
+          <Text style={styles.mapBtnText}>User: {currentUser} (tap to switch)</Text>
+        </TouchableOpacity>
+        {showUserPicker && (
+          <View style={styles.rowGapWrap}>
+            {testUsers.map((u) => (
+              <TouchableOpacity
+                key={u}
+                style={[styles.chipBtn, currentUser === u && styles.chipBtnActive]}
+                onPress={() => {
+                  setCurrentUser(u);
+                  setShowUserPicker(false);
+                }}
+              >
+                <Text style={styles.chipBtnText}>{u}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <TextInput
           style={[styles.input, styles.textArea]}
           value={aboutMe}
