@@ -638,8 +638,9 @@ export default function App() {
 
   const publicAreaForEvent = (e: EventRow) => {
     const saved = (e.area ?? '').trim();
-    if (saved) return saved;
-    return toBroadArea(e.exact_location || saved);
+    if (!saved) return toBroadArea(e.exact_location || saved);
+    if (/^Area\s+[A-Z0-9]+\s*\(~?2km\)/i.test(saved)) return 'Nearby area (approx)';
+    return saved;
   };
 
   const roughCoordsForEvent = (e: EventRow) => {
@@ -853,8 +854,7 @@ export default function App() {
 
     const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
     const generatedArea = resolvedCoords
-      ? (await broadAreaFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)) ||
-        zoneLabelFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)
+      ? (await broadAreaFromCoords(resolvedCoords.latitude, resolvedCoords.longitude)) || 'Nearby area (approx)'
       : toBroadArea(exactLocation.trim());
 
     setError(null);
