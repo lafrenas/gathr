@@ -571,10 +571,31 @@ export default function App() {
     const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
     if (parts.length <= 1) return `~3 km radius near ${raw}`;
 
-    const primary = parts[0];
-    const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2);
-    const label = cityLike ? `${primary}, ${cityLike}` : primary;
-    return `~3 km radius near ${label}`;
+    const cityLike = parts.find((p, i) => i > 0 && i < parts.length - 1 && !/\d/.test(p) && p.length > 2) ?? parts[1];
+    return `~3 km radius near ${cityLike}`;
+  };
+
+  const broadAreaFromCoords = async (latitude: number, longitude: number) => {
+    const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!key) return '';
+
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`);
+      const json = await res.json();
+      const components = json?.results?.[0]?.address_components ?? [];
+
+      const pick = (...types: string[]) =>
+        components.find((c: { types?: string[] }) => types.some((t) => (c.types ?? []).includes(t)))?.long_name ?? '';
+
+      const neighborhood = pick('neighborhood', 'sublocality_level_1', 'sublocality', 'postal_town');
+      const city = pick('locality', 'administrative_area_level_2', 'administrative_area_level_1');
+
+      if (neighborhood && city) return `~3 km radius near ${neighborhood}, ${city}`;
+      if (city) return `~3 km radius near ${city}`;
+      return '';
+    } catch {
+      return '';
+    }
   };
 
   const applyPickedLocation = (value: string) => {
@@ -592,7 +613,7 @@ export default function App() {
 
   const publicAreaForEvent = (e: EventRow) => {
     const saved = (e.area ?? '').trim();
-    if (saved.startsWith('~')) return saved;
+    if (saved) return saved;
     return toBroadArea(e.exact_location || saved);
   };
 
@@ -805,7 +826,10 @@ export default function App() {
   const createEvent = async () => {
     if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
 
-    const generatedArea = toBroadArea(exactLocation.trim());
+    const broadFromCoords = pickedExactCoords
+      ? await broadAreaFromCoords(pickedExactCoords.latitude, pickedExactCoords.longitude)
+      : '';
+    const generatedArea = broadFromCoords || toBroadArea(exactLocation.trim());
 
     setError(null);
     const { error } = await supabase.from('events').insert({
