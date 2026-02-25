@@ -176,6 +176,7 @@ export default function App() {
   const [showFeedSection, setShowFeedSection] = useState(true);
   const [showLeaderboardSection, setShowLeaderboardSection] = useState(false);
   const [showNotificationsSection, setShowNotificationsSection] = useState(true);
+  const [notificationTargetEventId, setNotificationTargetEventId] = useState<number | null>(null);
   const [showMapBrowse, setShowMapBrowse] = useState(false);
   const [mapBrowseSelectedEventId, setMapBrowseSelectedEventId] = useState<number | null>(null);
   const [mapBrowseGlobal, setMapBrowseGlobal] = useState(false);
@@ -542,7 +543,7 @@ export default function App() {
 
   const notifications = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
-    const items: Array<{ key: string; text: string }> = [];
+    const items: Array<{ key: string; text: string; eventId?: number; kind?: 'invite' | 'approval' | 'request' | 'capacity' }> = [];
 
     // Personal request outcomes
     for (const r of requests) {
@@ -550,10 +551,10 @@ export default function App() {
       const ev = events.find((e) => e.id === r.event_id);
       const title = ev?.title ?? `Event #${r.event_id}`;
 
-      if (r.status === 'approved') items.push({ key: `ok-${r.id}`, text: `✅ Approved for ${title}` });
-      if (r.status === 'rejected') items.push({ key: `no-${r.id}`, text: `❌ Rejected/declined for ${title}` });
+      if (r.status === 'approved') items.push({ key: `ok-${r.id}`, text: `✅ Approved for ${title}`, eventId: r.event_id, kind: 'approval' });
+      if (r.status === 'rejected') items.push({ key: `no-${r.id}`, text: `❌ Rejected/declined for ${title}`, eventId: r.event_id, kind: 'approval' });
       if (r.status === 'pending' && r.invite_source !== 'self' && r.invite_response === 'pending') {
-        items.push({ key: `inv-${r.id}`, text: `📩 Invitation from ${r.invited_by_name || 'member'} for ${title}` });
+        items.push({ key: `inv-${r.id}`, text: `📩 Invitation from ${r.invited_by_name || 'member'} for ${title}`, eventId: r.event_id, kind: 'invite' });
       }
     }
 
@@ -564,10 +565,10 @@ export default function App() {
       const ev = events.find((e) => e.id === r.event_id);
       const title = ev?.title ?? `Event #${r.event_id}`;
       if (r.status === 'pending' && r.invite_source === 'self') {
-        items.push({ key: `req-${r.id}`, text: `🆕 Join request from ${r.requester_name} for ${title}` });
+        items.push({ key: `req-${r.id}`, text: `🆕 Join request from ${r.requester_name} for ${title}`, eventId: r.event_id, kind: 'request' });
       }
       if (r.status === 'pending' && r.invite_source !== 'self' && r.invite_response === 'accepted') {
-        items.push({ key: `acc-${r.id}`, text: `🙌 ${r.requester_name} accepted invite for ${title}` });
+        items.push({ key: `acc-${r.id}`, text: `🙌 ${r.requester_name} accepted invite for ${title}`, eventId: r.event_id, kind: 'request' });
       }
     }
 
@@ -577,7 +578,7 @@ export default function App() {
       if (required <= 0) continue;
       const approvedCount = 1 + requests.filter((r) => r.event_id === e.id && r.status === 'approved').length;
       if (approvedCount >= required) {
-        items.push({ key: `full-${e.id}`, text: `📌 ${e.title} reached required capacity (${approvedCount}/${required})` });
+        items.push({ key: `full-${e.id}`, text: `📌 ${e.title} reached required capacity (${approvedCount}/${required})`, eventId: e.id, kind: 'capacity' });
       }
     }
 
@@ -2110,9 +2111,21 @@ export default function App() {
               <Text style={styles.meta}>No new notifications.</Text>
             ) : (
               notifications.map((n) => (
-                <View key={n.key} style={styles.notificationItem}>
+                <TouchableOpacity
+                  key={n.key}
+                  style={styles.notificationItem}
+                  onPress={() => {
+                    if (n.eventId) {
+                      setNotificationTargetEventId(n.eventId);
+                      setShowFeedSection(true);
+                    }
+                    if (n.kind === 'invite') setShowInvitesSection(true);
+                    if (n.kind === 'request') setShowPendingSection(true);
+                  }}
+                >
                   <Text style={styles.notificationText}>{n.text}</Text>
-                </View>
+                  {!!n.eventId && <Text style={styles.notificationHint}>Open event details</Text>}
+                </TouchableOpacity>
               ))
             )}
           </>
@@ -2219,6 +2232,7 @@ export default function App() {
         )}
 
         <Text style={styles.meta}>Showing {filteredEvents.length} event(s)</Text>
+        {!!notificationTargetEventId && <Text style={styles.meta}>Focused from notification: event #{notificationTargetEventId}</Text>}
         <View style={styles.rowGap}>
           <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setShowMapBrowse(true)}>
             <Text style={styles.mapBtnText}>Map browse</Text>
@@ -2254,7 +2268,7 @@ export default function App() {
           const approved = isHost || myReq?.status === 'approved';
 
           return (
-            <View key={item.id} style={[styles.eventCard, mapBrowseSelectedEventId === item.id && styles.eventCardActive]}>
+            <View key={item.id} style={[styles.eventCard, (mapBrowseSelectedEventId === item.id || notificationTargetEventId === item.id) && styles.eventCardActive]}>
               <Text style={styles.eventTitle}>{item.title}</Text>
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
@@ -2652,4 +2666,5 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   notificationText: { color: '#e2e8f0' },
+  notificationHint: { color: '#93c5fd', marginTop: 4, fontSize: 12 },
 });
