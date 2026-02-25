@@ -895,8 +895,8 @@ export default function App() {
     });
   }, [visibleEvents, searchQuery, filterCategory, timeFilter]);
 
-  const hostRatingStats = useMemo(() => {
-    const byHost: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
+  const userRatingStats = useMemo(() => {
+    const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
 
     const grouped: Record<string, EventRatingRow[]> = {};
     for (const r of ratings) {
@@ -913,7 +913,7 @@ export default function App() {
       const communication = hostRatings.reduce((s, r) => s + (r.communication ?? 5), 0) / count;
       const boundary = hostRatings.reduce((s, r) => s + (r.boundary_respect ?? 5), 0) / count;
       const trust = friendliness * 0.35 + reliability * 0.35 + communication * 0.2 + boundary * 0.1;
-      byHost[hostKey] = {
+      byUser[hostKey] = {
         trust,
         skill,
         count,
@@ -924,7 +924,7 @@ export default function App() {
       };
     }
 
-    return byHost;
+    return byUser;
   }, [ratings]);
 
   const createEvent = async () => {
@@ -1434,7 +1434,7 @@ export default function App() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Host profile: {selectedHost}</Text>
           {(() => {
-            const stat = hostRatingStats[selectedHost.toLowerCase()];
+            const stat = userRatingStats[selectedHost.toLowerCase()];
             const hostProfile = profiles.find((p) => p.display_name.toLowerCase() === selectedHost.toLowerCase());
             const reviews = ratings.filter((r) => r.rated_name.toLowerCase() === selectedHost.toLowerCase() && !!r.comment?.trim()).slice(0, 3);
             return (
@@ -1835,7 +1835,11 @@ export default function App() {
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
           );
-          const approvedCount = 1 + requests.filter((r) => r.event_id === item.id && r.status === 'approved').length;
+          const approvedAttendees = requests
+            .filter((r) => r.event_id === item.id && r.status === 'approved')
+            .map((r) => r.requester_name)
+            .filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+          const approvedCount = 1 + approvedAttendees.length;
           const required = Number(item.required_people ?? 0);
           const isFull = required > 0 && approvedCount >= required;
           const approved = isHost || myReq?.status === 'approved';
@@ -1848,7 +1852,7 @@ export default function App() {
               <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
               {isFull && <Text style={styles.pendingText}>Event is full</Text>}
               {(() => {
-                const stat = hostRatingStats[item.host_name.toLowerCase()];
+                const stat = userRatingStats[item.host_name.toLowerCase()];
                 if (!stat) return <Text style={styles.meta}>Trust: New • Skill: New</Text>;
                 const recent = ratings.find((r) => r.rated_name.toLowerCase() === item.host_name.toLowerCase() && !!r.comment?.trim());
                 return (
@@ -1862,6 +1866,19 @@ export default function App() {
                 );
               })()}
               <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
+              {approvedAttendees.length > 0 && (
+                <View style={{ marginTop: 6 }}>
+                  <Text style={styles.meta}>Going:</Text>
+                  {approvedAttendees.map((name) => {
+                    const stat = userRatingStats[name.toLowerCase()];
+                    return (
+                      <Text key={`going-${item.id}-${name}`} style={styles.meta}>
+                        • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}
+                      </Text>
+                    );
+                  })}
+                </View>
+              )}
               {(() => {
                 if (!userCoords || typeof item.exact_lat !== 'number' || typeof item.exact_lng !== 'number') return null;
                 const rough = roughCoordsForEvent(item) ?? { latitude: item.exact_lat, longitude: item.exact_lng };
