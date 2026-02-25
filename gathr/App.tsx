@@ -1993,21 +1993,19 @@ export default function App() {
           value={minPeople}
           onChangeText={setMinPeople}
         />
-        {!noMax && (
-          <>
-            <Text style={styles.ratingLabel}>Max people</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 8"
-              placeholderTextColor="#9ca3af"
-              keyboardType="number-pad"
-              value={maxPeople}
-              onChangeText={setMaxPeople}
-            />
-          </>
-        )}
-        <TouchableOpacity style={[styles.chipBtn, noMax && styles.chipBtnActive]} onPress={() => setNoMax((v) => !v)}>
-          <Text style={styles.chipBtnText}>{noMax ? 'No max: ON' : 'No max: OFF'}</Text>
+        <Text style={styles.ratingLabel}>Max people</Text>
+        <TextInput
+          style={[styles.input, noMax && { opacity: 0.45 }]}
+          placeholder="e.g. 8"
+          placeholderTextColor="#9ca3af"
+          keyboardType="number-pad"
+          value={maxPeople}
+          onChangeText={setMaxPeople}
+          editable={!noMax}
+        />
+        <TouchableOpacity style={[styles.checkboxRow]} onPress={() => setNoMax((v) => !v)}>
+          <Text style={styles.checkboxMark}>{noMax ? '☑' : '☐'}</Text>
+          <Text style={styles.chipBtnText}>No max</Text>
         </TouchableOpacity>
 
         <Text style={styles.ratingLabel}>Category</Text>
@@ -2995,4 +2993,6 @@ const styles = StyleSheet.create({
   },
   notificationText: { color: '#e2e8f0' },
   notificationHint: { color: '#93c5fd', marginTop: 4, fontSize: 12 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  checkboxMark: { color: '#e2e8f0', fontSize: 18 },
 });
