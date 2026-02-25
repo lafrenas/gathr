@@ -86,10 +86,12 @@ export default function App() {
   const [showAreaSuggestions, setShowAreaSuggestions] = useState(false);
   const [remotePostcodeSuggestions, setRemotePostcodeSuggestions] = useState<string[]>([]);
   const [remotePlaceSuggestions, setRemotePlaceSuggestions] = useState<string[]>([]);
+  const [googleAreaSuggestions, setGoogleAreaSuggestions] = useState<string[]>([]);
   const [exactLocation, setExactLocation] = useState('');
   const [showExactLocationSuggestions, setShowExactLocationSuggestions] = useState(false);
   const [remoteExactPostcodeSuggestions, setRemoteExactPostcodeSuggestions] = useState<string[]>([]);
   const [remoteExactPlaceSuggestions, setRemoteExactPlaceSuggestions] = useState<string[]>([]);
+  const [googleExactSuggestions, setGoogleExactSuggestions] = useState<string[]>([]);
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
   const [dateDraft, setDateDraft] = useState<Date>(new Date());
@@ -187,17 +189,19 @@ export default function App() {
     if (q.length < 2) {
       setRemotePostcodeSuggestions([]);
       setRemotePlaceSuggestions([]);
+      setGoogleAreaSuggestions([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       try {
-        const [postcodeRes, placesRes, cityRes] = await Promise.all([
+        const [postcodeRes, placesRes, cityRes, googleList] = await Promise.all([
           fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
           fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q=${encodeURIComponent(q)}`, {
             headers: { 'Accept-Language': 'en,lt' },
           }),
           fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`),
+          fetchGoogleAutocomplete(q),
         ]);
 
         const postcodeJson = await postcodeRes.json();
@@ -217,9 +221,11 @@ export default function App() {
           : [];
 
         setRemotePlaceSuggestions(Array.from(new Set([...nominatimList, ...openMeteoList])).slice(0, 8));
+        setGoogleAreaSuggestions(Array.isArray(googleList) ? (googleList as string[]) : []);
       } catch {
         setRemotePostcodeSuggestions([]);
         setRemotePlaceSuggestions([]);
+        setGoogleAreaSuggestions([]);
       }
     }, 260);
 
@@ -231,17 +237,19 @@ export default function App() {
     if (q.length < 2) {
       setRemoteExactPostcodeSuggestions([]);
       setRemoteExactPlaceSuggestions([]);
+      setGoogleExactSuggestions([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       try {
-        const [postcodeRes, placesRes, cityRes] = await Promise.all([
+        const [postcodeRes, placesRes, cityRes, googleList] = await Promise.all([
           fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
           fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q=${encodeURIComponent(q)}`, {
             headers: { 'Accept-Language': 'en,lt' },
           }),
           fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`),
+          fetchGoogleAutocomplete(q),
         ]);
 
         const postcodeJson = await postcodeRes.json();
@@ -261,9 +269,11 @@ export default function App() {
           : [];
 
         setRemoteExactPlaceSuggestions(Array.from(new Set([...nominatimList, ...openMeteoList])).slice(0, 8));
+        setGoogleExactSuggestions(Array.isArray(googleList) ? (googleList as string[]) : []);
       } catch {
         setRemoteExactPostcodeSuggestions([]);
         setRemoteExactPlaceSuggestions([]);
+        setGoogleExactSuggestions([]);
       }
     }, 260);
 
@@ -385,6 +395,40 @@ export default function App() {
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
 
+  const fetchGoogleAutocomplete = async (input: string) => {
+    const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!key || input.trim().length < 2) return [] as string[];
+
+    try {
+      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'suggestions.placePrediction.text.text,suggestions.queryPrediction.text.text',
+        },
+        body: JSON.stringify({
+          input,
+          languageCode: 'en',
+          includedRegionCodes: ['lt', 'lv', 'ee', 'fr', 'gb'],
+        }),
+      });
+
+      const json = await res.json();
+      const suggestions = Array.isArray(json?.suggestions) ? json.suggestions : [];
+
+      const list = suggestions
+        .map((s: { placePrediction?: { text?: { text?: string } }; queryPrediction?: { text?: { text?: string } } }) =>
+          (s.placePrediction?.text?.text ?? s.queryPrediction?.text?.text ?? '').trim()
+        )
+        .filter(Boolean);
+
+      return Array.from(new Set(list)).slice(0, 8);
+    } catch {
+      return [] as string[];
+    }
+  };
+
   const areaSuggestions = useMemo(() => {
     const q = area.trim().toLowerCase();
 
@@ -417,7 +461,7 @@ export default function App() {
       : [];
 
     const unique = Array.from(
-      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...balticSeed, ...fallback])
+      new Set([...googleAreaSuggestions, ...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...balticSeed, ...fallback])
     );
     const nq = normalize(q);
     const matched = q
@@ -437,7 +481,7 @@ export default function App() {
     };
 
     return matched.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 8);
-  }, [events, area, remotePostcodeSuggestions, remotePlaceSuggestions]);
+  }, [events, area, remotePostcodeSuggestions, remotePlaceSuggestions, googleAreaSuggestions]);
 
   const levenshtein = (a: string, b: string) => {
     const m = a.length;
@@ -508,7 +552,7 @@ export default function App() {
       : [];
 
     const unique = Array.from(
-      new Set([...remoteExactPostcodeSuggestions, ...remoteExactPlaceSuggestions, ...postcodes, ...places, ...streetSeed, ...fallback])
+      new Set([...googleExactSuggestions, ...remoteExactPostcodeSuggestions, ...remoteExactPlaceSuggestions, ...postcodes, ...places, ...streetSeed, ...fallback])
     );
     const nq = normalize(q);
     const matched = q
@@ -528,7 +572,7 @@ export default function App() {
     };
 
     return matched.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 8);
-  }, [events, exactLocation, remoteExactPostcodeSuggestions, remoteExactPlaceSuggestions]);
+  }, [events, exactLocation, remoteExactPostcodeSuggestions, remoteExactPlaceSuggestions, googleExactSuggestions]);
 
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -601,6 +645,8 @@ export default function App() {
     setExactLocation('');
     setShowAreaSuggestions(false);
     setShowExactLocationSuggestions(false);
+    setGoogleAreaSuggestions([]);
+    setGoogleExactSuggestions([]);
     setExactTime('');
     setEventDateTime(null);
     await loadData();
