@@ -444,6 +444,11 @@ export default function App() {
   const [webDateInput, setWebDateInput] = useState(exactDateWeb);
   const [webTimeInput, setWebTimeInput] = useState(exactClockWeb);
   const [webPicker, setWebPicker] = useState<'none' | 'date'>('none');
+  const [webDateModalVisible, setWebDateModalVisible] = useState(false);
+  const [webMonthCursor, setWebMonthCursor] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -1726,20 +1731,57 @@ export default function App() {
               return (
                 <>
                   <Text style={styles.ratingLabel}>Date</Text>
-                  <TouchableOpacity style={styles.mapBtn} onPress={() => setWebPicker(webPicker === 'date' ? 'none' : 'date')}>
+                  <TouchableOpacity
+                    style={styles.mapBtn}
+                    onPress={() => {
+                      setWebPicker('date');
+                      setWebDateModalVisible(true);
+                      setWebMonthCursor(new Date(p.y, p.m - 1, 1));
+                    }}
+                  >
                     <Text style={styles.mapBtnText}>{webDateInput || 'Select date'}</Text>
                   </TouchableOpacity>
 
-                  {webPicker === 'date' && (
-                    <>
-                      <Text style={styles.meta}>Year</Text>
-                      <View style={styles.rowGapWrap}>{years.map((y) => <TouchableOpacity key={`y-${y}`} style={[styles.chipBtn, p.y === y && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, y })}><Text style={styles.chipBtnText}>{y}</Text></TouchableOpacity>)}</View>
-                      <Text style={styles.meta}>Month</Text>
-                      <View style={styles.rowGapWrap}>{months.map((m) => <TouchableOpacity key={`m-${m}`} style={[styles.chipBtn, p.m === m && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, m })}><Text style={styles.chipBtnText}>{m}</Text></TouchableOpacity>)}</View>
-                      <Text style={styles.meta}>Day</Text>
-                      <View style={styles.rowGapWrap}>{days.map((d) => <TouchableOpacity key={`d-${d}`} style={[styles.chipBtn, p.d === d && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, d })}><Text style={styles.chipBtnText}>{d}</Text></TouchableOpacity>)}</View>
-                    </>
-                  )}
+                  <Modal visible={webDateModalVisible} transparent animationType="fade" onRequestClose={() => setWebDateModalVisible(false)}>
+                    <View style={styles.modalBackdrop}>
+                      <View style={styles.modalCard}>
+                        <View style={styles.sectionHeader}>
+                          <TouchableOpacity style={styles.chipBtn} onPress={() => setWebMonthCursor(new Date(webMonthCursor.getFullYear(), webMonthCursor.getMonth() - 1, 1))}>
+                            <Text style={styles.chipBtnText}>‹</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.cardTitle}>
+                            {webMonthCursor.toLocaleString(undefined, { month: 'long' })} {webMonthCursor.getFullYear()}
+                          </Text>
+                          <TouchableOpacity style={styles.chipBtn} onPress={() => setWebMonthCursor(new Date(webMonthCursor.getFullYear(), webMonthCursor.getMonth() + 1, 1))}>
+                            <Text style={styles.chipBtnText}>›</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.rowGapWrap}>
+                          {Array.from({ length: new Date(webMonthCursor.getFullYear(), webMonthCursor.getMonth() + 1, 0).getDate() }, (_, i) => i + 1).map((d) => {
+                            const active = p.y === webMonthCursor.getFullYear() && p.m === webMonthCursor.getMonth() + 1 && p.d === d;
+                            return (
+                              <TouchableOpacity
+                                key={`pick-day-${d}`}
+                                style={[styles.chipBtn, active && styles.chipBtnActive]}
+                                onPress={() => applyWebParts({ ...p, y: webMonthCursor.getFullYear(), m: webMonthCursor.getMonth() + 1, d })}
+                              >
+                                <Text style={styles.chipBtnText}>{d}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+
+                        <View style={styles.rowGap}>
+                          <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setWebDateModalVisible(false)}>
+                            <Text style={styles.approveBtnText}>Close</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </Modal>
+
+                  <Text style={styles.ratingLabel}>Time</Text>
                   <TextInput style={styles.input} placeholder="HH:mm" placeholderTextColor="#9ca3af" value={webTimeInput} onChangeText={setWebTimeInput} />
                   <TouchableOpacity style={styles.mapBtn} onPress={() => {
                     const d = new Date(`${webDateInput}T${webTimeInput}`);
@@ -2239,6 +2281,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: '#f9fafb', fontWeight: '700', marginBottom: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.65)', justifyContent: 'center', padding: 16 },
+  modalCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 12, maxHeight: '70%' },
   input: {
     backgroundColor: '#1f2937', color: '#f9fafb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
   },
