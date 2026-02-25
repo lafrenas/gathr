@@ -85,6 +85,7 @@ export default function App() {
   const [area, setArea] = useState('');
   const [showAreaSuggestions, setShowAreaSuggestions] = useState(false);
   const [remotePostcodeSuggestions, setRemotePostcodeSuggestions] = useState<string[]>([]);
+  const [remotePlaceSuggestions, setRemotePlaceSuggestions] = useState<string[]>([]);
   const [exactLocation, setExactLocation] = useState('');
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
@@ -182,19 +183,31 @@ export default function App() {
     const q = area.trim();
     if (q.length < 2) {
       setRemotePostcodeSuggestions([]);
+      setRemotePlaceSuggestions([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`);
-        const json = await res.json();
-        const list = Array.isArray(json?.result) ? json.result : [];
-        setRemotePostcodeSuggestions(list.slice(0, 8));
+        const [postcodeRes, placesRes] = await Promise.all([
+          fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
+          fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`),
+        ]);
+
+        const postcodeJson = await postcodeRes.json();
+        const postcodeList = Array.isArray(postcodeJson?.result) ? postcodeJson.result : [];
+        setRemotePostcodeSuggestions(postcodeList.slice(0, 8));
+
+        const placesJson = await placesRes.json();
+        const placeList = Array.isArray(placesJson)
+          ? placesJson.map((p: { display_name?: string }) => (p.display_name ?? '').trim()).filter(Boolean)
+          : [];
+        setRemotePlaceSuggestions(placeList.slice(0, 8));
       } catch {
         setRemotePostcodeSuggestions([]);
+        setRemotePlaceSuggestions([]);
       }
-    }, 220);
+    }, 260);
 
     return () => clearTimeout(timer);
   }, [area]);
@@ -280,7 +293,9 @@ export default function App() {
       .map((e) => (e.category.split(':')[1] ?? '').trim())
       .filter((x) => x.length >= 2);
 
-    const allCatalogActivities = Array.from(new Set(Object.values(activityOptions).flat()));
+    const allCatalogActivities = filterCategory === 'All'
+      ? Array.from(new Set(Object.values(activityOptions).flat()))
+      : (activityOptions[filterCategory] ?? []);
 
     const candidates: string[] = [];
     for (const e of categoryFiltered) {
@@ -332,10 +347,12 @@ export default function App() {
       'Birmingham B1',
     ];
 
-    const unique = Array.from(new Set([...remotePostcodeSuggestions, ...postcodes, ...places, ...starterSuggestions]));
+    const unique = Array.from(
+      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...starterSuggestions])
+    );
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
     return matched.slice(0, 8);
-  }, [events, area, remotePostcodeSuggestions]);
+  }, [events, area, remotePostcodeSuggestions, remotePlaceSuggestions]);
 
   const levenshtein = (a: string, b: string) => {
     const m = a.length;
