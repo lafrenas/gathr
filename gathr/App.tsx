@@ -31,6 +31,7 @@ type EventRow = {
   category: string;
   description?: string | null;
   required_people?: number | null;
+  allow_overflow?: boolean | null;
   area: string;
   exact_location: string;
   exact_lat?: number | null;
@@ -122,6 +123,7 @@ export default function App() {
   const [title, setTitle] = useState('Test Basketball Run');
   const [description, setDescription] = useState('Quick test event');
   const [requiredPeople, setRequiredPeople] = useState('4');
+  const [allowOverflow, setAllowOverflow] = useState(false);
   const [category, setCategory] = useState('Sports');
   const [activityType, setActivityType] = useState('Basketball');
   const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
@@ -1083,6 +1085,7 @@ export default function App() {
       description: description.trim() || null,
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
       required_people: required,
+      allow_overflow: allowOverflow,
       area: generatedArea,
       exact_location: isOnline ? 'Online session' : exactLocation.trim(),
       exact_lat: isOnline ? null : resolvedCoords?.latitude ?? null,
@@ -1098,6 +1101,7 @@ export default function App() {
     setTitle('Test Basketball Run');
     setDescription('Quick test event');
     setRequiredPeople('4');
+    setAllowOverflow(false);
     setCategory('Sports');
     setActivityType('Basketball');
     setArea('');
@@ -1167,8 +1171,9 @@ export default function App() {
     }
 
     const required = Number(ev.required_people ?? 0);
+    const allow = !!ev.allow_overflow;
     const approvedCount = 1 + requests.filter((r) => r.event_id === eventId && r.status === 'approved').length;
-    if (required > 0 && approvedCount >= required) return setError('Event is full.');
+    if (!allow && required > 0 && approvedCount >= required) return setError('Event is full.');
 
     setError(null);
 
@@ -1227,10 +1232,11 @@ export default function App() {
         }
         const event = events.find((e) => e.id === req.event_id);
         const required = Number(event?.required_people ?? 0);
-        if (required > 0) {
+        const allow = !!event?.allow_overflow;
+        if (!allow && required > 0) {
           const approvedCount = 1 + requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').length;
           if (approvedCount >= required) {
-            return setError('Event is full. Increase required people or reject pending requests.');
+            return setError('Event is full. Increase required people or enable flexible capacity.');
           }
         }
       }
@@ -1794,6 +1800,10 @@ export default function App() {
           value={requiredPeople}
           onChangeText={setRequiredPeople}
         />
+        <TouchableOpacity style={[styles.chipBtn, allowOverflow && styles.chipBtnActive]} onPress={() => setAllowOverflow((v) => !v)}>
+          <Text style={styles.chipBtnText}>{allowOverflow ? 'Flexible capacity: ON' : 'Flexible capacity: OFF'}</Text>
+        </TouchableOpacity>
+        <Text style={styles.ratingHelp}>If ON, people can keep joining after required count is reached.</Text>
 
         <Text style={styles.ratingLabel}>Category</Text>
         <View style={styles.rowGapWrap}>
@@ -1971,15 +1981,16 @@ export default function App() {
           {pendingForMyHostedEvents.map((r) => {
             const event = events.find((e) => e.id === r.event_id);
             const required = Number(event?.required_people ?? 0);
+            const allow = !!event?.allow_overflow;
             const approvedCount = 1 + requests.filter((x) => x.event_id === r.event_id && x.status === 'approved').length;
-            const isFull = required > 0 && approvedCount >= required;
+            const isFull = !allow && required > 0 && approvedCount >= required;
             const reqStat = userRatingStats[r.requester_name.toLowerCase()];
             return (
               <View key={r.id} style={styles.pendingItem}>
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
                 <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : r.invite_source === 'member' ? `Member invite (${r.invited_by_name || 'member'})` : 'User request'}</Text>
                 <Text style={styles.meta}>Requester: {reqStat ? `Trust ⭐ ${reqStat.trust.toFixed(1)} (${reqStat.count}) • Skill ⭐ ${reqStat.skill.toFixed(1)}` : 'New / no ratings yet'}</Text>
-                <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
+                <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}{allow ? ' • Flexible' : ''}</Text>
                 <View style={styles.rowGap}>
                   {!isFull ? (
                     <TouchableOpacity style={styles.approveBtn} onPress={() => setRequestStatus(r.id, 'approved')}>
@@ -2173,7 +2184,8 @@ export default function App() {
           );
           const approvedCount = participants.length;
           const required = Number(item.required_people ?? 0);
-          const isFull = required > 0 && approvedCount >= required;
+          const allowOverflowEvent = !!item.allow_overflow;
+          const isFull = !allowOverflowEvent && required > 0 && approvedCount >= required;
           const approved = isHost || myReq?.status === 'approved';
 
           return (
@@ -2181,7 +2193,7 @@ export default function App() {
               <Text style={styles.eventTitle}>{item.title}</Text>
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
-              <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
+              <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}{allowOverflowEvent ? ' • Flexible' : ''}</Text>
               {activityRatingStats[item.id] && (
                 <Text style={styles.meta}>Activity quality ⭐ {activityRatingStats[item.id].avg.toFixed(1)} ({activityRatingStats[item.id].count})</Text>
               )}

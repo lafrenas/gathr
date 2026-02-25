@@ -5,6 +5,7 @@ create table if not exists public.events (
   description text,
   category text not null,
   required_people integer not null default 4,
+  allow_overflow boolean not null default false,
   area text not null,
   exact_location text not null,
   exact_lat double precision,
