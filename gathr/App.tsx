@@ -136,6 +136,12 @@ export default function App() {
     loadData();
   }, []);
 
+  const hasEventEnded = (exactTime: string) => {
+    const ts = Date.parse(exactTime);
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() >= ts;
+  };
+
   const pendingForMyHostedEvents = useMemo(() => {
     const hostedEventIds = new Set(
       events.filter((e) => e.host_name.toLowerCase() === currentUser.trim().toLowerCase()).map((e) => e.id)
@@ -267,6 +273,12 @@ export default function App() {
     const rater = currentUser.trim();
     if (!rater || !ratingEventId || !ratingTargetName) return;
     setError(null);
+
+    const ratingEvent = events.find((e) => e.id === ratingEventId);
+    if (!ratingEvent) return setError('Event not found for rating.');
+    if (!hasEventEnded(ratingEvent.exact_time)) {
+      return setError('Ratings unlock only after the event time has passed.');
+    }
 
     const skill = Number(skillRating);
     const friendliness = Number(friendlinessRating);
@@ -683,6 +695,9 @@ export default function App() {
                   (r) => r.event_id === item.id && r.rater_name.toLowerCase() === currentUser.trim().toLowerCase() && r.rated_name.toLowerCase() === item.host_name.toLowerCase()
                 );
                 if (alreadyRated) return <Text style={styles.approvedText}>You rated this host ✅</Text>;
+                if (!hasEventEnded(item.exact_time)) {
+                  return <Text style={styles.pendingText}>Ratings unlock after event end time.</Text>;
+                }
                 return (
                   <TouchableOpacity style={styles.approveBtn} onPress={() => openRatingForm(item.id, item.host_name)}>
                     <Text style={styles.approveBtnText}>Rate host</Text>
@@ -690,7 +705,7 @@ export default function App() {
                 );
               })()}
 
-              <Text style={styles.ratingHint}>After event: rate trust + skill</Text>
+              <Text style={styles.ratingHint}>After event end: rate trust + skill</Text>
             </View>
           );
         })}
