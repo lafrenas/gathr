@@ -260,9 +260,22 @@ export default function App() {
     );
     if (ev) existingNames.add(ev.host_name.toLowerCase());
 
+    const [evCategory = ''] = (ev?.category || '').split(':');
+    const isOnlineEvent = evCategory.trim().toLowerCase() === 'online';
+
+    const locationHint = `${ev?.area ?? ''} ${ev?.exact_location ?? ''}`.toLowerCase();
+    const cityHints = ['kaunas', 'vilnius', 'london', 'new york', 'nyc', 'manchester', 'riga', 'palanga'];
+    const matchedCityHint = cityHints.find((c) => locationHint.includes(c));
+
     return profiles
       .filter((p) => p.display_name.toLowerCase() !== me)
       .filter((p) => !existingNames.has(p.display_name.toLowerCase()))
+      .filter((p) => {
+        if (isOnlineEvent) return true;
+        if (!matchedCityHint) return true;
+        const based = (p.based_in ?? '').toLowerCase();
+        return based.includes(matchedCityHint);
+      })
       .filter((p) => {
         if (!q) return true;
         const hay = `${p.display_name} ${p.full_name ?? ''} ${p.based_in ?? ''} ${p.interests_csv ?? ''}`.toLowerCase();
