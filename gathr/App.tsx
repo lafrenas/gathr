@@ -2141,14 +2141,20 @@ export default function App() {
                         <Text style={styles.notificationHint}>When: {new Date(ev.exact_time).toLocaleString()}</Text>
                         <Text style={styles.notificationHint}>Approx area: {publicAreaForEvent(ev)}</Text>
                         <Text style={styles.notificationHint}>People going: {participants.length}</Text>
-                        {participants.slice(0, 3).map((name) => {
-                          const stat = userRatingStats[name.toLowerCase()];
+                        {(() => {
+                          const rated = participants
+                            .map((name) => userRatingStats[name.toLowerCase()])
+                            .filter(Boolean) as Array<{ trust: number; skill: number }>;
+                          if (!rated.length) return null;
+                          const avgTrust = rated.reduce((s, x) => s + x.trust, 0) / rated.length;
+                          const avgSkill = rated.reduce((s, x) => s + x.skill, 0) / rated.length;
                           return (
-                            <Text key={`notif-${n.key}-${name}`} style={styles.notificationHint}>
-                              • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)}` : ''}
-                            </Text>
+                            <>
+                              <Text style={styles.notificationHint}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>
+                              <Text style={styles.notificationHint}>Group skill avg: ⭐ {avgSkill.toFixed(1)}</Text>
+                            </>
                           );
-                        })}
+                        })()}
                       </>
                     )}
                     {n.kind === 'invite' && !!n.requestId && (
@@ -2332,23 +2338,39 @@ export default function App() {
               <Text style={styles.meta}>{isOnlineEvent ? 'Location: Online session' : `Area: ${publicAreaForEvent(item)}`}</Text>
               {participants.length > 0 && (
                 <View style={{ marginTop: 6 }}>
-                  <Text style={styles.meta}>Participants:</Text>
-                  {participants.map((name) => {
-                    const stat = userRatingStats[name.toLowerCase()];
-                    const role = name.toLowerCase() === item.host_name.toLowerCase() ? 'host' : 'member';
-                    return (
-                      <Text key={`going-${item.id}-${name}`} style={styles.meta}>
-                        • {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}
-                      </Text>
-                    );
-                  })}
                   {(() => {
+                    const canSeeNames = hasEventEnded(item.exact_time) && (isHost || approved);
                     const rated = participants
                       .map((n) => userRatingStats[n.toLowerCase()])
-                      .filter(Boolean) as Array<{ trust: number }>;
-                    if (rated.length === 0) return null;
-                    const avg = rated.reduce((s, x) => s + x.trust, 0) / rated.length;
-                    return <Text style={styles.meta}>Group trust avg: ⭐ {avg.toFixed(1)}</Text>;
+                      .filter(Boolean) as Array<{ trust: number; skill: number }>;
+                    const avgTrust = rated.length ? rated.reduce((s, x) => s + x.trust, 0) / rated.length : null;
+                    const avgSkill = rated.length ? rated.reduce((s, x) => s + x.skill, 0) / rated.length : null;
+
+                    if (!canSeeNames) {
+                      return (
+                        <>
+                          <Text style={styles.meta}>People going: {participants.length}</Text>
+                          {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
+                          {!!avgSkill && <Text style={styles.meta}>Group skill avg: ⭐ {avgSkill.toFixed(1)}</Text>}
+                        </>
+                      );
+                    }
+
+                    return (
+                      <>
+                        <Text style={styles.meta}>Participants:</Text>
+                        {participants.map((name) => {
+                          const stat = userRatingStats[name.toLowerCase()];
+                          const role = name.toLowerCase() === item.host_name.toLowerCase() ? 'host' : 'member';
+                          return (
+                            <Text key={`going-${item.id}-${name}`} style={styles.meta}>
+                              • {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}
+                            </Text>
+                          );
+                        })}
+                        {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
+                      </>
+                    );
                   })()}
                 </View>
               )}
@@ -2526,15 +2548,41 @@ export default function App() {
                 <Text style={styles.meta}>Approx location: {publicAreaForEvent(ev)}</Text>
                 <Text style={styles.meta}>Capacity: {participants.length}/{Number(ev.required_people ?? 0) || '?'}</Text>
 
-                <Text style={[styles.cardTitle, { marginTop: 10 }]}>Participants</Text>
-                {participants.map((name) => {
-                  const stat = userRatingStats[name.toLowerCase()];
+                {(() => {
+                  const me = currentUser.trim().toLowerCase();
+                  const myReq = requests.find((r) => r.event_id === ev.id && r.requester_name.toLowerCase() === me);
+                  const canSeeNames = hasEventEnded(ev.exact_time) && (ev.host_name.toLowerCase() === me || myReq?.status === 'approved');
+                  const rated = participants
+                    .map((n) => userRatingStats[n.toLowerCase()])
+                    .filter(Boolean) as Array<{ trust: number; skill: number }>;
+                  const avgTrust = rated.length ? rated.reduce((s, x) => s + x.trust, 0) / rated.length : null;
+                  const avgSkill = rated.length ? rated.reduce((s, x) => s + x.skill, 0) / rated.length : null;
+
+                  if (!canSeeNames) {
+                    return (
+                      <>
+                        <Text style={[styles.cardTitle, { marginTop: 10 }]}>Participants</Text>
+                        <Text style={styles.meta}>People going: {participants.length}</Text>
+                        {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
+                        {!!avgSkill && <Text style={styles.meta}>Group skill avg: ⭐ {avgSkill.toFixed(1)}</Text>}
+                      </>
+                    );
+                  }
+
                   return (
-                    <Text key={`nd-${ev.id}-${name}`} style={styles.meta}>
-                      • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count}) • Skill ⭐ ${stat.skill.toFixed(1)}` : '  New'}
-                    </Text>
+                    <>
+                      <Text style={[styles.cardTitle, { marginTop: 10 }]}>Participants</Text>
+                      {participants.map((name) => {
+                        const stat = userRatingStats[name.toLowerCase()];
+                        return (
+                          <Text key={`nd-${ev.id}-${name}`} style={styles.meta}>
+                            • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count}) • Skill ⭐ ${stat.skill.toFixed(1)}` : '  New'}
+                          </Text>
+                        );
+                      })}
+                    </>
                   );
-                })}
+                })()}
               </>
             );
           })()}
