@@ -175,6 +175,7 @@ export default function App() {
   const [showInvitesSection, setShowInvitesSection] = useState(true);
   const [showFeedSection, setShowFeedSection] = useState(true);
   const [showLeaderboardSection, setShowLeaderboardSection] = useState(false);
+  const [showNotificationsSection, setShowNotificationsSection] = useState(true);
   const [showMapBrowse, setShowMapBrowse] = useState(false);
   const [mapBrowseSelectedEventId, setMapBrowseSelectedEventId] = useState<number | null>(null);
   const [mapBrowseGlobal, setMapBrowseGlobal] = useState(false);
@@ -538,6 +539,50 @@ export default function App() {
       .filter((r) => r.requester_name.toLowerCase() === me && r.invite_source !== 'self')
       .sort((a, b) => b.id - a.id);
   }, [requests, currentUser]);
+
+  const notifications = useMemo(() => {
+    const me = currentUser.trim().toLowerCase();
+    const items: Array<{ key: string; text: string }> = [];
+
+    // Personal request outcomes
+    for (const r of requests) {
+      if (r.requester_name.toLowerCase() !== me) continue;
+      const ev = events.find((e) => e.id === r.event_id);
+      const title = ev?.title ?? `Event #${r.event_id}`;
+
+      if (r.status === 'approved') items.push({ key: `ok-${r.id}`, text: `✅ Approved for ${title}` });
+      if (r.status === 'rejected') items.push({ key: `no-${r.id}`, text: `❌ Rejected/declined for ${title}` });
+      if (r.status === 'pending' && r.invite_source !== 'self' && r.invite_response === 'pending') {
+        items.push({ key: `inv-${r.id}`, text: `📩 Invitation from ${r.invited_by_name || 'member'} for ${title}` });
+      }
+    }
+
+    // Host alerts (requests + accepted invites)
+    const myHostedIds = new Set(events.filter((e) => e.host_name.toLowerCase() === me).map((e) => e.id));
+    for (const r of requests) {
+      if (!myHostedIds.has(r.event_id)) continue;
+      const ev = events.find((e) => e.id === r.event_id);
+      const title = ev?.title ?? `Event #${r.event_id}`;
+      if (r.status === 'pending' && r.invite_source === 'self') {
+        items.push({ key: `req-${r.id}`, text: `🆕 Join request from ${r.requester_name} for ${title}` });
+      }
+      if (r.status === 'pending' && r.invite_source !== 'self' && r.invite_response === 'accepted') {
+        items.push({ key: `acc-${r.id}`, text: `🙌 ${r.requester_name} accepted invite for ${title}` });
+      }
+    }
+
+    // Capacity reached alerts for host
+    for (const e of events.filter((x) => x.host_name.toLowerCase() === me && !x.allow_overflow)) {
+      const required = Number(e.required_people ?? 0);
+      if (required <= 0) continue;
+      const approvedCount = 1 + requests.filter((r) => r.event_id === e.id && r.status === 'approved').length;
+      if (approvedCount >= required) {
+        items.push({ key: `full-${e.id}`, text: `📌 ${e.title} reached required capacity (${approvedCount}/${required})` });
+      }
+    }
+
+    return items.slice(0, 20);
+  }, [requests, events, currentUser]);
 
   const blockedByMe = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
@@ -2053,6 +2098,24 @@ export default function App() {
           )}
         </View>
       )}
+
+      <View style={styles.card}>
+        <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowNotificationsSection((v) => !v)}>
+          <Text style={styles.cardTitle}>Notifications</Text>
+          <Text style={styles.meta}>{showNotificationsSection ? '▾' : '▸'}</Text>
+        </TouchableOpacity>
+        {showNotificationsSection && (
+          <>
+            {notifications.length === 0 ? (
+              <Text style={styles.meta}>No new notifications.</Text>
+            ) : (
+              notifications.map((n) => (
+                <Text key={n.key} style={styles.meta}>• {n.text}</Text>
+              ))
+            )}
+          </>
+        )}
+      </View>
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowLeaderboardSection((v) => !v)}>
