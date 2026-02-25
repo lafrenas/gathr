@@ -601,8 +601,36 @@ export default function App() {
       }
     }
 
+    // Reporter reminder: someone you previously reported is in your joined/hosted event
+    const reportedByMe = new Set(
+      reports.filter((rp) => rp.reporter_name.toLowerCase() === me).map((rp) => rp.reported_name.toLowerCase())
+    );
+    const myRelevantEventIds = new Set<number>([
+      ...events.filter((e) => e.host_name.toLowerCase() === me).map((e) => e.id),
+      ...requests.filter((r) => r.requester_name.toLowerCase() === me && r.status === 'approved').map((r) => r.event_id),
+    ]);
+
+    for (const eid of myRelevantEventIds) {
+      const ev = events.find((e) => e.id === eid);
+      if (!ev) continue;
+      const attendees = [
+        ev.host_name,
+        ...requests.filter((r) => r.event_id === eid && r.status === 'approved').map((r) => r.requester_name),
+      ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+
+      const hit = attendees.find((n) => reportedByMe.has(n.toLowerCase()) && n.toLowerCase() !== me);
+      if (hit) {
+        items.push({
+          key: `rep-hit-${eid}-${hit.toLowerCase()}`,
+          text: `⚠️ ${hit} (previously reported by you) is in ${ev.title}`,
+          eventId: eid,
+          kind: 'request',
+        });
+      }
+    }
+
     return items.slice(0, 20);
-  }, [requests, events, currentUser]);
+  }, [requests, events, reports, currentUser]);
 
   const blockedByMe = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
@@ -1191,27 +1219,6 @@ export default function App() {
 
     setError(null);
 
-    const event = events.find((e) => e.id === eventId);
-    if (event) {
-      const attendees = [
-        event.host_name,
-        ...requests.filter((r) => r.event_id === eventId && r.status === 'approved').map((r) => r.requester_name),
-      ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
-
-      const conflict = attendees.find((person) => {
-        if (person.toLowerCase() === name.toLowerCase()) return false;
-        return blocks.some(
-          (b) =>
-            (b.blocker_name.toLowerCase() === name.toLowerCase() && b.blocked_name.toLowerCase() === person.toLowerCase()) ||
-            (b.blocked_name.toLowerCase() === name.toLowerCase() && b.blocker_name.toLowerCase() === person.toLowerCase())
-        );
-      });
-
-      if (conflict) {
-        return setError(`You cannot join this event because of a blocked user conflict (${conflict}).`);
-      }
-    }
-
     const existing = requests.find(
       (r) => r.event_id === eventId && r.requester_name.toLowerCase() === name.toLowerCase()
     );
@@ -1317,27 +1324,6 @@ export default function App() {
           return setError('Invitee must accept invitation before host approval.');
         }
         const event = events.find((e) => e.id === req.event_id);
-
-        if (event) {
-          const attendees = [
-            event.host_name,
-            ...requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').map((r) => r.requester_name),
-          ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
-
-          const conflict = attendees.find((person) => {
-            if (person.toLowerCase() === req.requester_name.toLowerCase()) return false;
-            return blocks.some(
-              (b) =>
-                (b.blocker_name.toLowerCase() === req.requester_name.toLowerCase() && b.blocked_name.toLowerCase() === person.toLowerCase()) ||
-                (b.blocked_name.toLowerCase() === req.requester_name.toLowerCase() && b.blocker_name.toLowerCase() === person.toLowerCase())
-            );
-          });
-
-          if (conflict) {
-            return setError(`Cannot approve: blocked user conflict with ${conflict}.`);
-          }
-        }
-
         const required = Number(event?.required_people ?? 0);
         const allow = !!event?.allow_overflow;
         if (!allow && required > 0) {
@@ -2430,13 +2416,13 @@ export default function App() {
                         {participants.map((name) => {
                           const stat = userRatingStats[name.toLowerCase()];
                           const role = name.toLowerCase() === item.host_name.toLowerCase() ? 'host' : 'member';
-                          const canBlock = hasEventEnded(item.exact_time) && name.toLowerCase() !== currentUser.trim().toLowerCase();
+                          const canReport = hasEventEnded(item.exact_time) && name.toLowerCase() !== currentUser.trim().toLowerCase();
                           return (
                             <View key={`going-${item.id}-${name}`} style={styles.rowGap}>
                               <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
-                              {canBlock && (
-                                <TouchableOpacity style={styles.rejectBtn} onPress={() => blockHost(name)}>
-                                  <Text style={styles.approveBtnText}>Ban from my future events</Text>
+                              {canReport && (
+                                <TouchableOpacity style={styles.rejectBtn} onPress={() => setReportTarget(name)}>
+                                  <Text style={styles.approveBtnText}>Report participant</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
