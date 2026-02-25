@@ -443,6 +443,7 @@ export default function App() {
   const exactClockWeb = exactTimeWebLocal ? exactTimeWebLocal.slice(11, 16) : '';
   const [webDateInput, setWebDateInput] = useState(exactDateWeb);
   const [webTimeInput, setWebTimeInput] = useState(exactClockWeb);
+  const [webPicker, setWebPicker] = useState<'none' | 'year' | 'month' | 'day' | 'hour' | 'minute'>('none');
 
   const onDatePicked = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -460,6 +461,34 @@ export default function App() {
 
     setEventDateTime(merged);
     setExactTime(merged.toISOString());
+  };
+
+  const getWebParts = () => {
+    const now = new Date();
+    const y = Number((webDateInput || '').slice(0, 4)) || now.getFullYear();
+    const m = Number((webDateInput || '').slice(5, 7)) || now.getMonth() + 1;
+    const d = Number((webDateInput || '').slice(8, 10)) || now.getDate();
+    const hh = Number((webTimeInput || '').slice(0, 2)) || now.getHours();
+    const mm = Number((webTimeInput || '').slice(3, 5)) || now.getMinutes();
+    return { y, m, d, hh, mm };
+  };
+
+  const applyWebParts = (parts: { y: number; m: number; d: number; hh: number; mm: number }) => {
+    const maxDay = new Date(parts.y, parts.m, 0).getDate();
+    const dClamped = Math.min(Math.max(parts.d, 1), maxDay);
+    const dateStr = `${parts.y.toString().padStart(4, '0')}-${parts.m.toString().padStart(2, '0')}-${dClamped
+      .toString()
+      .padStart(2, '0')}`;
+    const timeStr = `${parts.hh.toString().padStart(2, '0')}:${parts.mm.toString().padStart(2, '0')}`;
+
+    setWebDateInput(dateStr);
+    setWebTimeInput(timeStr);
+
+    const dt = new Date(`${dateStr}T${timeStr}`);
+    if (!Number.isFinite(dt.getTime())) return;
+    setEventDateTime(dt);
+    setExactTime(dt.toISOString());
+    setDateDraft(dt);
   };
 
   const pendingForMyHostedEvents = useMemo(() => {
@@ -1688,68 +1717,46 @@ export default function App() {
 
         {Platform.OS === 'web' ? (
           <>
-            <Text style={styles.ratingLabel}>Date</Text>
-            <View style={styles.rowGapWrap}>
-              {[
-                { label: 'Today', addDays: 0 },
-                { label: 'Tomorrow', addDays: 1 },
-                { label: '+3 days', addDays: 3 },
-              ].map((opt) => (
-                <TouchableOpacity
-                  key={opt.label}
-                  style={styles.chipBtn}
-                  onPress={() => {
-                    const base = new Date();
-                    base.setDate(base.getDate() + opt.addDays);
-                    const dPart = new Date(base.getTime() - base.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-                    const tPart = webTimeInput || '12:00';
-                    setWebDateInput(dPart);
-                    if (!/^\d{2}:\d{2}$/.test(tPart)) return;
-                    const d = new Date(`${dPart}T${tPart}`);
+            {(() => {
+              const p = getWebParts();
+              const years = Array.from({ length: 8 }, (_, i) => new Date().getFullYear() - 1 + i);
+              const months = Array.from({ length: 12 }, (_, i) => i + 1);
+              const days = Array.from({ length: new Date(p.y, p.m, 0).getDate() }, (_, i) => i + 1);
+              const hours = Array.from({ length: 24 }, (_, i) => i);
+              const minutes = [0, 15, 30, 45];
+
+              return (
+                <>
+                  <Text style={styles.ratingLabel}>Date & time</Text>
+                  <View style={styles.rowGapWrap}>
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'year' ? 'none' : 'year')}><Text style={styles.chipBtnText}>Year: {p.y}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'month' ? 'none' : 'month')}><Text style={styles.chipBtnText}>Month: {p.m}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'day' ? 'none' : 'day')}><Text style={styles.chipBtnText}>Day: {p.d}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'hour' ? 'none' : 'hour')}><Text style={styles.chipBtnText}>Hour: {p.hh.toString().padStart(2, '0')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setWebPicker(webPicker === 'minute' ? 'none' : 'minute')}><Text style={styles.chipBtnText}>Min: {p.mm.toString().padStart(2, '0')}</Text></TouchableOpacity>
+                  </View>
+
+                  {webPicker === 'year' && <View style={styles.rowGapWrap}>{years.map((y) => <TouchableOpacity key={`y-${y}`} style={[styles.chipBtn, p.y === y && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, y })}><Text style={styles.chipBtnText}>{y}</Text></TouchableOpacity>)}</View>}
+                  {webPicker === 'month' && <View style={styles.rowGapWrap}>{months.map((m) => <TouchableOpacity key={`m-${m}`} style={[styles.chipBtn, p.m === m && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, m })}><Text style={styles.chipBtnText}>{m}</Text></TouchableOpacity>)}</View>}
+                  {webPicker === 'day' && <View style={styles.rowGapWrap}>{days.map((d) => <TouchableOpacity key={`d-${d}`} style={[styles.chipBtn, p.d === d && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, d })}><Text style={styles.chipBtnText}>{d}</Text></TouchableOpacity>)}</View>}
+                  {webPicker === 'hour' && <View style={styles.rowGapWrap}>{hours.map((hh) => <TouchableOpacity key={`h-${hh}`} style={[styles.chipBtn, p.hh === hh && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, hh })}><Text style={styles.chipBtnText}>{hh.toString().padStart(2, '0')}</Text></TouchableOpacity>)}</View>}
+                  {webPicker === 'minute' && <View style={styles.rowGapWrap}>{minutes.map((mm) => <TouchableOpacity key={`mm-${mm}`} style={[styles.chipBtn, p.mm === mm && styles.chipBtnActive]} onPress={() => applyWebParts({ ...p, mm })}><Text style={styles.chipBtnText}>{mm.toString().padStart(2, '0')}</Text></TouchableOpacity>)}</View>}
+
+                  <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor="#9ca3af" value={webDateInput} onChangeText={setWebDateInput} />
+                  <TextInput style={styles.input} placeholder="HH:mm" placeholderTextColor="#9ca3af" value={webTimeInput} onChangeText={setWebTimeInput} />
+                  <TouchableOpacity style={styles.mapBtn} onPress={() => {
+                    const d = new Date(`${webDateInput}T${webTimeInput}`);
                     if (!Number.isFinite(d.getTime())) return;
                     setEventDateTime(d);
                     setExactTime(d.toISOString());
                     setDateDraft(d);
-                  }}
-                >
-                  <Text style={styles.chipBtnText}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
-              value={webDateInput}
-              onChangeText={(dPart) => {
-                setWebDateInput(dPart);
-                const tPart = webTimeInput || '12:00';
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(dPart) || !/^\d{2}:\d{2}$/.test(tPart)) return;
-                const d = new Date(`${dPart}T${tPart}`);
-                if (!Number.isFinite(d.getTime())) return;
-                setEventDateTime(d);
-                setExactTime(d.toISOString());
-                setDateDraft(d);
-              }}
-            />
-            <Text style={styles.ratingLabel}>Time</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="HH:mm"
-              placeholderTextColor="#9ca3af"
-              value={webTimeInput}
-              onChangeText={(tPart) => {
-                setWebTimeInput(tPart);
-                const dPart = webDateInput || new Date().toISOString().slice(0, 10);
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(dPart) || !/^\d{2}:\d{2}$/.test(tPart)) return;
-                const d = new Date(`${dPart}T${tPart}`);
-                if (!Number.isFinite(d.getTime())) return;
-                setEventDateTime(d);
-                setExactTime(d.toISOString());
-                setDateDraft(d);
-              }}
-            />
-            {!!exactTimeDisplay && <Text style={styles.meta}>Selected: {exactTimeDisplay}</Text>}
+                  }}>
+                    <Text style={styles.mapBtnText}>Apply typed date/time</Text>
+                  </TouchableOpacity>
+                  {!!exactTimeDisplay && <Text style={styles.meta}>Selected: {exactTimeDisplay}</Text>}
+                </>
+              );
+            })()}
           </>
         ) : (
           <>
