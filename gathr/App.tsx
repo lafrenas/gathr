@@ -577,20 +577,27 @@ export default function App() {
 
   const broadAreaFromCoords = async (latitude: number, longitude: number) => {
     const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!key) return '';
 
     try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`);
-      const json = await res.json();
-      const components = json?.results?.[0]?.address_components ?? [];
+      const [googleJson, nominatimJson] = await Promise.all([
+        key
+          ? fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`).then((r) => r.json())
+          : Promise.resolve(null),
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`).then((r) => r.json()),
+      ]);
 
-      const pick = (...types: string[]) =>
+      const components = googleJson?.results?.[0]?.address_components ?? [];
+      const pickGoogle = (...types: string[]) =>
         components.find((c: { types?: string[] }) => types.some((t) => (c.types ?? []).includes(t)))?.long_name ?? '';
 
-      const neighborhood = pick('neighborhood', 'sublocality_level_1', 'sublocality', 'postal_town');
-      const city = pick('locality', 'administrative_area_level_2', 'administrative_area_level_1');
+      const gNeighborhood = pickGoogle('neighborhood', 'sublocality_level_1', 'sublocality', 'postal_town');
 
-      if (neighborhood) return neighborhood;
+      const a = nominatimJson?.address ?? {};
+      const nNeighborhood = (a.suburb || a.neighbourhood || a.city_district || a.quarter || a.residential || '').trim();
+      const city = (a.city || a.town || a.municipality || pickGoogle('locality', 'administrative_area_level_2', 'administrative_area_level_1') || '').trim();
+
+      if (gNeighborhood) return gNeighborhood;
+      if (nNeighborhood) return nNeighborhood;
       if (city) return city;
       return '';
     } catch {
