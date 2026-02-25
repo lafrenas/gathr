@@ -302,8 +302,35 @@ export default function App() {
     }
 
     const timer = setTimeout(async () => {
-      const list = await fetchGoogleAutocomplete(q);
-      setMapSearchSuggestions(list);
+      const googleList = await fetchGoogleAutocomplete(q);
+      if (googleList.length > 0) {
+        setMapSearchSuggestions(googleList);
+        return;
+      }
+
+      try {
+        const [nominatimRes, openMeteoRes] = await Promise.all([
+          fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q=${encodeURIComponent(q)}`),
+          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`),
+        ]);
+
+        const nominatimJson = await nominatimRes.json();
+        const nominatimList = Array.isArray(nominatimJson)
+          ? nominatimJson.map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim()).filter(Boolean)
+          : [];
+
+        const meteoJson = await openMeteoRes.json();
+        const meteoList = Array.isArray(meteoJson?.results)
+          ? meteoJson.results
+              .map((r: { name?: string; admin1?: string; country?: string }) => [r.name, r.admin1, r.country].filter(Boolean).join(', '))
+              .filter(Boolean)
+          : [];
+
+        const merged = Array.from(new Set([...nominatimList, ...meteoList])).slice(0, 8);
+        setMapSearchSuggestions(merged);
+      } catch {
+        setMapSearchSuggestions([]);
+      }
     }, 220);
 
     return () => clearTimeout(timer);
@@ -1458,7 +1485,7 @@ export default function App() {
             value={mapSearchQuery}
             onChangeText={setMapSearchQuery}
           />
-          {mapSearchSuggestions.length > 0 && (
+          {mapSearchSuggestions.length > 0 ? (
             <View style={styles.suggestionBox}>
               {mapSearchSuggestions.slice(0, 5).map((s) => (
                 <TouchableOpacity
@@ -1477,6 +1504,8 @@ export default function App() {
                 </TouchableOpacity>
               ))}
             </View>
+          ) : (
+            mapSearchQuery.trim().length >= 2 ? <Text style={styles.meta}>No matches yet. Try a fuller address or drop a pin.</Text> : null
           )}
 
           <MapView
