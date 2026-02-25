@@ -25,3 +25,4 @@
   - Filter by location + radius only, to see all activities happening nearby at the selected time.
 - Time filters should include options like: today, tomorrow, this week, etc.
 - Users should also be able to browse a map view to see activities roughly in the area.
+- If a person’s reputation rating drops below a set threshold (e.g., 3.5 stars), they cannot host activities.
