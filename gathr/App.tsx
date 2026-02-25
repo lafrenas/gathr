@@ -1267,11 +1267,11 @@ export default function App() {
     await loadData();
   };
 
-  const getEventCapacity = (ev?: EventRow) => {
+  function getEventCapacity(ev?: EventRow) {
     const min = Number(ev?.min_people ?? ev?.required_people ?? 0);
     const max = ev?.no_max ? null : Number(ev?.max_people ?? (ev?.allow_overflow ? null : ev?.required_people ?? 0));
     return { min: Number.isFinite(min) ? min : 0, max: max && Number.isFinite(max) ? max : null };
-  };
+  }
 
   const requestJoin = async (eventId: number) => {
     const name = currentUser.trim();
