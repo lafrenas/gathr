@@ -1035,15 +1035,17 @@ export default function App() {
   }, [ratings]);
 
   const createEvent = async () => {
-    if (!title.trim() || !exactLocation.trim() || !exactTime.trim()) return;
+    const isOnline = category.trim().toLowerCase() === 'online';
+    if (!title.trim() || !exactTime.trim()) return;
+    if (!isOnline && !exactLocation.trim()) return;
 
     const required = Number(requiredPeople);
     if (!Number.isInteger(required) || required < 1 || required > 200) {
       return setError('Required people must be a whole number between 1 and 200.');
     }
 
-    const resolvedCoords = pickedExactCoords ?? (await geocodeAddress(exactLocation.trim()));
-    const generatedArea = toBroadArea(exactLocation.trim());
+    const resolvedCoords = isOnline ? null : (pickedExactCoords ?? (await geocodeAddress(exactLocation.trim())));
+    const generatedArea = isOnline ? 'Online' : toBroadArea(exactLocation.trim());
 
     setError(null);
     const { error } = await supabase.from('events').insert({
@@ -1052,9 +1054,9 @@ export default function App() {
       category: `${category.trim()}:${activityType.trim() || 'General'}`,
       required_people: required,
       area: generatedArea,
-      exact_location: exactLocation.trim(),
-      exact_lat: resolvedCoords?.latitude ?? null,
-      exact_lng: resolvedCoords?.longitude ?? null,
+      exact_location: isOnline ? 'Online session' : exactLocation.trim(),
+      exact_lat: isOnline ? null : resolvedCoords?.latitude ?? null,
+      exact_lng: isOnline ? null : resolvedCoords?.longitude ?? null,
       exact_time: exactTime.trim(),
       host_name: currentUser.trim() || 'Anonymous',
     });
@@ -1759,11 +1761,17 @@ export default function App() {
           </View>
         )}
 
-        <Text style={styles.meta}>Public area is auto-generated as approximate district/area (privacy-safe).</Text>
-        <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
-          <Text style={styles.mapBtnText}>{exactLocation.trim() ? 'Change location on map' : 'Pick location on map'}</Text>
-        </TouchableOpacity>
-        {!!exactLocation.trim() && <Text style={styles.meta}>Selected location: {exactLocation}</Text>}
+        {category.trim().toLowerCase() === 'online' ? (
+          <Text style={styles.meta}>Online game session — no physical location required.</Text>
+        ) : (
+          <>
+            <Text style={styles.meta}>Public area is auto-generated as approximate district/area (privacy-safe).</Text>
+            <TouchableOpacity style={styles.mapBtn} onPress={() => openMapPicker('exact')}>
+              <Text style={styles.mapBtnText}>{exactLocation.trim() ? 'Change location on map' : 'Pick location on map'}</Text>
+            </TouchableOpacity>
+            {!!exactLocation.trim() && <Text style={styles.meta}>Selected location: {exactLocation}</Text>}
+          </>
+        )}
 
         {Platform.OS === 'web' ? (
           <>
@@ -2078,6 +2086,8 @@ export default function App() {
             .filter((r) => r.event_id === item.id && r.status === 'approved')
             .map((r) => r.requester_name)
             .filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+          const [itemCategory = ''] = item.category.split(':');
+          const isOnlineEvent = itemCategory.trim().toLowerCase() === 'online';
           const participants = [item.host_name, ...approvedAttendees].filter(
             (n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i
           );
@@ -2107,7 +2117,7 @@ export default function App() {
                   </>
                 );
               })()}
-              <Text style={styles.meta}>Area: {publicAreaForEvent(item)}</Text>
+              <Text style={styles.meta}>{isOnlineEvent ? 'Location: Online session' : `Area: ${publicAreaForEvent(item)}`}</Text>
               {participants.length > 0 && (
                 <View style={{ marginTop: 6 }}>
                   <Text style={styles.meta}>Participants:</Text>
@@ -2137,7 +2147,7 @@ export default function App() {
                 return <Text style={styles.meta}>Approx distance: ~{km.toFixed(1)} km</Text>;
               })()}
 
-              {approved ? (
+              {!isOnlineEvent && (approved ? (
                 <TouchableOpacity
                   style={styles.mapBtn}
                   onPress={() =>
@@ -2153,7 +2163,7 @@ export default function App() {
                 </TouchableOpacity>
               ) : (
                 <Text style={styles.meta}>Approx area: {publicAreaForEvent(item)}</Text>
-              )}
+              ))}
 
               <View style={styles.rowGap}>
                 <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setSelectedHost(item.host_name)}>
