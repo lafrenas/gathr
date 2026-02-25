@@ -544,7 +544,7 @@ export default function App() {
 
   const notifications = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
-    const items: Array<{ key: string; text: string; eventId?: number; kind?: 'invite' | 'approval' | 'request' | 'capacity' }> = [];
+    const items: Array<{ key: string; text: string; eventId?: number; requestId?: number; kind?: 'invite' | 'approval' | 'request' | 'capacity' }> = [];
 
     // Personal request outcomes
     for (const r of requests) {
@@ -552,10 +552,10 @@ export default function App() {
       const ev = events.find((e) => e.id === r.event_id);
       const title = ev?.title ?? `Event #${r.event_id}`;
 
-      if (r.status === 'approved') items.push({ key: `ok-${r.id}`, text: `✅ Approved for ${title}`, eventId: r.event_id, kind: 'approval' });
-      if (r.status === 'rejected') items.push({ key: `no-${r.id}`, text: `❌ Rejected/declined for ${title}`, eventId: r.event_id, kind: 'approval' });
+      if (r.status === 'approved') items.push({ key: `ok-${r.id}`, text: `✅ Approved for ${title}`, eventId: r.event_id, requestId: r.id, kind: 'approval' });
+      if (r.status === 'rejected') items.push({ key: `no-${r.id}`, text: `❌ Rejected/declined for ${title}`, eventId: r.event_id, requestId: r.id, kind: 'approval' });
       if (r.status === 'pending' && r.invite_source !== 'self' && r.invite_response === 'pending') {
-        items.push({ key: `inv-${r.id}`, text: `📩 Invitation from ${r.invited_by_name || 'member'} for ${title}`, eventId: r.event_id, kind: 'invite' });
+        items.push({ key: `inv-${r.id}`, text: `📩 Invitation from ${r.invited_by_name || 'member'} for ${title}`, eventId: r.event_id, requestId: r.id, kind: 'invite' });
       }
     }
 
@@ -2150,6 +2150,16 @@ export default function App() {
                           );
                         })}
                       </>
+                    )}
+                    {n.kind === 'invite' && !!n.requestId && (
+                      <View style={[styles.rowGap, { marginTop: 6 }]}> 
+                        <TouchableOpacity style={styles.approveBtn} onPress={() => respondToInvite(n.requestId!, true)}>
+                          <Text style={styles.approveBtnText}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.rejectBtn} onPress={() => respondToInvite(n.requestId!, false)}>
+                          <Text style={styles.approveBtnText}>Decline</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                     {!!n.eventId && <Text style={styles.notificationHint}>Tap for full details</Text>}
                   </TouchableOpacity>
