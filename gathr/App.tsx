@@ -35,6 +35,7 @@ type JoinRequestRow = {
   event_id: number;
   requester_name: string;
   status: 'pending' | 'approved' | 'rejected';
+  invite_source?: 'host' | 'self';
 };
 
 type EventRatingRow = {
@@ -124,6 +125,8 @@ export default function App() {
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [filterCategory, setFilterCategory] = useState<'All' | 'Sports' | 'Social' | 'Online'>('All');
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
+  const [inviteEventId, setInviteEventId] = useState<number | null>(null);
+  const [inviteName, setInviteName] = useState('');
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
   const [ratingTargetName, setRatingTargetName] = useState('');
   const [skillRating, setSkillRating] = useState('5');
@@ -921,9 +924,53 @@ export default function App() {
       event_id: eventId,
       requester_name: name,
       status: 'pending',
+      invite_source: 'self',
     });
 
     if (error) return setError(error.message);
+    await loadData();
+  };
+
+  const inviteUserToEvent = async () => {
+    const host = currentUser.trim();
+    const target = inviteName.trim();
+    const eventId = inviteEventId;
+    if (!host || !target || !eventId) return;
+    if (host.toLowerCase() === target.toLowerCase()) return setError('You cannot invite yourself.');
+
+    const ev = events.find((e) => e.id === eventId);
+    if (!ev || ev.host_name.toLowerCase() !== host.toLowerCase()) {
+      return setError('Only event host can invite.');
+    }
+
+    const required = Number(ev.required_people ?? 0);
+    const approvedCount = 1 + requests.filter((r) => r.event_id === eventId && r.status === 'approved').length;
+    if (required > 0 && approvedCount >= required) return setError('Event is full.');
+
+    setError(null);
+
+    const existing = requests.find(
+      (r) => r.event_id === eventId && r.requester_name.toLowerCase() === target.toLowerCase()
+    );
+
+    if (existing) {
+      const { error } = await supabase
+        .from('join_requests')
+        .update({ status: 'pending', invite_source: 'host' })
+        .eq('id', existing.id);
+      if (error) return setError(error.message);
+    } else {
+      const { error } = await supabase.from('join_requests').insert({
+        event_id: eventId,
+        requester_name: target,
+        status: 'pending',
+        invite_source: 'host',
+      });
+      if (error) return setError(error.message);
+    }
+
+    setInviteName('');
+    setInviteEventId(null);
     await loadData();
   };
 
@@ -1219,6 +1266,27 @@ export default function App() {
         </View>
       )}
 
+      {inviteEventId && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Invite person</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Type username to invite"
+            placeholderTextColor="#9ca3af"
+            value={inviteName}
+            onChangeText={setInviteName}
+          />
+          <View style={styles.rowGap}>
+            <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={inviteUserToEvent}>
+              <Text style={styles.approveBtnText}>Send invite</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => { setInviteEventId(null); setInviteName(''); }}>
+              <Text style={styles.approveBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {reportTarget && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Report host: {reportTarget}</Text>
@@ -1423,6 +1491,7 @@ export default function App() {
             return (
               <View key={r.id} style={styles.pendingItem}>
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
+                <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : 'User request'}</Text>
                 <Text style={styles.meta}>Capacity: {approvedCount}/{required > 0 ? required : '?'}</Text>
                 <View style={styles.rowGap}>
                   {!isFull ? (
@@ -1566,7 +1635,11 @@ export default function App() {
                 <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setSelectedHost(item.host_name)}>
                   <Text style={styles.mapBtnText}>Host profile</Text>
                 </TouchableOpacity>
-                {!isHost && (
+                {isHost ? (
+                  <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={() => setInviteEventId(item.id)}>
+                    <Text style={styles.approveBtnText}>Invite people</Text>
+                  </TouchableOpacity>
+                ) : (
                   <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setReportTarget(item.host_name)}>
                     <Text style={styles.approveBtnText}>Report</Text>
                   </TouchableOpacity>
@@ -1595,7 +1668,11 @@ export default function App() {
               )}
               {!isHost && !myReq && isFull && <Text style={styles.rejectedText}>Event full</Text>}
 
-              {!isHost && myReq?.status === 'pending' && <Text style={styles.pendingText}>Request pending host approval…</Text>}
+              {!isHost && myReq?.status === 'pending' && (
+                <Text style={styles.pendingText}>
+                  {myReq.invite_source === 'host' ? 'You were invited. Awaiting host approval…' : 'Request pending host approval…'}
+                </Text>
+              )}
               {!isHost && myReq?.status === 'approved' && <Text style={styles.approvedText}>Approved ✅</Text>}
               {!isHost && myReq?.status === 'rejected' && <Text style={styles.rejectedText}>Request rejected</Text>}
 

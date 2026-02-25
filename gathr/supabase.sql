@@ -24,6 +24,7 @@ create table if not exists public.join_requests (
   requester_name text not null,
   requester_user_id uuid references auth.users(id),
   status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  invite_source text not null default 'self' check (invite_source in ('self', 'host')),
   unique (event_id, requester_name)
 );
 
