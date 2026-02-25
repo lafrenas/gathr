@@ -1757,13 +1757,13 @@ export default function App() {
                           </TouchableOpacity>
                         </View>
 
-                        <View style={styles.rowGapWrap}>
+                        <View style={styles.dayGrid}>
                           {Array.from({ length: new Date(webMonthCursor.getFullYear(), webMonthCursor.getMonth() + 1, 0).getDate() }, (_, i) => i + 1).map((d) => {
                             const active = p.y === webMonthCursor.getFullYear() && p.m === webMonthCursor.getMonth() + 1 && p.d === d;
                             return (
                               <TouchableOpacity
                                 key={`pick-day-${d}`}
-                                style={[styles.chipBtn, active && styles.chipBtnActive]}
+                                style={[styles.dayChip, active && styles.chipBtnActive]}
                                 onPress={() => applyWebParts({ ...p, y: webMonthCursor.getFullYear(), m: webMonthCursor.getMonth() + 1, d })}
                               >
                                 <Text style={styles.chipBtnText}>{d}</Text>
@@ -2283,6 +2283,8 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.65)', justifyContent: 'center', padding: 16 },
   modalCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 12, maxHeight: '70%' },
+  dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 6 },
+  dayChip: { width: '11.5%', backgroundColor: '#334155', borderRadius: 8, alignItems: 'center', paddingVertical: 8 },
   input: {
     backgroundColor: '#1f2937', color: '#f9fafb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
   },
