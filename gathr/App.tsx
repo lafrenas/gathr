@@ -2111,24 +2111,50 @@ export default function App() {
             {notifications.length === 0 ? (
               <Text style={styles.meta}>No new notifications.</Text>
             ) : (
-              notifications.map((n) => (
-                <TouchableOpacity
-                  key={n.key}
-                  style={styles.notificationItem}
-                  onPress={() => {
-                    if (n.eventId) {
-                      setNotificationTargetEventId(n.eventId);
-                      setNotificationDetailEventId(n.eventId);
-                      setShowFeedSection(true);
-                    }
-                    if (n.kind === 'invite') setShowInvitesSection(true);
-                    if (n.kind === 'request') setShowPendingSection(true);
-                  }}
-                >
-                  <Text style={styles.notificationText}>{n.text}</Text>
-                  {!!n.eventId && <Text style={styles.notificationHint}>Open event details</Text>}
-                </TouchableOpacity>
-              ))
+              notifications.map((n) => {
+                const ev = n.eventId ? events.find((e) => e.id === n.eventId) : null;
+                const approvedAttendees = ev
+                  ? requests
+                      .filter((r) => r.event_id === ev.id && r.status === 'approved')
+                      .map((r) => r.requester_name)
+                      .filter((name, i, arr) => arr.findIndex((x) => x.toLowerCase() === name.toLowerCase()) === i)
+                  : [];
+                const participants = ev ? [ev.host_name, ...approvedAttendees] : [];
+
+                return (
+                  <TouchableOpacity
+                    key={n.key}
+                    style={styles.notificationItem}
+                    onPress={() => {
+                      if (n.eventId) {
+                        setNotificationTargetEventId(n.eventId);
+                        setNotificationDetailEventId(n.eventId);
+                        setShowFeedSection(true);
+                      }
+                      if (n.kind === 'invite') setShowInvitesSection(true);
+                      if (n.kind === 'request') setShowPendingSection(true);
+                    }}
+                  >
+                    <Text style={styles.notificationText}>{n.text}</Text>
+                    {ev && (
+                      <>
+                        <Text style={styles.notificationHint}>When: {new Date(ev.exact_time).toLocaleString()}</Text>
+                        <Text style={styles.notificationHint}>Approx area: {publicAreaForEvent(ev)}</Text>
+                        <Text style={styles.notificationHint}>People going: {participants.length}</Text>
+                        {participants.slice(0, 3).map((name) => {
+                          const stat = userRatingStats[name.toLowerCase()];
+                          return (
+                            <Text key={`notif-${n.key}-${name}`} style={styles.notificationHint}>
+                              • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)}` : ''}
+                            </Text>
+                          );
+                        })}
+                      </>
+                    )}
+                    {!!n.eventId && <Text style={styles.notificationHint}>Tap for full details</Text>}
+                  </TouchableOpacity>
+                );
+              })
             )}
           </>
         )}
