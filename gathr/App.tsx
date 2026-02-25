@@ -87,6 +87,9 @@ export default function App() {
   const [remotePostcodeSuggestions, setRemotePostcodeSuggestions] = useState<string[]>([]);
   const [remotePlaceSuggestions, setRemotePlaceSuggestions] = useState<string[]>([]);
   const [exactLocation, setExactLocation] = useState('');
+  const [showExactLocationSuggestions, setShowExactLocationSuggestions] = useState(false);
+  const [remoteExactPostcodeSuggestions, setRemoteExactPostcodeSuggestions] = useState<string[]>([]);
+  const [remoteExactPlaceSuggestions, setRemoteExactPlaceSuggestions] = useState<string[]>([]);
   const [exactTime, setExactTime] = useState('');
   const [eventDateTime, setEventDateTime] = useState<Date | null>(null);
   const [dateDraft, setDateDraft] = useState<Date>(new Date());
@@ -191,7 +194,7 @@ export default function App() {
       try {
         const [postcodeRes, placesRes] = await Promise.all([
           fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
-          fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`),
+          fetch(`https://geocode.maps.co/search?q=${encodeURIComponent(q)}`),
         ]);
 
         const postcodeJson = await postcodeRes.json();
@@ -200,7 +203,9 @@ export default function App() {
 
         const placesJson = await placesRes.json();
         const placeList = Array.isArray(placesJson)
-          ? placesJson.map((p: { display_name?: string }) => (p.display_name ?? '').trim()).filter(Boolean)
+          ? placesJson
+              .map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim())
+              .filter(Boolean)
           : [];
         setRemotePlaceSuggestions(placeList.slice(0, 8));
       } catch {
@@ -211,6 +216,41 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [area]);
+
+  useEffect(() => {
+    const q = exactLocation.trim();
+    if (q.length < 2) {
+      setRemoteExactPostcodeSuggestions([]);
+      setRemoteExactPlaceSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const [postcodeRes, placesRes] = await Promise.all([
+          fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`),
+          fetch(`https://geocode.maps.co/search?q=${encodeURIComponent(q)}`),
+        ]);
+
+        const postcodeJson = await postcodeRes.json();
+        const postcodeList = Array.isArray(postcodeJson?.result) ? postcodeJson.result : [];
+        setRemoteExactPostcodeSuggestions(postcodeList.slice(0, 8));
+
+        const placesJson = await placesRes.json();
+        const placeList = Array.isArray(placesJson)
+          ? placesJson
+              .map((p: { display_name?: string; name?: string }) => (p.display_name ?? p.name ?? '').trim())
+              .filter(Boolean)
+          : [];
+        setRemoteExactPlaceSuggestions(placeList.slice(0, 8));
+      } catch {
+        setRemoteExactPostcodeSuggestions([]);
+        setRemoteExactPlaceSuggestions([]);
+      }
+    }, 260);
+
+    return () => clearTimeout(timer);
+  }, [exactLocation]);
 
   const hasEventEnded = (exactTime: string) => {
     const ts = Date.parse(exactTime);
@@ -336,19 +376,8 @@ export default function App() {
       .map((s) => s.trim())
       .filter((s) => s.length >= 2);
 
-    const starterSuggestions = [
-      'E1 6AN',
-      'SW1A 1AA',
-      'SE1 9SG',
-      'Camden, London',
-      'Shoreditch, London',
-      'Canary Wharf, London',
-      'Manchester M1',
-      'Birmingham B1',
-    ];
-
     const unique = Array.from(
-      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places, ...starterSuggestions])
+      new Set([...remotePostcodeSuggestions, ...remotePlaceSuggestions, ...postcodes, ...places])
     );
     const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
     return matched.slice(0, 8);
@@ -387,6 +416,26 @@ export default function App() {
       words.some((w) => w.startsWith(qw) || levenshtein(qw, w) <= (qw.length >= 6 ? 2 : 1))
     );
   };
+
+  const exactLocationSuggestions = useMemo(() => {
+    const q = exactLocation.trim().toLowerCase();
+
+    const postcodeRegex = /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/gi;
+    const source = events.flatMap((e) => [e.exact_location ?? '', e.area ?? '']);
+
+    const postcodes = source.flatMap((s) => {
+      const matches = s.match(postcodeRegex) ?? [];
+      return matches.map((m) => m.toUpperCase().replace(/\s+/, ' ').trim());
+    });
+
+    const places = source.map((s) => s.trim()).filter((s) => s.length >= 2);
+
+    const unique = Array.from(
+      new Set([...remoteExactPostcodeSuggestions, ...remoteExactPlaceSuggestions, ...postcodes, ...places])
+    );
+    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
+    return matched.slice(0, 8);
+  }, [events, exactLocation, remoteExactPostcodeSuggestions, remoteExactPlaceSuggestions]);
 
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -457,6 +506,8 @@ export default function App() {
     setActivityType('');
     setArea('');
     setExactLocation('');
+    setShowAreaSuggestions(false);
+    setShowExactLocationSuggestions(false);
     setExactTime('');
     setEventDateTime(null);
     await loadData();
@@ -938,7 +989,39 @@ export default function App() {
             )}
           </View>
         )}
-        <TextInput style={styles.input} placeholder="Exact location (approved only)" placeholderTextColor="#9ca3af" value={exactLocation} onChangeText={setExactLocation} />
+        <TextInput
+          style={styles.input}
+          placeholder="Exact location (approved only)"
+          placeholderTextColor="#9ca3af"
+          value={exactLocation}
+          onFocus={() => setShowExactLocationSuggestions(true)}
+          onChangeText={(t) => {
+            setExactLocation(t);
+            setShowExactLocationSuggestions(true);
+          }}
+        />
+        {showExactLocationSuggestions && (
+          <View style={styles.suggestionBox}>
+            {exactLocationSuggestions.length > 0 ? (
+              exactLocationSuggestions.map((s) => (
+                <TouchableOpacity
+                  key={`exact-${s}`}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    setExactLocation(s);
+                    setShowExactLocationSuggestions(false);
+                  }}
+                >
+                  <Text style={styles.suggestionText}>{s}</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.suggestionItem}>
+                <Text style={styles.suggestionText}>Start typing a street, city, or postcode…</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.mapBtn}
