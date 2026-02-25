@@ -93,6 +93,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [filterCategory, setFilterCategory] = useState<'All' | 'Sports' | 'Social' | 'Online'>('All');
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
@@ -243,6 +244,24 @@ export default function App() {
     if (mode === 'week') return d >= startToday && d < endOfWeek;
     return true;
   };
+
+  const searchSuggestions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
+    const candidates: string[] = [];
+    for (const e of visibleEvents) {
+      const [cat = '', act = ''] = e.category.split(':').map((x) => x.trim());
+      candidates.push(e.title, e.area, e.host_name, cat, act, e.description ?? '');
+    }
+
+    const cleaned = candidates
+      .map((x) => x.trim())
+      .filter((x) => x.length >= 2);
+
+    const unique = Array.from(new Set(cleaned));
+    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
+    return matched.slice(0, 8);
+  }, [visibleEvents, searchQuery]);
 
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -818,8 +837,28 @@ export default function App() {
           placeholder="Search by title, activity, area, host..."
           placeholderTextColor="#9ca3af"
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onFocus={() => setShowSearchSuggestions(true)}
+          onChangeText={(t) => {
+            setSearchQuery(t);
+            setShowSearchSuggestions(true);
+          }}
         />
+        {showSearchSuggestions && searchSuggestions.length > 0 && (
+          <View style={styles.suggestionBox}>
+            {searchSuggestions.map((s) => (
+              <TouchableOpacity
+                key={`search-${s}`}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setSearchQuery(s);
+                  setShowSearchSuggestions(false);
+                }}
+              >
+                <Text style={styles.suggestionText}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.ratingLabel}>Category filter</Text>
         <View style={styles.rowGapWrap}>
