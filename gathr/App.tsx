@@ -15,6 +15,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { supabase } from './lib/supabase';
 import { MapCanvas } from './components/MapCanvas';
+import { EventMapBrowse } from './components/EventMapBrowse';
 
 type MapRegion = {
   latitude: number;
@@ -162,6 +163,8 @@ export default function App() {
   const [showPendingSection, setShowPendingSection] = useState(false);
   const [showInvitesSection, setShowInvitesSection] = useState(true);
   const [showFeedSection, setShowFeedSection] = useState(true);
+  const [showMapBrowse, setShowMapBrowse] = useState(false);
+  const [mapBrowseSelectedEventId, setMapBrowseSelectedEventId] = useState<number | null>(null);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -956,6 +959,14 @@ export default function App() {
       return fuzzyMatch(q, haystack);
     });
   }, [visibleEvents, searchQuery, filterCategory, timeFilter, radiusKm, userCoords, includeUnknownLocation]);
+
+  const mappableEvents = useMemo(
+    () =>
+      filteredEvents.filter(
+        (e) => typeof e.exact_lat === 'number' && typeof e.exact_lng === 'number'
+      ) as Array<EventRow & { exact_lat: number; exact_lng: number }>,
+    [filteredEvents]
+  );
 
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -1990,9 +2001,14 @@ export default function App() {
         )}
 
         <Text style={styles.meta}>Showing {filteredEvents.length} event(s)</Text>
-        <TouchableOpacity style={styles.mapBtn} onPress={() => setShowAllEvents((v) => !v)}>
-          <Text style={styles.mapBtnText}>{showAllEvents ? 'Show latest 8 only' : 'Show all events'}</Text>
-        </TouchableOpacity>
+        <View style={styles.rowGap}>
+          <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setShowMapBrowse(true)}>
+            <Text style={styles.mapBtnText}>Map browse</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setShowAllEvents((v) => !v)}>
+            <Text style={styles.mapBtnText}>{showAllEvents ? 'Show latest 8 only' : 'Show all events'}</Text>
+          </TouchableOpacity>
+        </View>
           </>
         )}
       </View>
@@ -2017,7 +2033,7 @@ export default function App() {
           const approved = isHost || myReq?.status === 'approved';
 
           return (
-            <View key={item.id} style={styles.eventCard}>
+            <View key={item.id} style={[styles.eventCard, mapBrowseSelectedEventId === item.id && styles.eventCardActive]}>
               <Text style={styles.eventTitle}>{item.title}</Text>
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
               <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
@@ -2194,6 +2210,36 @@ export default function App() {
       )}
       </ScrollView>
 
+      <Modal visible={showMapBrowse} animationType="slide" onRequestClose={() => setShowMapBrowse(false)}>
+        <SafeAreaView style={styles.mapModalRoot}>
+          <View style={styles.mapModalHeader}>
+            <Text style={styles.cardTitle}>Map browse</Text>
+            <TouchableOpacity style={styles.rejectBtn} onPress={() => setShowMapBrowse(false)}>
+              <Text style={styles.approveBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          <EventMapBrowse
+            style={styles.mapView}
+            events={mappableEvents.map((e) => ({
+              id: e.id,
+              title: e.title,
+              area: publicAreaForEvent(e),
+              exact_lat: e.exact_lat,
+              exact_lng: e.exact_lng,
+            }))}
+            onSelect={(eventId) => {
+              setMapBrowseSelectedEventId(eventId);
+              setShowMapBrowse(false);
+              setShowFeedSection(true);
+            }}
+          />
+          {!!mapBrowseSelectedEventId && (
+            <Text style={styles.meta}>Selected event #{mapBrowseSelectedEventId} — scroll feed to open it.</Text>
+          )}
+        </SafeAreaView>
+      </Modal>
+
       <Modal visible={mapPickerVisible} animationType="slide" onRequestClose={() => setMapPickerVisible(false)}>
         <SafeAreaView style={styles.mapModalRoot}>
           <View style={styles.mapModalHeader}>
@@ -2310,6 +2356,7 @@ const styles = StyleSheet.create({
   eventCard: {
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
   },
+  eventCardActive: { borderColor: '#22c55e', borderWidth: 2 },
   eventTitle: { color: '#f9fafb', fontWeight: '700', fontSize: 16 },
   meta: { color: '#9ca3af', marginTop: 2 },
   hiddenText: { color: '#fbbf24', marginTop: 8 },
