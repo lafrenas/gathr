@@ -114,6 +114,14 @@ type ModerationStatusRow = {
   note?: string | null;
 };
 
+type EventCommentRow = {
+  id: number;
+  event_id: number;
+  author_name: string;
+  body: string;
+  created_at: string;
+};
+
 export default function App() {
   const testUsers = ['1', '2', '3', '4', '5'];
   const [currentUser, setCurrentUser] = useState('1');
@@ -127,6 +135,7 @@ export default function App() {
   const [ratingSkips, setRatingSkips] = useState<RatingSkipRow[]>([]);
   const [activityRatings, setActivityRatings] = useState<ActivityRatingRow[]>([]);
   const [moderationStatuses, setModerationStatuses] = useState<ModerationStatusRow[]>([]);
+  const [comments, setComments] = useState<EventCommentRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
@@ -221,6 +230,7 @@ export default function App() {
   const [activityRatingEventId, setActivityRatingEventId] = useState<number | null>(null);
   const [activityScore, setActivityScore] = useState('5');
   const [activityComment, setActivityComment] = useState('');
+  const [commentDraftByEvent, setCommentDraftByEvent] = useState<Record<number, string>>({});
   const [communicationRating, setCommunicationRating] = useState('5');
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
@@ -341,6 +351,11 @@ export default function App() {
     const { data: modData, error: modError } = await supabase.from('user_moderation_status').select('*').order('id', { ascending: false });
     if (!modError) {
       setModerationStatuses((modData ?? []) as ModerationStatusRow[]);
+    }
+
+    const { data: cData, error: cError } = await supabase.from('event_comments').select('*').order('id', { ascending: false });
+    if (!cError) {
+      setComments((cData ?? []) as EventCommentRow[]);
     }
 
     setBusy(false);
@@ -1612,6 +1627,28 @@ export default function App() {
     await loadData();
   };
 
+  const submitEventComment = async (eventId: number) => {
+    const me = currentUser.trim();
+    const body = (commentDraftByEvent[eventId] || '').trim();
+    if (!me || !body) return;
+
+    const ev = events.find((e) => e.id === eventId);
+    if (!ev) return;
+    const myReq = requests.find((r) => r.event_id === eventId && r.requester_name.toLowerCase() === me.toLowerCase());
+    const canPost = ev.host_name.toLowerCase() === me.toLowerCase() || myReq?.status === 'approved';
+    if (!canPost) return setError('Only host or approved attendees can comment.');
+
+    const { error } = await supabase.from('event_comments').insert({
+      event_id: eventId,
+      author_name: me,
+      body,
+    });
+    if (error) return setError(error.message);
+
+    setCommentDraftByEvent((prev) => ({ ...prev, [eventId]: '' }));
+    await loadData();
+  };
+
   const submitActivityRating = async () => {
     const rater = currentUser.trim();
     const eventId = activityRatingEventId;
@@ -1693,6 +1730,12 @@ export default function App() {
     if (rb.error) {
       setBusy(false);
       return setError(rb.error.message);
+    }
+
+    const ec = await supabase.from('event_comments').delete().neq('id', -1);
+    if (ec.error && !ec.error.message.toLowerCase().includes('does not exist')) {
+      setBusy(false);
+      return setError(ec.error.message);
     }
 
     const ars = await supabase.from('event_activity_ratings').delete().neq('id', -1);
@@ -2783,6 +2826,27 @@ export default function App() {
               )}
               {!isHost && myReq?.status === 'approved' && <Text style={styles.approvedText}>Approved ✅</Text>}
               {!isHost && myReq?.status === 'rejected' && <Text style={styles.rejectedText}>Request rejected</Text>}
+
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.meta}>Event chat</Text>
+                {(comments.filter((c) => c.event_id === item.id).slice(0, 3)).map((c) => (
+                  <Text key={`c-${c.id}`} style={styles.meta}>• {c.author_name}: {c.body}</Text>
+                ))}
+                {(isHost || approved) && (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Write a message..."
+                      placeholderTextColor="#9ca3af"
+                      value={commentDraftByEvent[item.id] || ''}
+                      onChangeText={(t) => setCommentDraftByEvent((prev) => ({ ...prev, [item.id]: t }))}
+                    />
+                    <TouchableOpacity style={styles.mapBtn} onPress={() => submitEventComment(item.id)}>
+                      <Text style={styles.mapBtnText}>Post comment</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
 
               {approved && (() => {
                 if (!hasEventEnded(item.exact_time)) {
