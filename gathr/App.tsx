@@ -92,6 +92,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState<'All' | 'Sports' | 'Social' | 'Online'>('All');
+  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'tomorrow' | 'week'>('all');
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
   const [ratingTargetName, setRatingTargetName] = useState('');
   const [skillRating, setSkillRating] = useState('5');
@@ -218,6 +221,43 @@ export default function App() {
   const visibleEvents = useMemo(() => {
     return events.filter((e) => !blockedByMe.has(e.host_name.toLowerCase()));
   }, [events, blockedByMe]);
+
+  const matchesTimeFilter = (eventTime: string, mode: 'all' | 'today' | 'tomorrow' | 'week') => {
+    if (mode === 'all') return true;
+    const ts = Date.parse(eventTime);
+    if (!Number.isFinite(ts)) return false;
+
+    const d = new Date(ts);
+    const now = new Date();
+
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startTomorrow = new Date(startToday);
+    startTomorrow.setDate(startTomorrow.getDate() + 1);
+    const startDayAfterTomorrow = new Date(startTomorrow);
+    startDayAfterTomorrow.setDate(startDayAfterTomorrow.getDate() + 1);
+    const endOfWeek = new Date(startToday);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    if (mode === 'today') return d >= startToday && d < startTomorrow;
+    if (mode === 'tomorrow') return d >= startTomorrow && d < startDayAfterTomorrow;
+    if (mode === 'week') return d >= startToday && d < endOfWeek;
+    return true;
+  };
+
+  const filteredEvents = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
+    return visibleEvents.filter((e) => {
+      const [eventCategory = ''] = e.category.split(':');
+      const catOk = filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
+      const timeOk = matchesTimeFilter(e.exact_time, timeFilter);
+      if (!catOk || !timeOk) return false;
+      if (!q) return true;
+
+      const haystack = `${e.title} ${e.description ?? ''} ${e.category} ${e.area} ${e.host_name}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [visibleEvents, searchQuery, filterCategory, timeFilter]);
 
   const hostRatingStats = useMemo(() => {
     const byHost: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
@@ -772,13 +812,46 @@ export default function App() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Event feed</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Search by title, activity, area, host..."
+          placeholderTextColor="#9ca3af"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+
+        <Text style={styles.ratingLabel}>Category filter</Text>
+        <View style={styles.rowGapWrap}>
+          {(['All', 'Sports', 'Social', 'Online'] as const).map((c) => (
+            <TouchableOpacity key={c} style={[styles.chipBtn, filterCategory === c && styles.chipBtnActive]} onPress={() => setFilterCategory(c)}>
+              <Text style={styles.chipBtnText}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.ratingLabel}>Time filter</Text>
+        <View style={styles.rowGapWrap}>
+          {([
+            { key: 'all', label: 'All' },
+            { key: 'today', label: 'Today' },
+            { key: 'tomorrow', label: 'Tomorrow' },
+            { key: 'week', label: 'This week' },
+          ] as const).map((t) => (
+            <TouchableOpacity key={t.key} style={[styles.chipBtn, timeFilter === t.key && styles.chipBtnActive]} onPress={() => setTimeFilter(t.key)}>
+              <Text style={styles.chipBtnText}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.meta}>Showing {filteredEvents.length} event(s)</Text>
         <TouchableOpacity style={styles.mapBtn} onPress={() => setShowAllEvents((v) => !v)}>
           <Text style={styles.mapBtnText}>{showAllEvents ? 'Show latest 8 only' : 'Show all events'}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.list}>
-        {(showAllEvents ? visibleEvents : visibleEvents.slice(0, 8)).map((item) => {
+        {(showAllEvents ? filteredEvents : filteredEvents.slice(0, 8)).map((item) => {
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
