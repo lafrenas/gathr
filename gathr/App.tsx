@@ -211,6 +211,7 @@ export default function App() {
   const [includeUnknownLocation, setIncludeUnknownLocation] = useState(true);
   const [inviteEventId, setInviteEventId] = useState<number | null>(null);
   const [inviteName, setInviteName] = useState('');
+  const [showInviteSuggestions, setShowInviteSuggestions] = useState(false);
   const [ratingEventId, setRatingEventId] = useState<number | null>(null);
   const [ratingTargetName, setRatingTargetName] = useState('');
   const [skillRating, setSkillRating] = useState('5');
@@ -245,6 +246,30 @@ export default function App() {
       .filter((x) => !q || x.toLowerCase().includes(q))
       .slice(0, 12);
   }, [interestCatalog, interestQuery, selectedInterests]);
+
+  const inviteSuggestions = useMemo(() => {
+    if (!inviteEventId) return [] as UserProfileRow[];
+    const q = inviteName.trim().toLowerCase();
+    const me = currentUser.trim().toLowerCase();
+    const ev = events.find((e) => e.id === inviteEventId);
+
+    const existingNames = new Set(
+      requests
+        .filter((r) => r.event_id === inviteEventId)
+        .map((r) => r.requester_name.toLowerCase())
+    );
+    if (ev) existingNames.add(ev.host_name.toLowerCase());
+
+    return profiles
+      .filter((p) => p.display_name.toLowerCase() !== me)
+      .filter((p) => !existingNames.has(p.display_name.toLowerCase()))
+      .filter((p) => {
+        if (!q) return true;
+        const hay = `${p.display_name} ${p.full_name ?? ''} ${p.based_in ?? ''} ${p.interests_csv ?? ''}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 8);
+  }, [inviteEventId, inviteName, currentUser, events, requests, profiles]);
 
   const loadData = async () => {
     setBusy(true);
@@ -1394,6 +1419,7 @@ export default function App() {
     }
 
     setInviteName('');
+    setShowInviteSuggestions(false);
     setInviteEventId(null);
     await loadData();
   };
@@ -1863,16 +1889,44 @@ export default function App() {
           <Text style={styles.cardTitle}>Invite person</Text>
           <TextInput
             style={styles.input}
-            placeholder="Type username to invite"
+            placeholder="Search by username, interests, location"
             placeholderTextColor="#9ca3af"
             value={inviteName}
-            onChangeText={setInviteName}
+            onFocus={() => setShowInviteSuggestions(true)}
+            onChangeText={(t) => {
+              setInviteName(t);
+              setShowInviteSuggestions(true);
+            }}
           />
+          {showInviteSuggestions && (
+            <View style={styles.suggestionBox}>
+              {inviteSuggestions.length > 0 ? (
+                inviteSuggestions.map((p) => (
+                  <TouchableOpacity
+                    key={`inv-sug-${p.display_name}`}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setInviteName(p.display_name);
+                      setShowInviteSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionText}>{p.display_name}{p.full_name ? ` (${p.full_name})` : ''}</Text>
+                    {!!p.interests_csv && <Text style={styles.meta}>Interests: {p.interests_csv}</Text>}
+                    {!!p.based_in && <Text style={styles.meta}>Based in: {p.based_in}</Text>}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.suggestionItem}>
+                  <Text style={styles.suggestionText}>No matching users found</Text>
+                </View>
+              )}
+            </View>
+          )}
           <View style={styles.rowGap}>
             <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={inviteUserToEvent}>
               <Text style={styles.approveBtnText}>Send invite</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => { setInviteEventId(null); setInviteName(''); }}>
+            <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => { setInviteEventId(null); setInviteName(''); setShowInviteSuggestions(false); }}>
               <Text style={styles.approveBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
