@@ -2750,11 +2750,16 @@ export default function App() {
                         <Text style={styles.notificationHint}>Approx area: {publicAreaForEvent(ev)}</Text>
                         <Text style={styles.notificationHint}>People going: {participants.length}</Text>
                         <View style={styles.rowInline}>
-                          {participants.slice(0, 4).map((name) =>
-                            profileByName[name.toLowerCase()]?.avatar_url ? (
-                              <Image key={`notif-av-${n.key}-${name}`} source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
-                            ) : null
-                          )}
+                          {participants.slice(0, 4).map((name) => {
+                            const avatar = profileByName[name.toLowerCase()]?.avatar_url;
+                            return avatar ? (
+                              <Image key={`notif-av-${n.key}-${name}`} source={{ uri: avatar }} style={styles.hostAvatarTiny} />
+                            ) : (
+                              <View key={`notif-initial-${n.key}-${name}`} style={styles.initialAvatarTiny}>
+                                <Text style={styles.initialAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>
+                              </View>
+                            );
+                          })}
                         </View>
                         {(() => {
                           const rated = participants
@@ -3377,11 +3382,16 @@ export default function App() {
                         <Text style={[styles.cardTitle, { marginTop: 10 }]}>Participants</Text>
                         <Text style={styles.meta}>People going: {participants.length}</Text>
                         <View style={styles.rowInline}>
-                          {participants.slice(0, 6).map((name) =>
-                            profileByName[name.toLowerCase()]?.avatar_url ? (
-                              <Image key={`detail-av-${ev.id}-${name}`} source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
-                            ) : null
-                          )}
+                          {participants.slice(0, 6).map((name) => {
+                            const avatar = profileByName[name.toLowerCase()]?.avatar_url;
+                            return avatar ? (
+                              <Image key={`detail-av-${ev.id}-${name}`} source={{ uri: avatar }} style={styles.hostAvatarTiny} />
+                            ) : (
+                              <View key={`detail-initial-${ev.id}-${name}`} style={styles.initialAvatarTiny}>
+                                <Text style={styles.initialAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>
+                              </View>
+                            );
+                          })}
                         </View>
                         {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
                         {!!avgSkill && <Text style={styles.meta}>Group skill avg: ⭐ {avgSkill.toFixed(1)}</Text>}
@@ -3396,8 +3406,12 @@ export default function App() {
                         const stat = userRatingStats[name.toLowerCase()];
                         return (
                           <View key={`nd-${ev.id}-${name}`} style={styles.rowInline}>
-                            {!!profileByName[name.toLowerCase()]?.avatar_url && (
+                            {profileByName[name.toLowerCase()]?.avatar_url ? (
                               <Image source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                            ) : (
+                              <View style={styles.initialAvatarTiny}>
+                                <Text style={styles.initialAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>
+                              </View>
                             )}
                             <Text style={styles.meta}>
                               • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count}) • Skill ⭐ ${stat.skill.toFixed(1)}` : '  New'}
@@ -3577,6 +3591,8 @@ const styles = StyleSheet.create({
   rowInline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hostAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#334155', marginBottom: 8 },
   hostAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#334155', marginTop: 2 },
+  initialAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#334155', marginTop: 2, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center' },
+  initialAvatarText: { color: '#e2e8f0', fontSize: 10, fontWeight: '800' },
   meta: { color: '#9ca3af', marginTop: 2 },
   hiddenText: { color: '#fbbf24', marginTop: 8 },
   revealedBox: {
