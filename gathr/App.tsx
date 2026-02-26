@@ -2749,6 +2749,13 @@ export default function App() {
                         <Text style={styles.notificationHint}>When: {new Date(ev.exact_time).toLocaleString()}</Text>
                         <Text style={styles.notificationHint}>Approx area: {publicAreaForEvent(ev)}</Text>
                         <Text style={styles.notificationHint}>People going: {participants.length}</Text>
+                        <View style={styles.rowInline}>
+                          {participants.slice(0, 4).map((name) =>
+                            profileByName[name.toLowerCase()]?.avatar_url ? (
+                              <Image key={`notif-av-${n.key}-${name}`} source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                            ) : null
+                          )}
+                        </View>
                         {(() => {
                           const rated = participants
                             .map((name) => userRatingStats[name.toLowerCase()])
@@ -3369,6 +3376,13 @@ export default function App() {
                       <>
                         <Text style={[styles.cardTitle, { marginTop: 10 }]}>Participants</Text>
                         <Text style={styles.meta}>People going: {participants.length}</Text>
+                        <View style={styles.rowInline}>
+                          {participants.slice(0, 6).map((name) =>
+                            profileByName[name.toLowerCase()]?.avatar_url ? (
+                              <Image key={`detail-av-${ev.id}-${name}`} source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                            ) : null
+                          )}
+                        </View>
                         {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
                         {!!avgSkill && <Text style={styles.meta}>Group skill avg: ⭐ {avgSkill.toFixed(1)}</Text>}
                       </>
@@ -3381,9 +3395,14 @@ export default function App() {
                       {participants.map((name) => {
                         const stat = userRatingStats[name.toLowerCase()];
                         return (
-                          <Text key={`nd-${ev.id}-${name}`} style={styles.meta}>
-                            • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count}) • Skill ⭐ ${stat.skill.toFixed(1)}` : '  New'}
-                          </Text>
+                          <View key={`nd-${ev.id}-${name}`} style={styles.rowInline}>
+                            {!!profileByName[name.toLowerCase()]?.avatar_url && (
+                              <Image source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                            )}
+                            <Text style={styles.meta}>
+                              • {name}{stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count}) • Skill ⭐ ${stat.skill.toFixed(1)}` : '  New'}
+                            </Text>
+                          </View>
                         );
                       })}
                     </>
