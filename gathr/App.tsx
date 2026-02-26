@@ -2269,7 +2269,12 @@ export default function App() {
                       setShowInviteSuggestions(false);
                     }}
                   >
-                    <Text style={styles.suggestionText}>{p.display_name}{p.full_name ? ` (${p.full_name})` : ''}</Text>
+                    <View style={styles.rowInline}>
+                      {!!profileByName[p.display_name.toLowerCase()]?.avatar_url && (
+                        <Image source={{ uri: profileByName[p.display_name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                      )}
+                      <Text style={styles.suggestionText}>{p.display_name}{p.full_name ? ` (${p.full_name})` : ''}</Text>
+                    </View>
                     {!!p.interests_csv && <Text style={styles.meta}>Interests: {p.interests_csv}</Text>}
                     {!!p.based_in && <Text style={styles.meta}>Based in: {p.based_in}</Text>}
                   </TouchableOpacity>
@@ -3083,7 +3088,12 @@ export default function App() {
                           const canReport = hasEventEnded(item.exact_time) && name.toLowerCase() !== currentUser.trim().toLowerCase();
                           return (
                             <View key={`going-${item.id}-${name}`} style={styles.rowGap}>
-                              <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
+                              <View style={styles.rowInline}>
+                                {!!profileByName[name.toLowerCase()]?.avatar_url && (
+                                  <Image source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                                )}
+                                <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
+                              </View>
                               {canReport && (
                                 <TouchableOpacity style={styles.rejectBtn} onPress={() => setReportTarget(name)}>
                                   <Text style={styles.approveBtnText}>Report participant</Text>
