@@ -2170,15 +2170,7 @@ export default function App() {
             <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
               <Text style={styles.mapBtnText}>Save profile</Text>
             </TouchableOpacity>
-            <Text style={styles.meta}>
-              {profileSaveState === 'saving'
-                ? 'Saving…'
-                : profileSaveState === 'saved'
-                ? 'Saved'
-                : profileSaveState === 'error'
-                ? 'Save failed'
-                : 'Auto-save enabled'}
-            </Text>
+            <Text style={styles.meta}>{profileSaveState === 'error' ? 'Save failed — tap Save profile to retry' : 'Auto-save enabled'}</Text>
           </>
         )}
       </View>
