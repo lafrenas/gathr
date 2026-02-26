@@ -1445,6 +1445,10 @@ export default function App() {
 
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
 
+  useEffect(() => {
+    if (registrationComplete) setShowProfileSection(false);
+  }, [registrationComplete]);
+
   const requireRegistration = () => {
     if (registrationComplete) return true;
     setError('Complete registration first: full name, gender, age group, based in, valid email, and verified email.');
@@ -2190,7 +2194,7 @@ export default function App() {
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowProfileSection((v) => !v)}>
-          <Text style={styles.cardTitle}>Registration</Text>
+          <Text style={styles.cardTitle}>{registrationComplete ? 'Your profile' : 'Registration'}</Text>
           <Text style={styles.meta}>{showProfileSection ? '▾' : '▸'}</Text>
         </TouchableOpacity>
         {showProfileSection && (
@@ -2332,6 +2336,8 @@ export default function App() {
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
       {!!info && <Text style={styles.approvedText}>{info}</Text>}
 
+      {registrationComplete ? (
+      <>
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowDebugSection((v) => !v)}>
           <Text style={styles.cardTitle}>Debug</Text>
@@ -3442,6 +3448,12 @@ export default function App() {
           );
         })}
       </View>
+      )}
+      </>
+      ) : (
+        <View style={styles.registrationGateCard}>
+          <Text style={styles.meta}>Finish registration above to unlock events, invites, and feed.</Text>
+        </View>
       )}
       </ScrollView>
 
