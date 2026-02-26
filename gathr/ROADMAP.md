@@ -11,13 +11,19 @@
 - Report flow + reason picker
 - Block/unblock + blocked hosts hidden from feed
 - Event date->time picker (ISO timestamp output)
+- Registration gate before core app actions
+- Profile completion meter + autosave
+- Avatar upload + avatar/initial chips across feed/invites/notifications
+- Moderation dashboard severity grouping + visual badges
 
 ### Backend (Supabase)
-- Tables: `events`, `join_requests`, `event_ratings`, `user_reports`, `user_blocks`
+- Tables: `events`, `join_requests`, `event_ratings`, `user_reports`, `user_blocks`, `user_profiles`
 - RLS policies for read/write safety in dev mode
 - Hard enforcement for ratings:
   - only approved attendee↔host pairs for the same event
   - only after event time has passed
+- Profile/contact/verification columns added (`avatar_url`, `phone`, `email`, verified flags)
+- Avatars storage bucket + policies patch added
 
 ---
 
@@ -36,17 +42,18 @@
 - [ ] Map browse view (rough area activity discovery)
 
 ## Phase B — Identity + Trust (High)
-- [ ] Registration fields:
-  - [ ] Gender (male/female)
-  - [ ] Age group (14 and under, 15–18, 19–25, 26–40, etc.)
-  - [ ] Phone (verification)
-  - [ ] Email (verification)
-  - [ ] Photo
-  - [ ] Full name
-- [ ] Location postcode autocomplete
-- [ ] Drop-a-pin precise map location
-- [ ] Host invites people
-- [ ] Members can request/invite attendance (host still approves)
+- [~] Registration fields:
+  - [x] Gender (male/female)
+  - [x] Age group (14 and under, 15–18, 19–25, 26–40, etc.)
+  - [~] Phone (verification UI done; provider setup pending)
+  - [~] Email (OTP flow implemented; magic-link return polish pending)
+  - [x] Photo
+  - [x] Full name
+  - [x] Password + confirm + complexity validation
+- [x] Location postcode autocomplete
+- [x] Drop-a-pin precise map location
+- [x] Host invites people
+- [x] Members can request/invite attendance (host still approves)
 
 ## Phase C — Activity Model + Ratings (Medium)
 - [ ] Required number of people per activity
