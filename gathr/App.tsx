@@ -1295,8 +1295,19 @@ export default function App() {
     const critical = moderationQueue.filter((m) => m.autoFlag === 'critical').length;
     const high = moderationQueue.filter((m) => m.autoFlag === 'high').length;
     const medium = moderationQueue.filter((m) => m.autoFlag === 'medium').length;
-    return { critical, high, medium };
+    const none = moderationQueue.filter((m) => m.autoFlag === 'none').length;
+    return { critical, high, medium, none };
   }, [moderationQueue]);
+
+  const moderationGroups = useMemo(
+    () => ({
+      critical: moderationQueue.filter((m) => m.autoFlag === 'critical'),
+      high: moderationQueue.filter((m) => m.autoFlag === 'high'),
+      medium: moderationQueue.filter((m) => m.autoFlag === 'medium'),
+      none: moderationQueue.filter((m) => m.autoFlag === 'none'),
+    }),
+    [moderationQueue]
+  );
 
   const onlineGameLeaderboard = useMemo(() => {
     const onlineEventById: Record<number, string> = {};
@@ -2554,32 +2565,74 @@ export default function App() {
           </TouchableOpacity>
           {showModerationSection && (
             <>
-              <Text style={styles.meta}>Flag summary • Critical: {moderationSummary.critical} • High: {moderationSummary.high} • Medium: {moderationSummary.medium}</Text>
-              <Text style={styles.meta}>Rules: Critical ≥5 total reports, ≥4 unique reporters, or ≥4 in last 14 days.</Text>
+              <View style={styles.rowGapWrap}>
+                <Text style={[styles.severityPill, styles.severityCritical]}>CRITICAL {moderationSummary.critical}</Text>
+                <Text style={[styles.severityPill, styles.severityHigh]}>HIGH {moderationSummary.high}</Text>
+                <Text style={[styles.severityPill, styles.severityMedium]}>MEDIUM {moderationSummary.medium}</Text>
+                <Text style={[styles.severityPill, styles.severityNone]}>NONE {moderationSummary.none}</Text>
+              </View>
+              <Text style={styles.meta}>Critical: ≥5 total reports, ≥4 unique reporters, or ≥4 in last 14 days.</Text>
               {moderationQueue.length === 0 ? (
                 <Text style={styles.meta}>No reports yet.</Text>
               ) : (
-                moderationQueue.map((m) => (
-                  <View key={`mod-${m.user_name}`} style={styles.pendingItem}>
-                    <Text style={styles.eventTitle}>{m.user_name}</Text>
-                    <Text style={styles.meta}>Reports: {m.count} • Unique reporters: {m.uniqueReporterCount} • Recent(14d): {m.recentReportCount}</Text>
-                    <Text style={styles.meta}>Reason signals • Harassment: {m.harassmentCount} • Unsafe: {m.unsafeCount}</Text>
-                    <Text style={styles.meta}>Auto-flag: {m.autoFlag.toUpperCase()} • Latest: {m.latestReason}</Text>
-                    {!!m.latestDetails && <Text style={styles.meta}>Comment: {m.latestDetails}</Text>}
-                    <Text style={styles.meta}>Status: {m.status}</Text>
-                    <View style={styles.rowGapWrap}>
-                      <TouchableOpacity style={[styles.chipBtn, m.status === 'watchlist' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'watchlist')}>
-                        <Text style={styles.chipBtnText}>Watchlist</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.chipBtn, m.status === 'reviewed' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'reviewed')}>
-                        <Text style={styles.chipBtnText}>Reviewed</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.chipBtn, m.status === 'clear' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'clear')}>
-                        <Text style={styles.chipBtnText}>Clear</Text>
-                      </TouchableOpacity>
+                (['critical', 'high', 'medium', 'none'] as const).map((bucket) => {
+                  const title = bucket.toUpperCase();
+                  const items = moderationGroups[bucket];
+                  if (!items.length) return null;
+                  return (
+                    <View key={`mod-bucket-${bucket}`} style={styles.modSection}>
+                      <Text style={styles.modSectionTitle}>{title}</Text>
+                      {items.map((m) => (
+                        <View key={`mod-${m.user_name}`} style={styles.modCard}>
+                          <View style={styles.sectionHeader}>
+                            <Text style={styles.eventTitle}>{m.user_name}</Text>
+                            <Text
+                              style={[
+                                styles.severityPill,
+                                m.autoFlag === 'critical'
+                                  ? styles.severityCritical
+                                  : m.autoFlag === 'high'
+                                  ? styles.severityHigh
+                                  : m.autoFlag === 'medium'
+                                  ? styles.severityMedium
+                                  : styles.severityNone,
+                              ]}
+                            >
+                              {m.autoFlag.toUpperCase()}
+                            </Text>
+                          </View>
+
+                          <View style={styles.rowGapWrap}>
+                            <Text style={styles.metricChip}>Reports {m.count}</Text>
+                            <Text style={styles.metricChip}>Reporters {m.uniqueReporterCount}</Text>
+                            <Text style={styles.metricChip}>Recent14d {m.recentReportCount}</Text>
+                          </View>
+
+                          <View style={styles.rowGapWrap}>
+                            <Text style={styles.signalChip}>⚠️ Harassment {m.harassmentCount}</Text>
+                            <Text style={styles.signalChip}>🛑 Unsafe {m.unsafeCount}</Text>
+                            <Text style={styles.signalChip}>📌 {m.latestReason}</Text>
+                          </View>
+
+                          {!!m.latestDetails && <Text style={styles.meta}>Comment: {m.latestDetails}</Text>}
+                          <Text style={styles.meta}>Status: {m.status}</Text>
+
+                          <View style={styles.rowGapWrap}>
+                            <TouchableOpacity style={[styles.chipBtn, styles.statusWatchlist, m.status === 'watchlist' && styles.statusWatchlistActive]} onPress={() => setModerationStatus(m.user_name, 'watchlist')}>
+                              <Text style={styles.chipBtnText}>Needs review</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.chipBtn, m.status === 'reviewed' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'reviewed')}>
+                              <Text style={styles.chipBtnText}>Reviewed</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.chipBtn, m.status === 'clear' && styles.chipBtnActive]} onPress={() => setModerationStatus(m.user_name, 'clear')}>
+                              <Text style={styles.chipBtnText}>Clear</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
                     </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </>
           )}
@@ -3296,6 +3349,18 @@ const styles = StyleSheet.create({
   ratingHelp: { color: '#94a3b8', marginBottom: 6, fontSize: 12 },
   warnBadge: { color: '#fca5a5', marginTop: 6, fontWeight: '700' },
   reviewSnippet: { color: '#cbd5e1', marginTop: 6, fontStyle: 'italic' },
+  modSection: { marginTop: 10 },
+  modSectionTitle: { color: '#cbd5e1', fontWeight: '800', marginBottom: 8, letterSpacing: 0.4 },
+  modCard: { backgroundColor: '#0f172a', borderColor: '#1e293b', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
+  severityPill: { color: '#fff', fontWeight: '800', fontSize: 11, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
+  severityCritical: { backgroundColor: '#b91c1c' },
+  severityHigh: { backgroundColor: '#c2410c' },
+  severityMedium: { backgroundColor: '#a16207' },
+  severityNone: { backgroundColor: '#475569' },
+  metricChip: { color: '#dbeafe', backgroundColor: '#1e3a8a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12, fontWeight: '700' },
+  signalChip: { color: '#e2e8f0', backgroundColor: '#1f2937', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12 },
+  statusWatchlist: { backgroundColor: '#78350f' },
+  statusWatchlistActive: { backgroundColor: '#d97706' },
   mapModalRoot: { flex: 1, backgroundColor: '#0b1220', padding: 12 },
   mapModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', marginTop: 8 },
