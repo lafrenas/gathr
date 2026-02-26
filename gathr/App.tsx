@@ -2292,36 +2292,52 @@ export default function App() {
             </View>
 
             <Text style={styles.ratingLabel}>Verification</Text>
-            <View style={styles.rowGapWrap}>
-              <TouchableOpacity
-                style={[styles.chipBtn, (!phoneValue.trim() || !phoneLooksValid) && styles.chipBtnDisabled]}
-                onPress={sendPhoneVerification}
-              >
-                <Text style={styles.chipBtnText}>Send phone OTP</Text>
-              </TouchableOpacity>
-              <Text style={styles.meta}>{phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Phone verified ✓' : 'Phone not verified'}</Text>
-            </View>
-            <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Phone OTP code" placeholderTextColor="#9ca3af" keyboardType="number-pad" />
-            <TouchableOpacity style={[styles.chipBtn, !phoneOtp.trim() && styles.chipBtnDisabled]} onPress={verifyPhoneCode}>
-              <Text style={styles.chipBtnText}>Verify phone code</Text>
-            </TouchableOpacity>
 
-            <View style={styles.rowGapWrap}>
-              <TouchableOpacity
-                style={[styles.chipBtn, (!emailValue.trim() || !emailLooksValid) && styles.chipBtnDisabled]}
-                onPress={sendEmailVerification}
-              >
-                <Text style={styles.chipBtnText}>Send email OTP/link</Text>
+            <View style={styles.verifyCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.metaStrong}>Email verification</Text>
+                <Text style={[styles.verifyBadge, emailVerifiedByUser[currentUser.trim().toLowerCase()] ? styles.verifyOk : styles.verifyPending]}>
+                  {emailVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Verified' : 'Not verified'}
+                </Text>
+              </View>
+              <View style={styles.rowGapWrap}>
+                <TouchableOpacity
+                  style={[styles.chipBtn, (!emailValue.trim() || !emailLooksValid) && styles.chipBtnDisabled]}
+                  onPress={sendEmailVerification}
+                >
+                  <Text style={styles.chipBtnText}>Send email code/link</Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Enter email OTP code" placeholderTextColor="#9ca3af" />
+              <TouchableOpacity style={[styles.chipBtn, !emailOtp.trim() && styles.chipBtnDisabled]} onPress={verifyEmailCode}>
+                <Text style={styles.chipBtnText}>Confirm email code</Text>
               </TouchableOpacity>
-              <Text style={styles.meta}>{emailVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Email verified ✓' : 'Email not verified'}</Text>
             </View>
-            <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Email OTP code" placeholderTextColor="#9ca3af" />
-            <TouchableOpacity style={[styles.chipBtn, !emailOtp.trim() && styles.chipBtnDisabled]} onPress={verifyEmailCode}>
-              <Text style={styles.chipBtnText}>Verify email code</Text>
-            </TouchableOpacity>
+
+            <View style={styles.verifyCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.metaStrong}>Phone verification</Text>
+                <Text style={[styles.verifyBadge, phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? styles.verifyOk : styles.verifyPending]}>
+                  {phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Verified' : 'Not verified'}
+                </Text>
+              </View>
+              <Text style={styles.meta}>SMS OTP requires provider setup in Supabase Auth.</Text>
+              <View style={styles.rowGapWrap}>
+                <TouchableOpacity
+                  style={[styles.chipBtn, (!phoneValue.trim() || !phoneLooksValid) && styles.chipBtnDisabled]}
+                  onPress={sendPhoneVerification}
+                >
+                  <Text style={styles.chipBtnText}>Send phone OTP</Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Enter phone OTP code" placeholderTextColor="#9ca3af" keyboardType="number-pad" />
+              <TouchableOpacity style={[styles.chipBtn, !phoneOtp.trim() && styles.chipBtnDisabled]} onPress={verifyPhoneCode}>
+                <Text style={styles.chipBtnText}>Confirm phone code</Text>
+              </TouchableOpacity>
+            </View>
             <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
             <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
-              <Text style={styles.mapBtnText}>Save profile</Text>
+              <Text style={styles.mapBtnText}>{registrationComplete ? 'Save profile' : 'Complete registration'}</Text>
             </TouchableOpacity>
             <Text style={styles.meta}>{profileSaveState === 'error' ? 'Save failed — tap retry' : 'Auto-save enabled'}</Text>
             {profileSaveState === 'error' && (
@@ -3796,6 +3812,11 @@ const styles = StyleSheet.create({
   ratingGuide: { color: '#cbd5e1', marginBottom: 8 },
   ratingLabel: { color: '#f1f5f9', fontWeight: '700', marginTop: 2 },
   ratingHelp: { color: '#94a3b8', marginBottom: 6, fontSize: 12 },
+  metaStrong: { color: '#e2e8f0', fontWeight: '700' },
+  verifyCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
+  verifyBadge: { color: '#fff', fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
+  verifyOk: { backgroundColor: '#166534' },
+  verifyPending: { backgroundColor: '#9a3412' },
   warnBadge: { color: '#fca5a5', marginTop: 6, fontWeight: '700' },
   reviewSnippet: { color: '#cbd5e1', marginTop: 6, fontStyle: 'italic' },
   modSection: { marginTop: 10 },
