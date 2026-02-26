@@ -2146,10 +2146,12 @@ export default function App() {
               {!!avatarUrlByUser[currentUser.trim().toLowerCase()] && (
                 <TouchableOpacity
                   style={styles.chipBtn}
-                  onPress={() => {
-                    const k = currentUser.trim().toLowerCase();
+                  onPress={async () => {
+                    const me = currentUser.trim();
+                    const k = me.toLowerCase();
                     setAvatarUrlByUser((prev) => ({ ...prev, [k]: '' }));
                     setPhotoAddedByUser((prev) => ({ ...prev, [k]: false }));
+                    await persistProfile(me, 'Avatar removed and profile auto-saved ✅', '');
                   }}
                 >
                   <Text style={styles.chipBtnText}>Remove avatar</Text>
@@ -2176,7 +2178,12 @@ export default function App() {
             <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
               <Text style={styles.mapBtnText}>Save profile</Text>
             </TouchableOpacity>
-            <Text style={styles.meta}>{profileSaveState === 'error' ? 'Save failed — tap Save profile to retry' : 'Auto-save enabled'}</Text>
+            <Text style={styles.meta}>{profileSaveState === 'error' ? 'Save failed — tap retry' : 'Auto-save enabled'}</Text>
+            {profileSaveState === 'error' && (
+              <TouchableOpacity style={styles.chipBtn} onPress={saveProfile}>
+                <Text style={styles.chipBtnText}>Retry save</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </View>
