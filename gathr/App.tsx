@@ -91,6 +91,8 @@ type UserProfileRow = {
   gender?: string | null;
   age_group?: string | null;
   based_in?: string | null;
+  phone?: string | null;
+  email?: string | null;
   interests_csv?: string | null;
   about_me?: string | null;
   avatar_url?: string | null;
@@ -159,6 +161,8 @@ export default function App() {
   const [gender, setGender] = useState('');
   const [ageGroup, setAgeGroup] = useState('');
   const [basedIn, setBasedIn] = useState('');
+  const [phoneValue, setPhoneValue] = useState('');
+  const [emailValue, setEmailValue] = useState('');
   const [interestQuery, setInterestQuery] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [aboutMe, setAboutMe] = useState('');
@@ -409,6 +413,8 @@ export default function App() {
     setGender(p?.gender ?? '');
     setAgeGroup(p?.age_group ?? '');
     setBasedIn(p?.based_in ?? '');
+    setPhoneValue(p?.phone ?? '');
+    setEmailValue(p?.email ?? '');
     setSelectedInterests(
       (p?.interests_csv ?? '')
         .split(',')
@@ -1400,6 +1406,8 @@ export default function App() {
       { ok: !!gender.trim(), label: 'Select gender' },
       { ok: !!ageGroup.trim(), label: 'Select age group' },
       { ok: !!basedIn.trim(), label: 'Add based in' },
+      { ok: !!phoneValue.trim(), label: 'Add phone number' },
+      { ok: !!emailValue.trim(), label: 'Add email address' },
       { ok: selectedInterests.length > 0, label: 'Add at least one interest' },
       { ok: !!aboutMe.trim(), label: 'Write a short about me' },
       { ok: !!userArea.trim(), label: 'Set your area' },
@@ -1412,7 +1420,7 @@ export default function App() {
     const percent = Math.round((done / total) * 100);
     const nextAction = checks.find((x) => !x.ok)?.label ?? 'Profile complete';
     return { done, total, percent, nextAction };
-  }, [currentUser, fullName, gender, ageGroup, basedIn, selectedInterests, aboutMe, userArea, avatarUrlByUser, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
+  }, [currentUser, fullName, gender, ageGroup, basedIn, phoneValue, emailValue, selectedInterests, aboutMe, userArea, avatarUrlByUser, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
 
   const createEvent = async () => {
     const isOnline = category.trim().toLowerCase() === 'online';
@@ -1741,6 +1749,21 @@ export default function App() {
   };
 
   const persistProfile = async (me: string, successMessage = 'Profile saved ✅', avatarUrlOverride?: string) => {
+    const phoneTrimmed = phoneValue.trim();
+    const emailTrimmed = emailValue.trim();
+    const phoneOk = !phoneTrimmed || /^\+?[0-9\s()\-]{7,20}$/.test(phoneTrimmed);
+    const emailOk = !emailTrimmed || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+    if (!phoneOk) {
+      setProfileSaveState('error');
+      setError('Phone format looks invalid.');
+      return false;
+    }
+    if (!emailOk) {
+      setProfileSaveState('error');
+      setError('Email format looks invalid.');
+      return false;
+    }
+
     setProfileSaveState('saving');
     const key = me.toLowerCase();
     const resolvedAvatarUrl = avatarUrlOverride !== undefined ? avatarUrlOverride : (avatarUrlByUser[key] || '');
@@ -1751,12 +1774,14 @@ export default function App() {
         gender: gender.trim() || null,
         age_group: ageGroup.trim() || null,
         based_in: basedIn.trim() || null,
+        phone: phoneTrimmed || null,
+        email: emailTrimmed || null,
         interests_csv: selectedInterests.join(', '),
         about_me: aboutMe.trim() || null,
         avatar_url: resolvedAvatarUrl || null,
         photo_added: !!(resolvedAvatarUrl || photoAddedByUser[key]),
-        phone_verified: !!phoneVerifiedByUser[key],
-        email_verified: !!emailVerifiedByUser[key],
+        phone_verified: !!(phoneTrimmed && phoneVerifiedByUser[key]),
+        email_verified: !!(emailTrimmed && emailVerifiedByUser[key]),
       },
       { onConflict: 'display_name' }
     );
@@ -1775,12 +1800,14 @@ export default function App() {
       gender: gender.trim() || null,
       age_group: ageGroup.trim() || null,
       based_in: basedIn.trim() || null,
+      phone: phoneTrimmed || null,
+      email: emailTrimmed || null,
       interests_csv: selectedInterests.join(', '),
       about_me: aboutMe.trim() || null,
       avatar_url: resolvedAvatarUrl || null,
       photo_added: !!(resolvedAvatarUrl || photoAddedByUser[key]),
-      phone_verified: !!phoneVerifiedByUser[key],
-      email_verified: !!emailVerifiedByUser[key],
+      phone_verified: !!(phoneTrimmed && phoneVerifiedByUser[key]),
+      email_verified: !!(emailTrimmed && emailVerifiedByUser[key]),
     };
 
     setProfiles((prev) => {
@@ -1822,6 +1849,8 @@ export default function App() {
     gender,
     ageGroup,
     basedIn,
+    phoneValue,
+    emailValue,
     selectedInterests,
     aboutMe,
     userArea,
@@ -2116,6 +2145,8 @@ export default function App() {
               ))}
             </View>
             <TextInput style={styles.input} value={basedIn} onChangeText={setBasedIn} placeholder="Based in (city/area)" placeholderTextColor="#9ca3af" />
+            <TextInput style={styles.input} value={phoneValue} onChangeText={setPhoneValue} placeholder="Phone (e.g. +44...)" placeholderTextColor="#9ca3af" keyboardType="phone-pad" />
+            <TextInput style={styles.input} value={emailValue} onChangeText={setEmailValue} placeholder="Email" placeholderTextColor="#9ca3af" keyboardType="email-address" autoCapitalize="none" />
             <Text style={styles.ratingLabel}>Interests</Text>
             <TextInput style={styles.input} value={interestQuery} onChangeText={setInterestQuery} placeholder="Search interests (Basketball, Tennis...)" placeholderTextColor="#9ca3af" />
             <View style={styles.rowGapWrap}>
@@ -2162,14 +2193,28 @@ export default function App() {
             <Text style={styles.ratingLabel}>Verification placeholders</Text>
             <View style={styles.rowGapWrap}>
               <TouchableOpacity
-                style={[styles.chipBtn, !!phoneVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
-                onPress={() => setPhoneVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
+                style={[
+                  styles.chipBtn,
+                  !phoneValue.trim() && styles.chipBtnDisabled,
+                  !!phoneVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive,
+                ]}
+                onPress={() => {
+                  if (!phoneValue.trim()) return setInfo('Add phone first to verify.');
+                  setPhoneVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }));
+                }}
               >
                 <Text style={styles.chipBtnText}>{phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Phone verified ✓' : 'Phone unverified'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.chipBtn, !!emailVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
-                onPress={() => setEmailVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
+                style={[
+                  styles.chipBtn,
+                  !emailValue.trim() && styles.chipBtnDisabled,
+                  !!emailVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive,
+                ]}
+                onPress={() => {
+                  if (!emailValue.trim()) return setInfo('Add email first to verify.');
+                  setEmailVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }));
+                }}
               >
                 <Text style={styles.chipBtnText}>{emailVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Email verified ✓' : 'Email unverified'}</Text>
               </TouchableOpacity>
@@ -3627,6 +3672,7 @@ const styles = StyleSheet.create({
   rowGap: { flexDirection: 'row', gap: 8, marginTop: 8 },
   rowGapWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   chipBtn: { backgroundColor: '#1f2937', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999 },
+  chipBtnDisabled: { opacity: 0.45 },
   chipBtnActive: { backgroundColor: '#2563eb' },
   chipBtnText: { color: '#fff', fontWeight: '600' },
   approveBtn: { backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
