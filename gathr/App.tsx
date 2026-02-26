@@ -3085,6 +3085,18 @@ export default function App() {
                       return (
                         <>
                           <Text style={styles.meta}>People going: {participants.length}</Text>
+                          <View style={styles.rowInline}>
+                            {participants.slice(0, 6).map((name) => {
+                              const avatar = profileByName[name.toLowerCase()]?.avatar_url;
+                              return avatar ? (
+                                <Image key={`feed-hidden-av-${item.id}-${name}`} source={{ uri: avatar }} style={styles.hostAvatarTiny} />
+                              ) : (
+                                <View key={`feed-hidden-initial-${item.id}-${name}`} style={styles.initialAvatarTiny}>
+                                  <Text style={styles.initialAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>
+                                </View>
+                              );
+                            })}
+                          </View>
                           {!!avgTrust && <Text style={styles.meta}>Group trust avg: ⭐ {avgTrust.toFixed(1)}</Text>}
                           {!!avgSkill && <Text style={styles.meta}>Group skill avg: ⭐ {avgSkill.toFixed(1)}</Text>}
                         </>
@@ -3101,8 +3113,12 @@ export default function App() {
                           return (
                             <View key={`going-${item.id}-${name}`} style={styles.rowGap}>
                               <View style={styles.rowInline}>
-                                {!!profileByName[name.toLowerCase()]?.avatar_url && (
+                                {profileByName[name.toLowerCase()]?.avatar_url ? (
                                   <Image source={{ uri: profileByName[name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                                ) : (
+                                  <View style={styles.initialAvatarTiny}>
+                                    <Text style={styles.initialAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>
+                                  </View>
                                 )}
                                 <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
                               </View>
