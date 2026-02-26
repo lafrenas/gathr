@@ -1761,7 +1761,30 @@ export default function App() {
     }
     setProfileSaveState('saved');
     setInfo(successMessage);
-    await loadData();
+
+    const nextProfile: UserProfileRow = {
+      id: profiles.find((p) => p.display_name.toLowerCase() === key)?.id ?? Date.now(),
+      display_name: me,
+      full_name: fullName.trim() || null,
+      gender: gender.trim() || null,
+      age_group: ageGroup.trim() || null,
+      based_in: basedIn.trim() || null,
+      interests_csv: selectedInterests.join(', '),
+      about_me: aboutMe.trim() || null,
+      avatar_url: resolvedAvatarUrl || null,
+      photo_added: !!(resolvedAvatarUrl || photoAddedByUser[key]),
+      phone_verified: !!phoneVerifiedByUser[key],
+      email_verified: !!emailVerifiedByUser[key],
+    };
+
+    setProfiles((prev) => {
+      const idx = prev.findIndex((p) => p.display_name.toLowerCase() === key);
+      if (idx === -1) return [nextProfile, ...prev];
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], ...nextProfile };
+      return copy;
+    });
+
     return true;
   };
 
