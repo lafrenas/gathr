@@ -1434,7 +1434,26 @@ export default function App() {
     return { done, total, percent, nextAction };
   }, [currentUser, fullName, gender, ageGroup, basedIn, phoneValue, emailValue, selectedInterests, aboutMe, userArea, avatarUrlByUser, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
 
+  const registrationChecklist = useMemo(() => ({
+    fullName: !!fullName.trim(),
+    gender: !!gender.trim(),
+    ageGroup: !!ageGroup.trim(),
+    basedIn: !!basedIn.trim(),
+    email: !!emailValue.trim() && emailLooksValid,
+    emailVerified: !!emailVerifiedByUser[currentUser.trim().toLowerCase()],
+  }), [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, emailVerifiedByUser, currentUser]);
+
+  const registrationComplete = Object.values(registrationChecklist).every(Boolean);
+
+  const requireRegistration = () => {
+    if (registrationComplete) return true;
+    setError('Complete registration first: full name, gender, age group, based in, valid email, and verified email.');
+    setShowProfileSection(true);
+    return false;
+  };
+
   const createEvent = async () => {
+    if (!requireRegistration()) return;
     const isOnline = category.trim().toLowerCase() === 'online';
     if (!title.trim() || !exactTime.trim()) return;
     if (!isOnline && !exactLocation.trim()) return;
@@ -1503,6 +1522,7 @@ export default function App() {
   }
 
   const requestJoin = async (eventId: number) => {
+    if (!requireRegistration()) return;
     const name = currentUser.trim();
     if (!name) return setError('Set your name first.');
 
@@ -1552,6 +1572,7 @@ export default function App() {
   };
 
   const inviteUserToEvent = async () => {
+    if (!requireRegistration()) return;
     const inviter = currentUser.trim();
     const target = inviteName.trim();
     const eventId = inviteEventId;
@@ -1606,6 +1627,7 @@ export default function App() {
   };
 
   const respondToInvite = async (requestId: number, accept: boolean) => {
+    if (!requireRegistration()) return;
     const req = requests.find((r) => r.id === requestId);
     if (!req) return;
 
@@ -1622,6 +1644,7 @@ export default function App() {
   };
 
   const setRequestStatus = async (requestId: number, status: 'approved' | 'rejected') => {
+    if (!requireRegistration()) return;
     setError(null);
 
     if (status === 'approved') {
@@ -2140,6 +2163,16 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>gathr</Text>
       <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
+      {!registrationComplete && (
+        <View style={styles.registrationGateCard}>
+          <Text style={styles.cardTitle}>Complete registration to use Gathr</Text>
+          <Text style={styles.meta}>Required: full name, gender, age group, based in, valid email, verified email.</Text>
+          <Text style={styles.meta}>Status: {Object.values(registrationChecklist).filter(Boolean).length}/{Object.keys(registrationChecklist).length}</Text>
+          <TouchableOpacity style={styles.mapBtn} onPress={() => setShowProfileSection(true)}>
+            <Text style={styles.mapBtnText}>Open registration section</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={styles.rowGap}>
         <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={collapseAllSections}>
           <Text style={styles.mapBtnText}>Collapse all</Text>
@@ -3672,6 +3705,9 @@ const styles = StyleSheet.create({
   error: { color: '#fca5a5', marginBottom: 8 },
   card: {
     backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
+  },
+  registrationGateCard: {
+    backgroundColor: '#1f2937', borderRadius: 12, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#374151',
   },
   cardTitle: { color: '#93c5fd', fontWeight: '800', marginBottom: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
