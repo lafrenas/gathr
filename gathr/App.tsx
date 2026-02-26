@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Linking,
@@ -164,6 +164,9 @@ export default function App() {
   const [aboutMe, setAboutMe] = useState('');
   const [avatarUrlByUser, setAvatarUrlByUser] = useState<Record<string, string>>({});
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [profileSaveState, setProfileSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const profileHydratingRef = useRef(false);
+  const profileSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [phoneVerifiedByUser, setPhoneVerifiedByUser] = useState<Record<string, boolean>>({});
   const [emailVerifiedByUser, setEmailVerifiedByUser] = useState<Record<string, boolean>>({});
   const [photoAddedByUser, setPhotoAddedByUser] = useState<Record<string, boolean>>({});
@@ -399,6 +402,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    profileHydratingRef.current = true;
     const me = currentUser.trim().toLowerCase();
     const p = profiles.find((x) => x.display_name.toLowerCase() === me);
     setFullName(p?.full_name ?? '');
@@ -417,6 +421,11 @@ export default function App() {
     setPhotoAddedByUser((prev) => ({ ...prev, [k]: !!(p?.photo_added || p?.avatar_url) }));
     setPhoneVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.phone_verified }));
     setEmailVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.email_verified }));
+    setProfileSaveState('idle');
+    const t = setTimeout(() => {
+      profileHydratingRef.current = false;
+    }, 0);
+    return () => clearTimeout(t);
   }, [currentUser, profiles]);
 
   useEffect(() => {
@@ -1726,6 +1735,7 @@ export default function App() {
   };
 
   const persistProfile = async (me: string, successMessage = 'Profile saved ✅', avatarUrlOverride?: string) => {
+    setProfileSaveState('saving');
     const key = me.toLowerCase();
     const resolvedAvatarUrl = avatarUrlOverride !== undefined ? avatarUrlOverride : (avatarUrlByUser[key] || '');
     const { error } = await supabase.from('user_profiles').upsert(
@@ -1745,9 +1755,11 @@ export default function App() {
       { onConflict: 'display_name' }
     );
     if (error) {
+      setProfileSaveState('error');
       setError(error.message);
       return false;
     }
+    setProfileSaveState('saved');
     setInfo(successMessage);
     await loadData();
     return true;
@@ -1760,6 +1772,35 @@ export default function App() {
     setInfo(null);
     await persistProfile(me, 'Profile saved ✅');
   };
+
+  useEffect(() => {
+    if (profileHydratingRef.current) return;
+    const me = currentUser.trim();
+    if (!me) return;
+
+    if (profileSaveTimerRef.current) clearTimeout(profileSaveTimerRef.current);
+    setProfileSaveState('saving');
+    profileSaveTimerRef.current = setTimeout(async () => {
+      await persistProfile(me, 'Profile auto-saved ✅');
+    }, 800);
+
+    return () => {
+      if (profileSaveTimerRef.current) clearTimeout(profileSaveTimerRef.current);
+    };
+  }, [
+    currentUser,
+    fullName,
+    gender,
+    ageGroup,
+    basedIn,
+    selectedInterests,
+    aboutMe,
+    userArea,
+    avatarUrlByUser,
+    photoAddedByUser,
+    phoneVerifiedByUser,
+    emailVerifiedByUser,
+  ]);
 
   const skipRatingForNow = async (eventId: number, skippedName: string) => {
     const skipper = currentUser.trim();
@@ -2106,6 +2147,15 @@ export default function App() {
             <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
               <Text style={styles.mapBtnText}>Save profile</Text>
             </TouchableOpacity>
+            <Text style={styles.meta}>
+              {profileSaveState === 'saving'
+                ? 'Saving…'
+                : profileSaveState === 'saved'
+                ? 'Saved'
+                : profileSaveState === 'error'
+                ? 'Save failed'
+                : 'Auto-save enabled'}
+            </Text>
           </>
         )}
       </View>
