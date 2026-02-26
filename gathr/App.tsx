@@ -91,6 +91,9 @@ type UserProfileRow = {
   based_in?: string | null;
   interests_csv?: string | null;
   about_me?: string | null;
+  photo_added?: boolean | null;
+  phone_verified?: boolean | null;
+  email_verified?: boolean | null;
 };
 
 type RatingSkipRow = {
@@ -404,6 +407,10 @@ export default function App() {
         .filter(Boolean)
     );
     setAboutMe(p?.about_me ?? '');
+    const k = me;
+    setPhotoAddedByUser((prev) => ({ ...prev, [k]: !!p?.photo_added }));
+    setPhoneVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.phone_verified }));
+    setEmailVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.email_verified }));
   }, [currentUser, profiles]);
 
   useEffect(() => {
@@ -1674,6 +1681,7 @@ export default function App() {
     if (!me) return setError('Set your name first.');
     setError(null);
     setInfo(null);
+    const key = me.toLowerCase();
     const { error } = await supabase.from('user_profiles').upsert(
       {
         display_name: me,
@@ -1683,6 +1691,9 @@ export default function App() {
         based_in: basedIn.trim() || null,
         interests_csv: selectedInterests.join(', '),
         about_me: aboutMe.trim() || null,
+        photo_added: !!photoAddedByUser[key],
+        phone_verified: !!phoneVerifiedByUser[key],
+        email_verified: !!emailVerifiedByUser[key],
       },
       { onConflict: 'display_name' }
     );
