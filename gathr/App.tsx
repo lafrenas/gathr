@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Image,
   Linking,
   Modal,
   Platform,
@@ -13,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './lib/supabase';
 import { MapCanvas } from './components/MapCanvas';
 import { EventMapBrowse } from './components/EventMapBrowse';
@@ -91,6 +93,7 @@ type UserProfileRow = {
   based_in?: string | null;
   interests_csv?: string | null;
   about_me?: string | null;
+  avatar_url?: string | null;
   photo_added?: boolean | null;
   phone_verified?: boolean | null;
   email_verified?: boolean | null;
@@ -159,6 +162,8 @@ export default function App() {
   const [interestQuery, setInterestQuery] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [aboutMe, setAboutMe] = useState('');
+  const [avatarUrlByUser, setAvatarUrlByUser] = useState<Record<string, string>>({});
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [phoneVerifiedByUser, setPhoneVerifiedByUser] = useState<Record<string, boolean>>({});
   const [emailVerifiedByUser, setEmailVerifiedByUser] = useState<Record<string, boolean>>({});
   const [photoAddedByUser, setPhotoAddedByUser] = useState<Record<string, boolean>>({});
@@ -408,7 +413,8 @@ export default function App() {
     );
     setAboutMe(p?.about_me ?? '');
     const k = me;
-    setPhotoAddedByUser((prev) => ({ ...prev, [k]: !!p?.photo_added }));
+    setAvatarUrlByUser((prev) => ({ ...prev, [k]: p?.avatar_url ?? '' }));
+    setPhotoAddedByUser((prev) => ({ ...prev, [k]: !!(p?.photo_added || p?.avatar_url) }));
     setPhoneVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.phone_verified }));
     setEmailVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.email_verified }));
   }, [currentUser, profiles]);
@@ -1382,7 +1388,7 @@ export default function App() {
       { ok: selectedInterests.length > 0, label: 'Add at least one interest' },
       { ok: !!aboutMe.trim(), label: 'Write a short about me' },
       { ok: !!userArea.trim(), label: 'Set your area' },
-      { ok: !!photoAddedByUser[key], label: 'Add profile photo (placeholder)' },
+      { ok: !!(avatarUrlByUser[key] || photoAddedByUser[key]), label: 'Add profile photo' },
       { ok: !!phoneVerifiedByUser[key], label: 'Verify phone (placeholder)' },
       { ok: !!emailVerifiedByUser[key], label: 'Verify email (placeholder)' },
     ];
@@ -1391,7 +1397,7 @@ export default function App() {
     const percent = Math.round((done / total) * 100);
     const nextAction = checks.find((x) => !x.ok)?.label ?? 'Profile complete';
     return { done, total, percent, nextAction };
-  }, [currentUser, fullName, gender, ageGroup, basedIn, selectedInterests, aboutMe, userArea, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
+  }, [currentUser, fullName, gender, ageGroup, basedIn, selectedInterests, aboutMe, userArea, avatarUrlByUser, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
 
   const createEvent = async () => {
     const isOnline = category.trim().toLowerCase() === 'online';
@@ -1676,6 +1682,48 @@ export default function App() {
     );
   };
 
+  const pickAndUploadAvatar = async () => {
+    const me = currentUser.trim();
+    if (!me) return setError('Set your name first.');
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return setError('Media library permission is required for avatar upload.');
+
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+    try {
+      setUploadingAvatar(true);
+      setError(null);
+      const uri = picked.assets[0].uri;
+      const resp = await fetch(uri);
+      const blob = await resp.blob();
+      const filePath = `avatars/${me.toLowerCase()}-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, blob, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = data?.publicUrl || '';
+      const key = me.toLowerCase();
+      setAvatarUrlByUser((prev) => ({ ...prev, [key]: publicUrl }));
+      setPhotoAddedByUser((prev) => ({ ...prev, [key]: !!publicUrl }));
+      setInfo('Avatar uploaded. Save profile to persist ✅');
+    } catch (e: any) {
+      setError(e?.message || 'Avatar upload failed. Ensure storage bucket "avatars" exists and is public.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const saveProfile = async () => {
     const me = currentUser.trim();
     if (!me) return setError('Set your name first.');
@@ -1691,7 +1739,8 @@ export default function App() {
         based_in: basedIn.trim() || null,
         interests_csv: selectedInterests.join(', '),
         about_me: aboutMe.trim() || null,
-        photo_added: !!photoAddedByUser[key],
+        avatar_url: avatarUrlByUser[key] || null,
+        photo_added: !!(avatarUrlByUser[key] || photoAddedByUser[key]),
         phone_verified: !!phoneVerifiedByUser[key],
         email_verified: !!emailVerifiedByUser[key],
       },
@@ -2006,14 +2055,30 @@ export default function App() {
               </View>
             )}
             <TextInput style={[styles.input, styles.textArea]} value={aboutMe} onChangeText={setAboutMe} placeholder="About me" placeholderTextColor="#9ca3af" multiline numberOfLines={3} textAlignVertical="top" />
+            <Text style={styles.ratingLabel}>Profile photo</Text>
+            {!!avatarUrlByUser[currentUser.trim().toLowerCase()] && (
+              <Image source={{ uri: avatarUrlByUser[currentUser.trim().toLowerCase()] }} style={styles.avatarPreview} />
+            )}
+            <View style={styles.rowGapWrap}>
+              <TouchableOpacity style={[styles.chipBtn, uploadingAvatar && { opacity: 0.6 }]} onPress={pickAndUploadAvatar}>
+                <Text style={styles.chipBtnText}>{uploadingAvatar ? 'Uploading…' : 'Upload avatar'}</Text>
+              </TouchableOpacity>
+              {!!avatarUrlByUser[currentUser.trim().toLowerCase()] && (
+                <TouchableOpacity
+                  style={styles.chipBtn}
+                  onPress={() => {
+                    const k = currentUser.trim().toLowerCase();
+                    setAvatarUrlByUser((prev) => ({ ...prev, [k]: '' }));
+                    setPhotoAddedByUser((prev) => ({ ...prev, [k]: false }));
+                  }}
+                >
+                  <Text style={styles.chipBtnText}>Remove avatar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <Text style={styles.ratingLabel}>Verification placeholders</Text>
             <View style={styles.rowGapWrap}>
-              <TouchableOpacity
-                style={[styles.chipBtn, !!photoAddedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
-                onPress={() => setPhotoAddedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
-              >
-                <Text style={styles.chipBtnText}>{photoAddedByUser[currentUser.trim().toLowerCase()] ? 'Photo added ✓' : 'Photo missing'}</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.chipBtn, !!phoneVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
                 onPress={() => setPhoneVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
@@ -3434,6 +3499,7 @@ const styles = StyleSheet.create({
   profilePercentBadge: { color: '#dbeafe', backgroundColor: '#1d4ed8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontWeight: '800' },
   progressTrack: { backgroundColor: '#1f2937', borderRadius: 999, height: 10, overflow: 'hidden', marginBottom: 6 },
   progressFill: { backgroundColor: '#22c55e', height: '100%' },
+  avatarPreview: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: '#334155', marginBottom: 8 },
   mapModalRoot: { flex: 1, backgroundColor: '#0b1220', padding: 12 },
   mapModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', marginTop: 8 },
