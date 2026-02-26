@@ -1355,6 +1355,12 @@ export default function App() {
       .sort((a, b) => b.avg - a.avg || b.count - a.count);
   }, [events, ratings]);
 
+  const profileByName = useMemo(() => {
+    const out: Record<string, UserProfileRow> = {};
+    for (const p of profiles) out[p.display_name.toLowerCase()] = p;
+    return out;
+  }, [profiles]);
+
   const userRatingStats = useMemo(() => {
     const byUser: Record<string, { trust: number; skill: number; count: number; friendliness: number; reliability: number; communication: number; boundary: number }> = {};
 
@@ -2204,10 +2210,11 @@ export default function App() {
           <Text style={styles.cardTitle}>Host profile: {selectedHost}</Text>
           {(() => {
             const stat = userRatingStats[selectedHost.toLowerCase()];
-            const hostProfile = profiles.find((p) => p.display_name.toLowerCase() === selectedHost.toLowerCase());
+            const hostProfile = profileByName[selectedHost.toLowerCase()];
             const reviews = ratings.filter((r) => r.rated_name.toLowerCase() === selectedHost.toLowerCase() && !!r.comment?.trim()).slice(0, 3);
             return (
               <>
+                {!!hostProfile?.avatar_url && <Image source={{ uri: hostProfile.avatar_url }} style={styles.hostAvatar} />}
                 {!!hostProfile?.about_me?.trim() && <Text style={styles.meta}>About: {hostProfile.about_me}</Text>}
                 {stat ? (
                   <>
@@ -3014,7 +3021,12 @@ export default function App() {
             <View key={item.id} style={[styles.eventCard, (mapBrowseSelectedEventId === item.id || notificationTargetEventId === item.id) && styles.eventCardActive]}>
               <Text style={styles.eventTitle}>{item.title}</Text>
               {!!item.description?.trim() && <Text style={styles.meta}>{item.description}</Text>}
-              <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
+              <View style={styles.rowInline}>
+                {!!profileByName[item.host_name.toLowerCase()]?.avatar_url && (
+                  <Image source={{ uri: profileByName[item.host_name.toLowerCase()]?.avatar_url! }} style={styles.hostAvatarTiny} />
+                )}
+                <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
+              </View>
               <Text style={styles.meta}>Capacity: {approvedCount} / min {minPeopleEvent}{maxPeopleEvent ? ` / max ${maxPeopleEvent}` : ' / no max'}</Text>
               {activityRatingStats[item.id] && (
                 <Text style={styles.meta}>Activity quality ⭐ {activityRatingStats[item.id].avg.toFixed(1)} ({activityRatingStats[item.id].count})</Text>
@@ -3526,6 +3538,9 @@ const styles = StyleSheet.create({
   },
   eventCardActive: { borderColor: '#22c55e', borderWidth: 2 },
   eventTitle: { color: '#f9fafb', fontWeight: '700', fontSize: 16 },
+  rowInline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hostAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#334155', marginBottom: 8 },
+  hostAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#334155', marginTop: 2 },
   meta: { color: '#9ca3af', marginTop: 2 },
   hiddenText: { color: '#fbbf24', marginTop: 8 },
   revealedBox: {
