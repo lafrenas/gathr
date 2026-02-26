@@ -1399,6 +1399,16 @@ export default function App() {
     return byUser;
   }, [ratings]);
 
+  const phoneLooksValid = useMemo(() => {
+    const v = phoneValue.trim();
+    return !v || /^\+?[0-9\s()\-]{7,20}$/.test(v);
+  }, [phoneValue]);
+
+  const emailLooksValid = useMemo(() => {
+    const v = emailValue.trim();
+    return !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }, [emailValue]);
+
   const profileCompletion = useMemo(() => {
     const key = currentUser.trim().toLowerCase();
     const checks = [
@@ -1751,8 +1761,8 @@ export default function App() {
   const persistProfile = async (me: string, successMessage = 'Profile saved ✅', avatarUrlOverride?: string) => {
     const phoneTrimmed = phoneValue.trim();
     const emailTrimmed = emailValue.trim();
-    const phoneOk = !phoneTrimmed || /^\+?[0-9\s()\-]{7,20}$/.test(phoneTrimmed);
-    const emailOk = !emailTrimmed || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+    const phoneOk = !phoneTrimmed || phoneLooksValid;
+    const emailOk = !emailTrimmed || emailLooksValid;
     if (!phoneOk) {
       setProfileSaveState('error');
       setError('Phone format looks invalid.');
@@ -1791,7 +1801,7 @@ export default function App() {
       return false;
     }
     setProfileSaveState('saved');
-    setInfo(successMessage);
+    if (successMessage) setInfo(successMessage);
 
     const nextProfile: UserProfileRow = {
       id: profiles.find((p) => p.display_name.toLowerCase() === key)?.id ?? Date.now(),
@@ -1837,7 +1847,7 @@ export default function App() {
     if (profileSaveTimerRef.current) clearTimeout(profileSaveTimerRef.current);
     setProfileSaveState('saving');
     profileSaveTimerRef.current = setTimeout(async () => {
-      await persistProfile(me, 'Profile auto-saved ✅');
+      await persistProfile(me, '');
     }, 800);
 
     return () => {
@@ -2195,11 +2205,13 @@ export default function App() {
               <TouchableOpacity
                 style={[
                   styles.chipBtn,
-                  !phoneValue.trim() && styles.chipBtnDisabled,
+                  (!phoneValue.trim() || !phoneLooksValid) && styles.chipBtnDisabled,
                   !!phoneVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive,
                 ]}
                 onPress={() => {
-                  if (!phoneValue.trim()) return setInfo('Add phone first to verify.');
+                  if (!phoneValue.trim()) return setError('Add phone first to verify.');
+                  if (!phoneLooksValid) return setError('Enter a valid phone number before verifying.');
+                  setError(null);
                   setPhoneVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }));
                 }}
               >
@@ -2208,11 +2220,13 @@ export default function App() {
               <TouchableOpacity
                 style={[
                   styles.chipBtn,
-                  !emailValue.trim() && styles.chipBtnDisabled,
+                  (!emailValue.trim() || !emailLooksValid) && styles.chipBtnDisabled,
                   !!emailVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive,
                 ]}
                 onPress={() => {
-                  if (!emailValue.trim()) return setInfo('Add email first to verify.');
+                  if (!emailValue.trim()) return setError('Add email first to verify.');
+                  if (!emailLooksValid) return setError('Enter a valid email before verifying.');
+                  setError(null);
                   setEmailVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }));
                 }}
               >
