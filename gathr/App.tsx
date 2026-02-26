@@ -175,6 +175,12 @@ export default function App() {
   const [emailVerifiedByUser, setEmailVerifiedByUser] = useState<Record<string, boolean>>({});
   const [phoneOtp, setPhoneOtp] = useState('');
   const [emailOtp, setEmailOtp] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [registrationModalVisible, setRegistrationModalVisible] = useState(false);
+  const [registrationStep, setRegistrationStep] = useState<'email' | 'phone'>('email');
   const [photoAddedByUser, setPhotoAddedByUser] = useState<Record<string, boolean>>({});
   const [userArea, setUserArea] = useState('');
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -1411,6 +1417,12 @@ export default function App() {
     return !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }, [emailValue]);
 
+  const passwordStrong = useMemo(() => {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(password);
+  }, [password]);
+
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+
   const profileCompletion = useMemo(() => {
     const key = currentUser.trim().toLowerCase();
     const checks = [
@@ -1440,8 +1452,10 @@ export default function App() {
     ageGroup: !!ageGroup.trim(),
     basedIn: !!basedIn.trim(),
     email: !!emailValue.trim() && emailLooksValid,
+    password: passwordStrong,
+    confirmPassword: passwordsMatch,
     emailVerified: !!emailVerifiedByUser[currentUser.trim().toLowerCase()],
-  }), [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, emailVerifiedByUser, currentUser]);
+  }), [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, passwordStrong, passwordsMatch, emailVerifiedByUser, currentUser]);
 
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
 
@@ -1765,6 +1779,7 @@ export default function App() {
     setEmailVerifiedByUser((prev) => ({ ...prev, [key]: true }));
     setEmailOtp('');
     await persistProfile(currentUser.trim(), 'Email verified ✅');
+    setRegistrationStep('phone');
   };
 
   const sendPhoneVerification = async () => {
@@ -1788,6 +1803,7 @@ export default function App() {
     setPhoneVerifiedByUser((prev) => ({ ...prev, [key]: true }));
     setPhoneOtp('');
     await persistProfile(currentUser.trim(), 'Phone verified ✅');
+    setRegistrationModalVisible(false);
   };
 
   const pickAndUploadAvatar = async () => {
@@ -1912,6 +1928,32 @@ export default function App() {
     setError(null);
     setInfo(null);
     await persistProfile(me, 'Profile saved ✅');
+  };
+
+  const startRegistrationVerification = async () => {
+    const me = currentUser.trim();
+    if (!me) return;
+    if (!registrationChecklist.fullName || !registrationChecklist.gender || !registrationChecklist.ageGroup || !registrationChecklist.basedIn) {
+      return setError('Complete all required basic fields first.');
+    }
+    if (!registrationChecklist.email) return setError('Enter a valid email first.');
+    if (!registrationChecklist.password) return setError('Password must be 8+ chars and include upper/lower/number/special.');
+    if (!registrationChecklist.confirmPassword) return setError('Passwords do not match.');
+
+    if (!emailVerifiedByUser[me.toLowerCase()]) {
+      await sendEmailVerification();
+      setRegistrationStep('email');
+      setRegistrationModalVisible(true);
+      return;
+    }
+
+    if (!phoneVerifiedByUser[me.toLowerCase()]) {
+      setRegistrationStep('phone');
+      setRegistrationModalVisible(true);
+      return;
+    }
+
+    await persistProfile(me, 'Registration complete ✅');
   };
 
   useEffect(() => {
@@ -2248,6 +2290,37 @@ export default function App() {
             <TextInput style={styles.input} value={basedIn} onChangeText={setBasedIn} placeholder="Based in (city/area)" placeholderTextColor="#9ca3af" />
             <TextInput style={styles.input} value={phoneValue} onChangeText={setPhoneValue} placeholder="Phone (e.g. +44...)" placeholderTextColor="#9ca3af" keyboardType="phone-pad" />
             <TextInput style={styles.input} value={emailValue} onChangeText={setEmailValue} placeholder="Email" placeholderTextColor="#9ca3af" keyboardType="email-address" autoCapitalize="none" />
+            <View style={styles.rowGap}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity style={styles.chipBtn} onPress={() => setShowPassword((v) => !v)}>
+                <Text style={styles.chipBtnText}>{showPassword ? 'Hide' : 'Show'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.rowGap}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity style={styles.chipBtn} onPress={() => setShowConfirmPassword((v) => !v)}>
+                <Text style={styles.chipBtnText}>{showConfirmPassword ? 'Hide' : 'Show'}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.meta}>Password: min 8 chars, upper + lower + number + special.</Text>
+            {!!password && !passwordStrong && <Text style={styles.error}>Password does not meet requirements.</Text>}
+            {!!confirmPassword && !passwordsMatch && <Text style={styles.error}>Passwords do not match.</Text>}
             <Text style={styles.ratingLabel}>Interests</Text>
             <TextInput style={styles.input} value={interestQuery} onChangeText={setInterestQuery} placeholder="Search interests (Basketball, Tennis...)" placeholderTextColor="#9ca3af" />
             <View style={styles.rowGapWrap}>
@@ -2336,8 +2409,8 @@ export default function App() {
               </TouchableOpacity>
             </View>
             <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
-            <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
-              <Text style={styles.mapBtnText}>{registrationComplete ? 'Save profile' : 'Complete registration'}</Text>
+            <TouchableOpacity style={styles.mapBtn} onPress={registrationComplete ? saveProfile : startRegistrationVerification}>
+              <Text style={styles.mapBtnText}>{registrationComplete ? 'Save profile' : 'Register'}</Text>
             </TouchableOpacity>
             <Text style={styles.meta}>{profileSaveState === 'error' ? 'Save failed — tap retry' : 'Auto-save enabled'}</Text>
             {profileSaveState === 'error' && (
@@ -3472,6 +3545,57 @@ export default function App() {
         </View>
       )}
       </ScrollView>
+
+      <Modal visible={registrationModalVisible} transparent animationType="fade" onRequestClose={() => setRegistrationModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>{registrationStep === 'email' ? 'Verify your email' : 'Verify your phone'}</Text>
+            <Text style={styles.meta}>
+              {registrationStep === 'email'
+                ? `We sent a verification code/link to ${emailValue.trim() || 'your email'}.`
+                : `We sent an SMS code to ${phoneValue.trim() || 'your phone'} (requires configured provider).`}
+            </Text>
+
+            {registrationStep === 'email' ? (
+              <>
+                <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Enter email code" placeholderTextColor="#9ca3af" />
+                <View style={styles.rowGap}>
+                  <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={verifyEmailCode}>
+                    <Text style={styles.approveBtnText}>Continue</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={sendEmailVerification}>
+                    <Text style={styles.mapBtnText}>Resend code</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={styles.mapBtn}
+                  onPress={() => {
+                    setRegistrationStep('phone');
+                  }}
+                >
+                  <Text style={styles.mapBtnText}>Next: phone verification</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Enter SMS code" placeholderTextColor="#9ca3af" keyboardType="number-pad" />
+                <View style={styles.rowGap}>
+                  <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={verifyPhoneCode}>
+                    <Text style={styles.approveBtnText}>Finish registration</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={sendPhoneVerification}>
+                    <Text style={styles.mapBtnText}>Resend SMS</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity style={styles.rejectBtn} onPress={() => setRegistrationModalVisible(false)}>
+              <Text style={styles.approveBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={filterDateModalVisible} transparent animationType="fade" onRequestClose={() => setFilterDateModalVisible(false)}>
         <View style={styles.modalBackdrop}>
