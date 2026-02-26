@@ -156,6 +156,9 @@ export default function App() {
   const [interestQuery, setInterestQuery] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [aboutMe, setAboutMe] = useState('');
+  const [phoneVerifiedByUser, setPhoneVerifiedByUser] = useState<Record<string, boolean>>({});
+  const [emailVerifiedByUser, setEmailVerifiedByUser] = useState<Record<string, boolean>>({});
+  const [photoAddedByUser, setPhotoAddedByUser] = useState<Record<string, boolean>>({});
   const [userArea, setUserArea] = useState('');
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [area, setArea] = useState('');
@@ -1362,6 +1365,27 @@ export default function App() {
     return byUser;
   }, [ratings]);
 
+  const profileCompletion = useMemo(() => {
+    const key = currentUser.trim().toLowerCase();
+    const checks = [
+      { ok: !!fullName.trim(), label: 'Add full name' },
+      { ok: !!gender.trim(), label: 'Select gender' },
+      { ok: !!ageGroup.trim(), label: 'Select age group' },
+      { ok: !!basedIn.trim(), label: 'Add based in' },
+      { ok: selectedInterests.length > 0, label: 'Add at least one interest' },
+      { ok: !!aboutMe.trim(), label: 'Write a short about me' },
+      { ok: !!userArea.trim(), label: 'Set your area' },
+      { ok: !!photoAddedByUser[key], label: 'Add profile photo (placeholder)' },
+      { ok: !!phoneVerifiedByUser[key], label: 'Verify phone (placeholder)' },
+      { ok: !!emailVerifiedByUser[key], label: 'Verify email (placeholder)' },
+    ];
+    const done = checks.filter((x) => x.ok).length;
+    const total = checks.length;
+    const percent = Math.round((done / total) * 100);
+    const nextAction = checks.find((x) => !x.ok)?.label ?? 'Profile complete';
+    return { done, total, percent, nextAction };
+  }, [currentUser, fullName, gender, ageGroup, basedIn, selectedInterests, aboutMe, userArea, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
+
   const createEvent = async () => {
     const isOnline = category.trim().toLowerCase() === 'online';
     if (!title.trim() || !exactTime.trim()) return;
@@ -1924,6 +1948,18 @@ export default function App() {
                 ))}
               </View>
             )}
+            <View style={styles.profileMeterCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.cardTitle}>Profile completion</Text>
+                <Text style={styles.profilePercentBadge}>{profileCompletion.percent}%</Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${profileCompletion.percent}%` }]} />
+              </View>
+              <Text style={styles.meta}>Completed {profileCompletion.done}/{profileCompletion.total}</Text>
+              <Text style={styles.meta}>Next: {profileCompletion.nextAction}</Text>
+            </View>
+
             <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Full name" placeholderTextColor="#9ca3af" />
             <View style={styles.rowGapWrap}>
               {['male', 'female'].map((g) => (
@@ -1959,6 +1995,27 @@ export default function App() {
               </View>
             )}
             <TextInput style={[styles.input, styles.textArea]} value={aboutMe} onChangeText={setAboutMe} placeholder="About me" placeholderTextColor="#9ca3af" multiline numberOfLines={3} textAlignVertical="top" />
+            <Text style={styles.ratingLabel}>Verification placeholders</Text>
+            <View style={styles.rowGapWrap}>
+              <TouchableOpacity
+                style={[styles.chipBtn, !!photoAddedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
+                onPress={() => setPhotoAddedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
+              >
+                <Text style={styles.chipBtnText}>{photoAddedByUser[currentUser.trim().toLowerCase()] ? 'Photo added ✓' : 'Photo missing'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.chipBtn, !!phoneVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
+                onPress={() => setPhoneVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
+              >
+                <Text style={styles.chipBtnText}>{phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Phone verified ✓' : 'Phone unverified'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.chipBtn, !!emailVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive]}
+                onPress={() => setEmailVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }))}
+              >
+                <Text style={styles.chipBtnText}>{emailVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Email verified ✓' : 'Email unverified'}</Text>
+              </TouchableOpacity>
+            </View>
             <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
             <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
               <Text style={styles.mapBtnText}>Save profile</Text>
@@ -2767,6 +2824,7 @@ export default function App() {
         )}
 
         <Text style={styles.meta}>Showing {filteredEvents.length} event(s)</Text>
+        <Text style={styles.meta}>Your profile: {profileCompletion.percent}% complete</Text>
         {!!notificationTargetEventId && <Text style={styles.meta}>Focused from notification: event #{notificationTargetEventId}</Text>}
         <View style={styles.rowGap}>
           <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => setShowMapBrowse(true)}>
@@ -3361,6 +3419,10 @@ const styles = StyleSheet.create({
   signalChip: { color: '#e2e8f0', backgroundColor: '#1f2937', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12 },
   statusWatchlist: { backgroundColor: '#78350f' },
   statusWatchlistActive: { backgroundColor: '#d97706' },
+  profileMeterCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
+  profilePercentBadge: { color: '#dbeafe', backgroundColor: '#1d4ed8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontWeight: '800' },
+  progressTrack: { backgroundColor: '#1f2937', borderRadius: 999, height: 10, overflow: 'hidden', marginBottom: 6 },
+  progressFill: { backgroundColor: '#22c55e', height: '100%' },
   mapModalRoot: { flex: 1, backgroundColor: '#0b1220', padding: 12 },
   mapModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', marginTop: 8 },
