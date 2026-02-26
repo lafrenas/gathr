@@ -173,6 +173,8 @@ export default function App() {
   const profileSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [phoneVerifiedByUser, setPhoneVerifiedByUser] = useState<Record<string, boolean>>({});
   const [emailVerifiedByUser, setEmailVerifiedByUser] = useState<Record<string, boolean>>({});
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
   const [photoAddedByUser, setPhotoAddedByUser] = useState<Record<string, boolean>>({});
   const [userArea, setUserArea] = useState('');
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -1422,8 +1424,8 @@ export default function App() {
       { ok: !!aboutMe.trim(), label: 'Write a short about me' },
       { ok: !!userArea.trim(), label: 'Set your area' },
       { ok: !!(avatarUrlByUser[key] || photoAddedByUser[key]), label: 'Add profile photo' },
-      { ok: !!phoneVerifiedByUser[key], label: 'Verify phone (placeholder)' },
-      { ok: !!emailVerifiedByUser[key], label: 'Verify email (placeholder)' },
+      { ok: !!phoneVerifiedByUser[key], label: 'Verify phone' },
+      { ok: !!emailVerifiedByUser[key], label: 'Verify email' },
     ];
     const done = checks.filter((x) => x.ok).length;
     const total = checks.length;
@@ -1713,6 +1715,52 @@ export default function App() {
     setSelectedInterests((prev) =>
       prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
     );
+  };
+
+  const sendEmailVerification = async () => {
+    const email = emailValue.trim();
+    if (!email || !emailLooksValid) return setError('Enter a valid email first.');
+    setError(null);
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) return setError(error.message);
+    setInfo('Verification email/OTP sent ✅');
+  };
+
+  const verifyEmailCode = async () => {
+    const email = emailValue.trim();
+    const token = emailOtp.trim();
+    if (!email || !emailLooksValid) return setError('Enter a valid email first.');
+    if (!token) return setError('Enter email OTP code.');
+    setError(null);
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) return setError(error.message);
+    const key = currentUser.trim().toLowerCase();
+    setEmailVerifiedByUser((prev) => ({ ...prev, [key]: true }));
+    setEmailOtp('');
+    await persistProfile(currentUser.trim(), 'Email verified ✅');
+  };
+
+  const sendPhoneVerification = async () => {
+    const phone = phoneValue.trim();
+    if (!phone || !phoneLooksValid) return setError('Enter a valid phone first.');
+    setError(null);
+    const { error } = await supabase.auth.signInWithOtp({ phone });
+    if (error) return setError(error.message);
+    setInfo('Verification SMS OTP sent ✅');
+  };
+
+  const verifyPhoneCode = async () => {
+    const phone = phoneValue.trim();
+    const token = phoneOtp.trim();
+    if (!phone || !phoneLooksValid) return setError('Enter a valid phone first.');
+    if (!token) return setError('Enter phone OTP code.');
+    setError(null);
+    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+    if (error) return setError(error.message);
+    const key = currentUser.trim().toLowerCase();
+    setPhoneVerifiedByUser((prev) => ({ ...prev, [key]: true }));
+    setPhoneOtp('');
+    await persistProfile(currentUser.trim(), 'Phone verified ✅');
   };
 
   const pickAndUploadAvatar = async () => {
@@ -2200,39 +2248,34 @@ export default function App() {
               )}
             </View>
 
-            <Text style={styles.ratingLabel}>Verification placeholders</Text>
+            <Text style={styles.ratingLabel}>Verification</Text>
             <View style={styles.rowGapWrap}>
               <TouchableOpacity
-                style={[
-                  styles.chipBtn,
-                  (!phoneValue.trim() || !phoneLooksValid) && styles.chipBtnDisabled,
-                  !!phoneVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive,
-                ]}
-                onPress={() => {
-                  if (!phoneValue.trim()) return setError('Add phone first to verify.');
-                  if (!phoneLooksValid) return setError('Enter a valid phone number before verifying.');
-                  setError(null);
-                  setPhoneVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }));
-                }}
+                style={[styles.chipBtn, (!phoneValue.trim() || !phoneLooksValid) && styles.chipBtnDisabled]}
+                onPress={sendPhoneVerification}
               >
-                <Text style={styles.chipBtnText}>{phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Phone verified ✓' : 'Phone unverified'}</Text>
+                <Text style={styles.chipBtnText}>Send phone OTP</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.chipBtn,
-                  (!emailValue.trim() || !emailLooksValid) && styles.chipBtnDisabled,
-                  !!emailVerifiedByUser[currentUser.trim().toLowerCase()] && styles.chipBtnActive,
-                ]}
-                onPress={() => {
-                  if (!emailValue.trim()) return setError('Add email first to verify.');
-                  if (!emailLooksValid) return setError('Enter a valid email before verifying.');
-                  setError(null);
-                  setEmailVerifiedByUser((prev) => ({ ...prev, [currentUser.trim().toLowerCase()]: !prev[currentUser.trim().toLowerCase()] }));
-                }}
-              >
-                <Text style={styles.chipBtnText}>{emailVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Email verified ✓' : 'Email unverified'}</Text>
-              </TouchableOpacity>
+              <Text style={styles.meta}>{phoneVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Phone verified ✓' : 'Phone not verified'}</Text>
             </View>
+            <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Phone OTP code" placeholderTextColor="#9ca3af" keyboardType="number-pad" />
+            <TouchableOpacity style={[styles.chipBtn, !phoneOtp.trim() && styles.chipBtnDisabled]} onPress={verifyPhoneCode}>
+              <Text style={styles.chipBtnText}>Verify phone code</Text>
+            </TouchableOpacity>
+
+            <View style={styles.rowGapWrap}>
+              <TouchableOpacity
+                style={[styles.chipBtn, (!emailValue.trim() || !emailLooksValid) && styles.chipBtnDisabled]}
+                onPress={sendEmailVerification}
+              >
+                <Text style={styles.chipBtnText}>Send email OTP/link</Text>
+              </TouchableOpacity>
+              <Text style={styles.meta}>{emailVerifiedByUser[currentUser.trim().toLowerCase()] ? 'Email verified ✓' : 'Email not verified'}</Text>
+            </View>
+            <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Email OTP code" placeholderTextColor="#9ca3af" />
+            <TouchableOpacity style={[styles.chipBtn, !emailOtp.trim() && styles.chipBtnDisabled]} onPress={verifyEmailCode}>
+              <Text style={styles.chipBtnText}>Verify email code</Text>
+            </TouchableOpacity>
             <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
             <TouchableOpacity style={styles.mapBtn} onPress={saveProfile}>
               <Text style={styles.mapBtnText}>Save profile</Text>
