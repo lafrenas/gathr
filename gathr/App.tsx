@@ -1716,7 +1716,8 @@ export default function App() {
       const key = me.toLowerCase();
       setAvatarUrlByUser((prev) => ({ ...prev, [key]: publicUrl }));
       setPhotoAddedByUser((prev) => ({ ...prev, [key]: !!publicUrl }));
-      setInfo('Avatar uploaded. Save profile to persist ✅');
+      const saved = await persistProfile(me, 'Avatar uploaded and profile auto-saved ✅', publicUrl);
+      if (!saved) return;
     } catch (e: any) {
       setError(e?.message || 'Avatar upload failed. Ensure storage bucket "avatars" exists and is public.');
     } finally {
@@ -1724,12 +1725,9 @@ export default function App() {
     }
   };
 
-  const saveProfile = async () => {
-    const me = currentUser.trim();
-    if (!me) return setError('Set your name first.');
-    setError(null);
-    setInfo(null);
+  const persistProfile = async (me: string, successMessage = 'Profile saved ✅', avatarUrlOverride?: string) => {
     const key = me.toLowerCase();
+    const resolvedAvatarUrl = avatarUrlOverride !== undefined ? avatarUrlOverride : (avatarUrlByUser[key] || '');
     const { error } = await supabase.from('user_profiles').upsert(
       {
         display_name: me,
@@ -1739,16 +1737,28 @@ export default function App() {
         based_in: basedIn.trim() || null,
         interests_csv: selectedInterests.join(', '),
         about_me: aboutMe.trim() || null,
-        avatar_url: avatarUrlByUser[key] || null,
-        photo_added: !!(avatarUrlByUser[key] || photoAddedByUser[key]),
+        avatar_url: resolvedAvatarUrl || null,
+        photo_added: !!(resolvedAvatarUrl || photoAddedByUser[key]),
         phone_verified: !!phoneVerifiedByUser[key],
         email_verified: !!emailVerifiedByUser[key],
       },
       { onConflict: 'display_name' }
     );
-    if (error) return setError(error.message);
-    setInfo('Profile saved ✅');
+    if (error) {
+      setError(error.message);
+      return false;
+    }
+    setInfo(successMessage);
     await loadData();
+    return true;
+  };
+
+  const saveProfile = async () => {
+    const me = currentUser.trim();
+    if (!me) return setError('Set your name first.');
+    setError(null);
+    setInfo(null);
+    await persistProfile(me, 'Profile saved ✅');
   };
 
   const skipRatingForNow = async (eventId: number, skippedName: string) => {
