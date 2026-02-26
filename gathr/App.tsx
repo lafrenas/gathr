@@ -79,6 +79,7 @@ type UserReportRow = {
   reported_name: string;
   reason: string;
   details?: string | null;
+  created_at?: string;
 };
 
 type UserProfileRow = {
@@ -1202,31 +1203,100 @@ export default function App() {
   }, [events, activityRatings]);
 
   const moderationQueue = useMemo(() => {
-    const byReported: Record<string, { count: number; latestReason: string; latestDetails: string }> = {};
+    const byReported: Record<
+      string,
+      {
+        count: number;
+        latestReason: string;
+        latestDetails: string;
+        latestAt: string;
+        uniqueReporterCount: number;
+        recentReportCount: number;
+        harassmentCount: number;
+        unsafeCount: number;
+      }
+    > = {};
+
+    const now = Date.now();
+    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+    const reportersByUser: Record<string, Set<string>> = {};
+
     for (const r of reports) {
       const key = r.reported_name.trim().toLowerCase();
-      const prev = byReported[key] || { count: 0, latestReason: r.reason, latestDetails: r.details || '' };
+      const reason = (r.reason || '').trim();
+      const reasonLower = reason.toLowerCase();
+      const createdAt = r.created_at || new Date(0).toISOString();
+      const createdMs = Number.isFinite(new Date(createdAt).getTime()) ? new Date(createdAt).getTime() : 0;
+      const isRecent = createdMs > 0 && now - createdMs <= fourteenDaysMs;
+
+      if (!reportersByUser[key]) reportersByUser[key] = new Set<string>();
+      reportersByUser[key].add((r.reporter_name || '').trim().toLowerCase());
+
+      const prev = byReported[key] || {
+        count: 0,
+        latestReason: reason,
+        latestDetails: r.details || '',
+        latestAt: createdAt,
+        uniqueReporterCount: 0,
+        recentReportCount: 0,
+        harassmentCount: 0,
+        unsafeCount: 0,
+      };
+
+      const isNewer = new Date(createdAt).getTime() >= new Date(prev.latestAt || new Date(0).toISOString()).getTime();
+
       byReported[key] = {
         count: prev.count + 1,
-        latestReason: r.reason || prev.latestReason,
-        latestDetails: r.details || prev.latestDetails,
+        latestReason: isNewer ? reason || prev.latestReason : prev.latestReason,
+        latestDetails: isNewer ? r.details || prev.latestDetails : prev.latestDetails,
+        latestAt: isNewer ? createdAt : prev.latestAt,
+        uniqueReporterCount: 0,
+        recentReportCount: prev.recentReportCount + (isRecent ? 1 : 0),
+        harassmentCount: prev.harassmentCount + (reasonLower.includes('harass') ? 1 : 0),
+        unsafeCount: prev.unsafeCount + (reasonLower.includes('unsafe') ? 1 : 0),
       };
     }
 
     return Object.entries(byReported)
       .map(([k, v]) => {
+        const uniqueReporterCount = reportersByUser[k]?.size ?? 0;
         const status = moderationStatuses.find((m) => m.user_name.toLowerCase() === k);
+        const autoFlag: 'none' | 'medium' | 'high' | 'critical' =
+          v.count >= 5 || uniqueReporterCount >= 4 || v.recentReportCount >= 4
+            ? 'critical'
+            : v.count >= 3 || uniqueReporterCount >= 3 || v.harassmentCount >= 2 || v.unsafeCount >= 2
+            ? 'high'
+            : v.count >= 2
+            ? 'medium'
+            : 'none';
+
         return {
           user_name: k,
           count: v.count,
           latestReason: v.latestReason,
           latestDetails: v.latestDetails,
+          latestAt: v.latestAt,
           status: status?.status || 'watchlist',
           note: status?.note || '',
+          uniqueReporterCount,
+          recentReportCount: v.recentReportCount,
+          harassmentCount: v.harassmentCount,
+          unsafeCount: v.unsafeCount,
+          autoFlag,
         };
       })
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => {
+        const rank = { critical: 3, high: 2, medium: 1, none: 0 } as const;
+        return rank[b.autoFlag] - rank[a.autoFlag] || b.count - a.count;
+      });
   }, [reports, moderationStatuses]);
+
+  const moderationSummary = useMemo(() => {
+    const critical = moderationQueue.filter((m) => m.autoFlag === 'critical').length;
+    const high = moderationQueue.filter((m) => m.autoFlag === 'high').length;
+    const medium = moderationQueue.filter((m) => m.autoFlag === 'medium').length;
+    return { critical, high, medium };
+  }, [moderationQueue]);
 
   const onlineGameLeaderboard = useMemo(() => {
     const onlineEventById: Record<number, string> = {};
@@ -2484,13 +2554,17 @@ export default function App() {
           </TouchableOpacity>
           {showModerationSection && (
             <>
+              <Text style={styles.meta}>Flag summary • Critical: {moderationSummary.critical} • High: {moderationSummary.high} • Medium: {moderationSummary.medium}</Text>
+              <Text style={styles.meta}>Rules: Critical ≥5 total reports, ≥4 unique reporters, or ≥4 in last 14 days.</Text>
               {moderationQueue.length === 0 ? (
                 <Text style={styles.meta}>No reports yet.</Text>
               ) : (
                 moderationQueue.map((m) => (
                   <View key={`mod-${m.user_name}`} style={styles.pendingItem}>
                     <Text style={styles.eventTitle}>{m.user_name}</Text>
-                    <Text style={styles.meta}>Reports: {m.count} • Latest: {m.latestReason}</Text>
+                    <Text style={styles.meta}>Reports: {m.count} • Unique reporters: {m.uniqueReporterCount} • Recent(14d): {m.recentReportCount}</Text>
+                    <Text style={styles.meta}>Reason signals • Harassment: {m.harassmentCount} • Unsafe: {m.unsafeCount}</Text>
+                    <Text style={styles.meta}>Auto-flag: {m.autoFlag.toUpperCase()} • Latest: {m.latestReason}</Text>
                     {!!m.latestDetails && <Text style={styles.meta}>Comment: {m.latestDetails}</Text>}
                     <Text style={styles.meta}>Status: {m.status}</Text>
                     <View style={styles.rowGapWrap}>
