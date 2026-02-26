@@ -2168,7 +2168,13 @@ export default function App() {
           <Text style={styles.cardTitle}>Complete registration to use Gathr</Text>
           <Text style={styles.meta}>Required: full name, gender, age group, based in, valid email, verified email.</Text>
           <Text style={styles.meta}>Status: {Object.values(registrationChecklist).filter(Boolean).length}/{Object.keys(registrationChecklist).length}</Text>
-          <TouchableOpacity style={styles.mapBtn} onPress={() => setShowProfileSection(true)}>
+          <TouchableOpacity
+            style={styles.mapBtn}
+            onPress={() => {
+              collapseAllSections();
+              setShowProfileSection(true);
+            }}
+          >
             <Text style={styles.mapBtnText}>Open registration section</Text>
           </TouchableOpacity>
         </View>
@@ -2184,7 +2190,7 @@ export default function App() {
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowProfileSection((v) => !v)}>
-          <Text style={styles.cardTitle}>You are</Text>
+          <Text style={styles.cardTitle}>Registration</Text>
           <Text style={styles.meta}>{showProfileSection ? '▾' : '▸'}</Text>
         </TouchableOpacity>
         {showProfileSection && (
