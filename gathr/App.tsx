@@ -239,6 +239,7 @@ export default function App() {
   const [filterActivity, setFilterActivity] = useState('All');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showActivityMenu, setShowActivityMenu] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filterDate, setFilterDate] = useState<string | null>(null); // YYYY-MM-DD
   const [filterDateModalVisible, setFilterDateModalVisible] = useState(false);
   const [filterMonthCursor, setFilterMonthCursor] = useState(() => {
@@ -430,6 +431,7 @@ export default function App() {
     setShowNotificationsSection(false);
     setShowCategoryMenu(false);
     setShowActivityMenu(false);
+    setShowAdvancedFilters(false);
   };
 
   const expandMainSections = () => {
@@ -3697,79 +3699,88 @@ export default function App() {
           </View>
         )}
 
-        <Text style={styles.ratingLabel}>Categories</Text>
-        <TouchableOpacity style={styles.mapBtn} onPress={() => setShowCategoryMenu((v) => !v)}>
-          <Text style={styles.mapBtnText}>Categories: {filterCategory}{filterActivity !== 'All' ? ` / ${filterActivity}` : ''}</Text>
-        </TouchableOpacity>
-        {showCategoryMenu && (
-          <View style={styles.rowGapWrap}>
-            {(['All', 'Sports', 'Social', 'Online'] as const).map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.chipBtn, filterCategory === c && styles.chipBtnActive]}
-                onPress={() => {
-                  setFilterCategory(c);
-                  setFilterActivity('All');
-                  setShowActivityMenu(true);
-                }}
-              >
-                <Text style={styles.chipBtnText}>{c}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        {showActivityMenu && filterCategory !== 'All' && (
-          <View style={styles.rowGapWrap}>
-            <TouchableOpacity style={[styles.chipBtn, filterActivity === 'All' && styles.chipBtnActive]} onPress={() => setFilterActivity('All')}>
-              <Text style={styles.chipBtnText}>All {filterCategory}</Text>
-            </TouchableOpacity>
-            {(activityOptions[filterCategory] ?? []).map((a) => (
-              <TouchableOpacity key={`fa-${a}`} style={[styles.chipBtn, filterActivity === a && styles.chipBtnActive]} onPress={() => setFilterActivity(a)}>
-                <Text style={styles.chipBtnText}>{a}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <Text style={styles.ratingLabel}>Date</Text>
-        <TouchableOpacity
-          style={styles.mapBtn}
-          onPress={() => {
-            setFilterDateModalVisible(true);
-            const base = filterDate ? new Date(`${filterDate}T12:00`) : new Date();
-            setFilterMonthCursor(new Date(base.getFullYear(), base.getMonth(), 1));
-          }}
-        >
-          <Text style={styles.mapBtnText}>{filterDate ? `Date: ${filterDate}` : 'Any date'}</Text>
-        </TouchableOpacity>
-        {!!filterDate && (
-          <TouchableOpacity style={styles.chipBtn} onPress={() => setFilterDate(null)}>
-            <Text style={styles.chipBtnText}>Clear date</Text>
-          </TouchableOpacity>
-        )}
-
-        <Text style={styles.ratingLabel}>Radius filter</Text>
-        <Text style={styles.ratingHelp}>Uses your profile field: "Your area (for distance estimate)"</Text>
+        <Text style={styles.ratingLabel}>Quick filters</Text>
         <View style={styles.rowGapWrap}>
-          {([
-            { key: 'any', label: 'Any' },
-            { key: '2', label: '2 km' },
-            { key: '5', label: '5 km' },
-            { key: '10', label: '10 km' },
-            { key: '25', label: '25 km' },
-          ] as const).map((r) => (
-            <TouchableOpacity key={r.key} style={[styles.chipBtn, radiusKm === r.key && styles.chipBtnActive]} onPress={() => setRadiusKm(r.key)}>
-              <Text style={styles.chipBtnText}>{r.label}</Text>
+          {(['All', 'Sports', 'Social', 'Online'] as const).map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.chipBtn, filterCategory === c && styles.chipBtnActive]}
+              onPress={() => {
+                setFilterCategory(c);
+                setFilterActivity('All');
+              }}
+            >
+              <Text style={styles.chipBtnText}>{c}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-        {radiusKm !== 'any' && (
-          <TouchableOpacity style={[styles.chipBtn, includeUnknownLocation && styles.chipBtnActive]} onPress={() => setIncludeUnknownLocation((v) => !v)}>
-            <Text style={styles.chipBtnText}>{includeUnknownLocation ? 'Including unknown locations' : 'Excluding unknown locations'}</Text>
+          <TouchableOpacity
+            style={[styles.chipBtn, !!filterDate && styles.chipBtnActive]}
+            onPress={() => {
+              setFilterDateModalVisible(true);
+              const base = filterDate ? new Date(`${filterDate}T12:00`) : new Date();
+              setFilterMonthCursor(new Date(base.getFullYear(), base.getMonth(), 1));
+            }}
+          >
+            <Text style={styles.chipBtnText}>{filterDate ? `Date: ${filterDate}` : 'Any date'}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.chipBtn, radiusKm !== 'any' && styles.chipBtnActive]} onPress={() => setShowAdvancedFilters((v) => !v)}>
+            <Text style={styles.chipBtnText}>{radiusKm === 'any' ? 'Any radius' : `${radiusKm} km`} • {showAdvancedFilters ? 'Less' : 'More filters'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.chipBtn}
+            onPress={() => {
+              setFilterCategory('All');
+              setFilterActivity('All');
+              setFilterDate(null);
+              setRadiusKm('any');
+              setIncludeUnknownLocation(true);
+              setSearchQuery('');
+            }}
+          >
+            <Text style={styles.chipBtnText}>Reset filters</Text>
+          </TouchableOpacity>
+        </View>
+
+        {showAdvancedFilters && (
+          <>
+            <Text style={styles.ratingLabel}>Advanced filters</Text>
+            {filterCategory !== 'All' && (
+              <View style={styles.rowGapWrap}>
+                <TouchableOpacity style={[styles.chipBtn, filterActivity === 'All' && styles.chipBtnActive]} onPress={() => setFilterActivity('All')}>
+                  <Text style={styles.chipBtnText}>All {filterCategory}</Text>
+                </TouchableOpacity>
+                {(activityOptions[filterCategory] ?? []).map((a) => (
+                  <TouchableOpacity key={`fa-${a}`} style={[styles.chipBtn, filterActivity === a && styles.chipBtnActive]} onPress={() => setFilterActivity(a)}>
+                    <Text style={styles.chipBtnText}>{a}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <Text style={styles.ratingHelp}>Radius uses your profile field: "Your area (for distance estimate)"</Text>
+            <View style={styles.rowGapWrap}>
+              {([
+                { key: 'any', label: 'Any' },
+                { key: '2', label: '2 km' },
+                { key: '5', label: '5 km' },
+                { key: '10', label: '10 km' },
+                { key: '25', label: '25 km' },
+              ] as const).map((r) => (
+                <TouchableOpacity key={r.key} style={[styles.chipBtn, radiusKm === r.key && styles.chipBtnActive]} onPress={() => setRadiusKm(r.key)}>
+                  <Text style={styles.chipBtnText}>{r.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {radiusKm !== 'any' && (
+              <TouchableOpacity style={[styles.chipBtn, includeUnknownLocation && styles.chipBtnActive]} onPress={() => setIncludeUnknownLocation((v) => !v)}>
+                <Text style={styles.chipBtnText}>{includeUnknownLocation ? 'Including unknown locations' : 'Excluding unknown locations'}</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         <Text style={styles.meta}>Showing {filteredEvents.length} event(s)</Text>
+        {filteredEvents.length === 0 && <Text style={styles.meta}>No events match current filters. Try Reset filters or wider radius/date.</Text>}
         <Text style={styles.meta}>Your profile: {profileCompletion.percent}% complete</Text>
         {!!notificationTargetEventId && <Text style={styles.meta}>Focused from notification: event #{notificationTargetEventId}</Text>}
         <View style={styles.rowGap}>
