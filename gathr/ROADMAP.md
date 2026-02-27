@@ -15,6 +15,7 @@ _Last updated: 2026-02-27_
 
 ### Discovery + maps
 - [x] Search bar + fuzzy matching
+- [x] Search suggestion ranking polish (exact/prefix/typo-tolerant)
 - [x] Category filter + activity filter
 - [x] Date filter + radius filter (with unknown-location handling)
 - [x] Postcode/location autocomplete (remote + Google fallback)

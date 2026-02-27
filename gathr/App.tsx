@@ -825,7 +825,10 @@ export default function App() {
 
     const categoryFiltered = visibleEvents.filter((e) => {
       const [eventCategory = ''] = e.category.split(':');
-      return filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
+      const [eventActivity = ''] = e.category.split(':').slice(1);
+      const catOk = filterCategory === 'All' || eventCategory.trim().toLowerCase() === filterCategory.toLowerCase();
+      const actOk = filterActivity === 'All' || eventActivity.trim().toLowerCase() === filterActivity.toLowerCase();
+      return catOk && actOk;
     });
 
     const activityPool = categoryFiltered
@@ -847,18 +850,48 @@ export default function App() {
       .filter((x) => x.length >= 2);
 
     const unique = Array.from(new Set([...allCatalogActivities, ...activityPool, ...cleaned]));
-    const matched = q ? unique.filter((x) => x.toLowerCase().includes(q)) : unique;
 
-    const rank = (s: string) => {
-      const v = s.toLowerCase();
-      if (!q) return 2;
-      if (v.startsWith(q)) return 0;
-      if (v.includes(q)) return 1;
-      return 2;
+    const wordDistance = (a: string, b: string) => {
+      const m = a.length;
+      const n = b.length;
+      if (m === 0) return n;
+      if (n === 0) return m;
+      const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+      for (let i = 1; i <= m; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+          const temp = dp[j];
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+          prev = temp;
+        }
+      }
+      return dp[n];
     };
 
-    return matched.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 8);
-  }, [visibleEvents, searchQuery, filterCategory]);
+    const score = (s: string) => {
+      const v = s.toLowerCase();
+      if (!q) return 10;
+      if (v === q) return 0;
+      if (v.startsWith(q)) return 1;
+      if (v.split(/\s+/).some((w) => w.startsWith(q))) return 2;
+      if (v.includes(q)) return 3;
+
+      const words = v.split(/[^a-z0-9]+/).filter(Boolean);
+      const typoHit = words.some((w) => wordDistance(q, w) <= (q.length >= 6 ? 2 : 1));
+      if (typoHit) return 4;
+
+      return 99;
+    };
+
+    return unique
+      .map((x) => ({ value: x, score: score(x) }))
+      .filter((x) => x.score < 99)
+      .sort((a, b) => a.score - b.score || a.value.localeCompare(b.value))
+      .slice(0, 8)
+      .map((x) => x.value);
+  }, [visibleEvents, searchQuery, filterCategory, filterActivity]);
 
   const normalize = (s: string) =>
     s
