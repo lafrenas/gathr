@@ -268,6 +268,8 @@ export default function App() {
   const [gender, setGender] = useState('');
   const [ageGroup, setAgeGroup] = useState('');
   const [basedIn, setBasedIn] = useState('');
+  const [basedInSuggestions, setBasedInSuggestions] = useState<string[]>([]);
+  const [showBasedInSuggestions, setShowBasedInSuggestions] = useState(false);
   const [phoneValue, setPhoneValue] = useState('');
   const [emailValue, setEmailValue] = useState('');
   const [interestQuery, setInterestQuery] = useState('');
@@ -558,6 +560,7 @@ export default function App() {
     setGender(p?.gender ?? '');
     setAgeGroup(p?.age_group ?? '');
     setBasedIn(p?.based_in ?? '');
+    setShowBasedInSuggestions(false);
     setPhoneValue(p?.phone ?? '');
     setEmailValue(p?.email ?? '');
     setSelectedInterests(
@@ -1012,6 +1015,15 @@ export default function App() {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
+
+  const toCityCountry = (label: string) => {
+    const parts = label
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]}, ${parts[parts.length - 1]}`;
+    return label.trim();
+  };
 
   const fetchGoogleAutocomplete = async (input: string): Promise<string[]> => {
     const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -2519,6 +2531,37 @@ export default function App() {
   ]);
 
   useEffect(() => {
+    const q = basedIn.trim();
+    if (q.length < 2) {
+      setBasedInSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const [postcodeRes, googleList] = await Promise.all([
+          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`),
+          fetchGoogleAutocomplete(q),
+        ]);
+
+        const postcodeJson = await postcodeRes.json();
+        const postcodeList: string[] = Array.isArray(postcodeJson?.results)
+          ? postcodeJson.results
+              .map((r: { name?: string; country?: string }) => [r.name, r.country].filter(Boolean).join(', '))
+              .filter(Boolean)
+          : [];
+
+        const merged = Array.from(new Set([...postcodeList, ...googleList].map(toCityCountry))).slice(0, 8);
+        setBasedInSuggestions(merged);
+      } catch {
+        setBasedInSuggestions([]);
+      }
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [basedIn]);
+
+  useEffect(() => {
     if (!showWelcomeFlow || welcomeStep !== 'location') return;
     const q = welcomeLocationQuery.trim();
     if (q.length < 2) {
@@ -2859,7 +2902,32 @@ export default function App() {
                 </TouchableOpacity>
               ))}
             </View>
-            <TextInput style={styles.input} value={basedIn} onChangeText={setBasedIn} placeholder="Based in (city/area)" placeholderTextColor="#9ca3af" />
+            <TextInput
+              style={styles.input}
+              value={basedIn}
+              onChangeText={(t) => {
+                setBasedIn(t);
+                setShowBasedInSuggestions(true);
+              }}
+              placeholder="Based in (city/country)"
+              placeholderTextColor="#9ca3af"
+            />
+            {showBasedInSuggestions && basedInSuggestions.length > 0 && (
+              <View style={styles.suggestionBox}>
+                {basedInSuggestions.map((s) => (
+                  <TouchableOpacity
+                    key={`based-in-${s}`}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setBasedIn(s);
+                      setShowBasedInSuggestions(false);
+                    }}
+                  >
+                    <Text style={styles.suggestionText}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             <TextInput style={styles.input} value={phoneValue} onChangeText={setPhoneValue} placeholder="Phone (e.g. +44...)" placeholderTextColor="#9ca3af" keyboardType="phone-pad" />
             <TextInput style={styles.input} value={emailValue} onChangeText={setEmailValue} placeholder="Email" placeholderTextColor="#9ca3af" keyboardType="email-address" autoCapitalize="none" />
             <View style={styles.rowGap}>
