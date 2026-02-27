@@ -877,6 +877,8 @@ export default function App() {
       if (v.includes(q)) return 3;
 
       const words = v.split(/[^a-z0-9]+/).filter(Boolean);
+      const short = q.slice(0, 3);
+      if (short.length >= 3 && words.some((w) => w.startsWith(short))) return 3;
       const typoHit = words.some((w) => wordDistance(q, w) <= (q.length >= 6 ? 2 : 1));
       if (typoHit) return 4;
 
