@@ -276,6 +276,8 @@ export default function App() {
   const [welcomeEmailCode, setWelcomeEmailCode] = useState('');
   const [welcomePhone, setWelcomePhone] = useState('');
   const [welcomePhoneCode, setWelcomePhoneCode] = useState('');
+  const [welcomeCountryQuery, setWelcomeCountryQuery] = useState('');
+  const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
@@ -1497,6 +1499,8 @@ export default function App() {
       setWelcomeEmailCode('');
       setWelcomePhone('');
       setWelcomePhoneCode('');
+      setWelcomeCountryQuery('');
+      setShowWelcomeCountryList(false);
       setWelcomeEmailBusy(false);
       setShowWelcomeFlow(true);
     }
@@ -2270,6 +2274,23 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
+  const countryDialList = [
+    { flag: '🇱🇹', name: 'Lithuania', code: '+370' },
+    { flag: '🇬🇧', name: 'United Kingdom', code: '+44' },
+    { flag: '🇮🇪', name: 'Ireland', code: '+353' },
+    { flag: '🇱🇻', name: 'Latvia', code: '+371' },
+    { flag: '🇪🇪', name: 'Estonia', code: '+372' },
+    { flag: '🇵🇱', name: 'Poland', code: '+48' },
+    { flag: '🇩🇪', name: 'Germany', code: '+49' },
+    { flag: '🇺🇸', name: 'United States', code: '+1' },
+    { flag: '🇨🇦', name: 'Canada', code: '+1' },
+  ];
+
+  const welcomeCountrySuggestions = useMemo(() => {
+    const q = welcomeCountryQuery.trim().toLowerCase();
+    if (!q) return countryDialList;
+    return countryDialList.filter((c) => `${c.name} ${c.code}`.toLowerCase().includes(q));
+  }, [welcomeCountryQuery]);
 
   useEffect(() => {
     if (!showWelcomeFlow || welcomeStep !== 'location') return;
@@ -4002,12 +4023,42 @@ export default function App() {
             {welcomeStep === 'phone' && (
               <>
                 <Text style={styles.welcomeQuestion}>What's your phone number?</Text>
-                <Text style={styles.meta}>Use format like +44...</Text>
+                <Text style={styles.meta}>Choose country code, then add the rest of your number.</Text>
+
+                <TextInput
+                  style={styles.input}
+                  value={welcomeCountryQuery}
+                  onChangeText={(t) => {
+                    setWelcomeCountryQuery(t);
+                    setShowWelcomeCountryList(true);
+                  }}
+                  placeholder="Search country (e.g. lit, uk, germany)"
+                  placeholderTextColor="#9ca3af"
+                />
+
+                {showWelcomeCountryList && (
+                  <View style={styles.suggestionBox}>
+                    {welcomeCountrySuggestions.slice(0, 8).map((c) => (
+                      <TouchableOpacity
+                        key={`country-${c.name}-${c.code}`}
+                        style={styles.suggestionItem}
+                        onPress={() => {
+                          setWelcomeCountryQuery(`${c.flag} ${c.name} ${c.code}`);
+                          setWelcomePhone(c.code);
+                          setShowWelcomeCountryList(false);
+                        }}
+                      >
+                        <Text style={styles.suggestionText}>{c.flag} {c.name} ({c.code})</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
                 <TextInput
                   style={styles.input}
                   value={welcomePhone}
                   onChangeText={setWelcomePhone}
-                  placeholder="+44..."
+                  placeholder="+370..."
                   placeholderTextColor="#9ca3af"
                   keyboardType="phone-pad"
                   autoFocus
