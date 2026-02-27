@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   Image,
   Linking,
   Modal,
@@ -261,6 +263,12 @@ export default function App() {
   const [communicationRating, setCommunicationRating] = useState('5');
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
+  const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'interests'>('logo');
+  const [welcomeName, setWelcomeName] = useState('');
+  const [welcomeInterestCategory, setWelcomeInterestCategory] = useState<string[]>([]);
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.9)).current;
 
   const activityOptions: Record<string, string[]> = {
     Sports: ['Basketball', 'Football', 'Tennis', 'Running', 'Gym'],
@@ -1460,8 +1468,52 @@ export default function App() {
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
 
   useEffect(() => {
-    if (registrationComplete) setShowProfileSection(false);
-  }, [registrationComplete]);
+    if (registrationComplete) {
+      setShowProfileSection(false);
+      setShowWelcomeFlow(false);
+      return;
+    }
+
+    if (!showWelcomeFlow && !fullName.trim() && selectedInterests.length === 0) {
+      setWelcomeStep('logo');
+      setWelcomeName('');
+      setWelcomeInterestCategory([]);
+      setShowWelcomeFlow(true);
+    }
+  }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length]);
+
+  useEffect(() => {
+    if (!showWelcomeFlow || welcomeStep !== 'logo') return;
+
+    logoOpacity.setValue(0);
+    logoScale.setValue(0.9);
+
+    const anim = Animated.parallel([
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoScale, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    anim.start();
+
+    const timer = setTimeout(() => {
+      setWelcomeStep('name');
+    }, 1700);
+
+    return () => {
+      clearTimeout(timer);
+      anim.stop();
+    };
+  }, [showWelcomeFlow, welcomeStep, logoOpacity, logoScale]);
 
   const requireRegistration = () => {
     if (registrationComplete) return true;
@@ -2171,6 +2223,23 @@ export default function App() {
 
     await loadData();
     setBusy(false);
+  };
+
+  const starterInterestCategories = ['Sports', 'Social', 'Online'];
+
+  const continueWelcomeNameStep = () => {
+    const name = welcomeName.trim();
+    if (!name) return;
+    setFullName(name);
+    setWelcomeStep('interests');
+  };
+
+  const finishWelcomeFlow = () => {
+    const pickedFromCategories = welcomeInterestCategory.flatMap((c) => activityOptions[c] ?? []).slice(0, 6);
+    const mergedInterests = Array.from(new Set([...selectedInterests, ...pickedFromCategories]));
+    if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
+    setShowWelcomeFlow(false);
+    setShowProfileSection(true);
   };
 
   const sanitizeMapQuery = (query: string) => {
@@ -3546,6 +3615,63 @@ export default function App() {
       )}
       </ScrollView>
 
+      <Modal visible={showWelcomeFlow && !registrationComplete} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.welcomeCard}>
+            {welcomeStep === 'logo' && (
+              <Animated.View style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}>
+                <Text style={styles.welcomeLogo}>gathr</Text>
+              </Animated.View>
+            )}
+
+            {welcomeStep === 'name' && (
+              <>
+                <Text style={styles.welcomeQuestion}>What's your name?</Text>
+                <TextInput
+                  style={styles.input}
+                  value={welcomeName}
+                  onChangeText={setWelcomeName}
+                  placeholder="Type your name"
+                  placeholderTextColor="#9ca3af"
+                  autoFocus
+                />
+                <TouchableOpacity style={styles.primaryBtn} onPress={continueWelcomeNameStep}>
+                  <Text style={styles.primaryBtnText}>Continue</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'interests' && (
+              <>
+                <Text style={styles.welcomeQuestion}>What are your interests?</Text>
+                <Text style={styles.meta}>Pick one or more to get started.</Text>
+                <View style={styles.rowGapWrap}>
+                  {starterInterestCategories.map((cat) => {
+                    const active = welcomeInterestCategory.includes(cat);
+                    return (
+                      <TouchableOpacity
+                        key={`welcome-cat-${cat}`}
+                        style={[styles.chipBtn, active && styles.chipBtnActive]}
+                        onPress={() =>
+                          setWelcomeInterestCategory((prev) =>
+                            prev.includes(cat) ? prev.filter((x) => x !== cat) : [...prev, cat]
+                          )
+                        }
+                      >
+                        <Text style={styles.chipBtnText}>{cat}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TouchableOpacity style={styles.primaryBtn} onPress={finishWelcomeFlow}>
+                  <Text style={styles.primaryBtnText}>Start</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={registrationModalVisible} transparent animationType="fade" onRequestClose={() => setRegistrationModalVisible(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -3871,6 +3997,9 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.65)', justifyContent: 'center', padding: 16 },
   modalCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 12, maxHeight: '70%' },
+  welcomeCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 16, padding: 18, minHeight: 220, justifyContent: 'center' },
+  welcomeLogo: { color: '#f8fafc', fontSize: 52, fontWeight: '900', textAlign: 'center', letterSpacing: 1.2 },
+  welcomeQuestion: { color: '#e2e8f0', fontSize: 24, fontWeight: '800', marginBottom: 12 },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 6 },
   dayChip: { width: '11.5%', backgroundColor: '#334155', borderRadius: 8, alignItems: 'center', paddingVertical: 8 },
   input: {
