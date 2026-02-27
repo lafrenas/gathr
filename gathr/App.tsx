@@ -282,6 +282,7 @@ export default function App() {
   const [showPostSignupChecklist, setShowPostSignupChecklist] = useState(false);
   const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
+  const [welcomeInlineError, setWelcomeInlineError] = useState<string | null>(null);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
 
@@ -2280,6 +2281,16 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
+  const welcomeStepOrder: Array<typeof welcomeStep> = welcomeTestingFastTrack
+    ? ['phone', 'phoneVerify', 'password']
+    : ['logo', 'name', 'categories', 'age', 'location', 'email', 'emailVerify', 'phone', 'phoneVerify', 'password'];
+  const visibleWelcomeStepOrder = welcomeStepOrder.filter((s) => s !== 'logo') as Array<Exclude<typeof welcomeStep, 'logo'>>;
+  const safeWelcomeStep = (welcomeStep === 'logo' ? 'name' : welcomeStep) as Exclude<typeof welcomeStep, 'logo'>;
+  const welcomeStepIndex = Math.max(0, visibleWelcomeStepOrder.indexOf(safeWelcomeStep));
+  const welcomeProgressLabel = visibleWelcomeStepOrder.includes(safeWelcomeStep)
+    ? `Step ${welcomeStepIndex + 1} of ${visibleWelcomeStepOrder.length}`
+    : '';
+
   const countryDialList = [
     { flag: '🇱🇹', name: 'Lithuania', code: '+370' },
     { flag: '🇬🇧', name: 'United Kingdom', code: '+44' },
@@ -2315,30 +2326,55 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [showWelcomeFlow, welcomeStep, welcomeLocationQuery]);
 
+  const goBackWelcomeStep = () => {
+    const idx = visibleWelcomeStepOrder.indexOf(safeWelcomeStep);
+    if (idx <= 0) return;
+    const prev = visibleWelcomeStepOrder[idx - 1];
+    setWelcomeInlineError(null);
+    setWelcomeStep(prev);
+  };
+
   const continueWelcomeNameStep = () => {
     const name = welcomeName.trim();
-    if (!name) return;
+    if (!name) {
+      setWelcomeInlineError('Please enter your name.');
+      return;
+    }
+    setWelcomeInlineError(null);
     setWelcomeStep('categories');
   };
 
   const continueWelcomeInterestsStep = () => {
-    if (welcomeInterestSelection.length === 0) return;
+    if (welcomeInterestSelection.length === 0) {
+      setWelcomeInlineError('Choose at least one interest.');
+      return;
+    }
+    setWelcomeInlineError(null);
     setWelcomeStep('age');
   };
 
   const continueWelcomeAgeStep = () => {
-    if (!welcomeAgeGroup) return;
+    if (!welcomeAgeGroup) {
+      setWelcomeInlineError('Please choose your age group.');
+      return;
+    }
+    setWelcomeInlineError(null);
     setWelcomeStep('location');
   };
 
   const continueWelcomeLocationStep = () => {
-    if (!welcomeLocationQuery.trim()) return;
+    if (!welcomeLocationQuery.trim()) {
+      setWelcomeInlineError('Please enter your location.');
+      return;
+    }
+    setWelcomeInlineError(null);
     setWelcomeStep('email');
   };
 
   const skipWelcomeEmailStep = () => {
     setWelcomeEmail('');
     setWelcomeEmailCode('');
+    setWelcomeInlineError(null);
     setWelcomeStep('phone');
   };
 
@@ -2350,10 +2386,14 @@ export default function App() {
 
   const continueWelcomeEmailStep = async () => {
     const email = welcomeEmail.trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setWelcomeInlineError('Enter a valid email address.');
+      return;
+    }
 
     try {
       setWelcomeEmailBusy(true);
+      setWelcomeInlineError(null);
       const { error } = await supabase.auth.signInWithOtp({ email });
       if (error) {
         setError(error.message);
@@ -2370,10 +2410,14 @@ export default function App() {
   const verifyWelcomeEmailCode = async () => {
     const email = welcomeEmail.trim();
     const token = welcomeEmailCode.trim();
-    if (!email || !token) return;
+    if (!email || !token) {
+      setWelcomeInlineError('Enter the verification code from your email.');
+      return;
+    }
 
     try {
       setWelcomeEmailBusy(true);
+      setWelcomeInlineError(null);
       const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
       if (error) {
         setError(error.message);
@@ -2394,19 +2438,20 @@ export default function App() {
   const continueWelcomePhoneStep = async () => {
     const phone = welcomePhone.trim();
     if (!phone || !/^\+?[0-9\s()\-]{7,20}$/.test(phone)) {
-      setError('Enter a valid full phone number (include country code + rest of number).');
+      setWelcomeInlineError('Enter a valid full phone number (include country code + rest of number).');
       return;
     }
 
     try {
       setWelcomeEmailBusy(true);
+      setWelcomeInlineError(null);
       const { error } = await supabase.auth.signInWithOtp({ phone });
       if (error) {
         const msg = (error.message || '').toLowerCase();
         if (msg.includes('sms') || msg.includes('provider') || msg.includes('twilio') || msg.includes('phone')) {
-          setError('SMS provider is likely not configured in Supabase Auth yet. Configure SMS provider, then try again.');
+          setWelcomeInlineError('SMS provider is likely not configured in Supabase Auth yet. Configure SMS provider, then try again.');
         } else {
-          setError(error.message);
+          setWelcomeInlineError(error.message);
         }
         return;
       }
@@ -2424,11 +2469,11 @@ export default function App() {
     const resolvedAge = welcomeAgeGroup || '19–25';
 
     if (!passwordStrong) {
-      setError('Password must be 8+ chars and include upper/lower/number/special.');
+      setWelcomeInlineError('Password must be 8+ chars and include upper/lower/number/special.');
       return;
     }
     if (!passwordsMatch) {
-      setError('Passwords do not match.');
+      setWelcomeInlineError('Passwords do not match.');
       return;
     }
 
@@ -2439,6 +2484,7 @@ export default function App() {
     const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
     if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
 
+    setWelcomeInlineError(null);
     setShowWelcomeFlow(false);
     setShowProfileSection(true);
     setShowPostSignupChecklist(true);
@@ -2449,10 +2495,14 @@ export default function App() {
   const verifyWelcomePhoneCodeAndFinish = async () => {
     const phone = welcomePhone.trim();
     const token = welcomePhoneCode.trim();
-    if (!phone || !token) return;
+    if (!phone || !token) {
+      setWelcomeInlineError('Enter the SMS verification code.');
+      return;
+    }
 
     try {
       setWelcomeEmailBusy(true);
+      setWelcomeInlineError(null);
       const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
       if (error) {
         setError(error.message);
@@ -3881,6 +3931,15 @@ export default function App() {
       <Modal visible={showWelcomeFlow} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={styles.modalBackdrop}>
           <View style={styles.welcomeCard}>
+            {welcomeStep !== 'logo' && (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.meta}>{welcomeProgressLabel}</Text>
+                <TouchableOpacity style={styles.chipBtn} onPress={goBackWelcomeStep} disabled={welcomeStepIndex === 0}>
+                  <Text style={styles.chipBtnText}>{welcomeStepIndex === 0 ? 'Back' : '← Back'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {welcomeStep === 'logo' && (
               <Animated.View style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}>
                 <Text style={styles.welcomeLogo}>gathr</Text>
@@ -4248,10 +4307,12 @@ export default function App() {
                   onPress={completeWelcomeAfterPassword}
                   disabled={!passwordStrong || !passwordsMatch}
                 >
-                  <Text style={styles.primaryBtnText}>Next</Text>
+                  <Text style={styles.primaryBtnText}>Finish</Text>
                 </TouchableOpacity>
               </>
             )}
+
+            {!!welcomeInlineError && <Text style={styles.error}>{welcomeInlineError}</Text>}
           </View>
         </View>
       </Modal>
