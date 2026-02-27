@@ -283,6 +283,7 @@ export default function App() {
   const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const [welcomeInlineError, setWelcomeInlineError] = useState<string | null>(null);
+  const welcomeDraftHydratedRef = useRef(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
 
@@ -2281,6 +2282,7 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
+  const welcomeDraftStorageKey = 'gathr_welcome_draft_v1';
   const welcomeStepOrder: Array<typeof welcomeStep> = welcomeTestingFastTrack
     ? ['phone', 'phoneVerify', 'password']
     : ['logo', 'name', 'categories', 'age', 'location', 'email', 'emailVerify', 'phone', 'phoneVerify', 'password'];
@@ -2308,6 +2310,75 @@ export default function App() {
     if (!q) return countryDialList;
     return countryDialList.filter((c) => `${c.name} ${c.code}`.toLowerCase().includes(q));
   }, [welcomeCountryQuery]);
+
+  useEffect(() => {
+    if (welcomeDraftHydratedRef.current) return;
+    welcomeDraftHydratedRef.current = true;
+
+    if (Platform.OS !== 'web') return;
+    try {
+      const raw = globalThis?.localStorage?.getItem(welcomeDraftStorageKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        step?: typeof welcomeStep;
+        name?: string;
+        categories?: string[];
+        interests?: string[];
+        age?: string;
+        location?: string;
+        email?: string;
+        phone?: string;
+        countryQuery?: string;
+        selectedCountry?: { flag: string; name: string; code: string } | null;
+      };
+      if (draft.step) setWelcomeStep(draft.step);
+      if (draft.name) setWelcomeName(draft.name);
+      if (Array.isArray(draft.categories)) setWelcomeCategorySelection(draft.categories);
+      if (Array.isArray(draft.interests)) setWelcomeInterestSelection(draft.interests);
+      if (draft.age) setWelcomeAgeGroup(draft.age);
+      if (draft.location) setWelcomeLocationQuery(draft.location);
+      if (draft.email) setWelcomeEmail(draft.email);
+      if (draft.phone) setWelcomePhone(draft.phone);
+      if (draft.countryQuery) setWelcomeCountryQuery(draft.countryQuery);
+      if (draft.selectedCountry) setSelectedWelcomeCountry(draft.selectedCountry);
+    } catch {
+      // ignore bad draft payload
+    }
+  }, [welcomeDraftStorageKey, welcomeStep]);
+
+  useEffect(() => {
+    if (!showWelcomeFlow || Platform.OS !== 'web') return;
+    try {
+      const payload = {
+        step: welcomeStep,
+        name: welcomeName,
+        categories: welcomeCategorySelection,
+        interests: welcomeInterestSelection,
+        age: welcomeAgeGroup,
+        location: welcomeLocationQuery,
+        email: welcomeEmail,
+        phone: welcomePhone,
+        countryQuery: welcomeCountryQuery,
+        selectedCountry: selectedWelcomeCountry,
+      };
+      globalThis?.localStorage?.setItem(welcomeDraftStorageKey, JSON.stringify(payload));
+    } catch {
+      // ignore write errors
+    }
+  }, [
+    showWelcomeFlow,
+    welcomeStep,
+    welcomeName,
+    welcomeCategorySelection,
+    welcomeInterestSelection,
+    welcomeAgeGroup,
+    welcomeLocationQuery,
+    welcomeEmail,
+    welcomePhone,
+    welcomeCountryQuery,
+    selectedWelcomeCountry,
+    welcomeDraftStorageKey,
+  ]);
 
   useEffect(() => {
     if (!showWelcomeFlow || welcomeStep !== 'location') return;
@@ -2485,6 +2556,11 @@ export default function App() {
     if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
 
     setWelcomeInlineError(null);
+    if (Platform.OS === 'web') {
+      try {
+        globalThis?.localStorage?.removeItem(welcomeDraftStorageKey);
+      } catch {}
+    }
     setShowWelcomeFlow(false);
     setShowProfileSection(true);
     setShowPostSignupChecklist(true);
