@@ -278,6 +278,7 @@ export default function App() {
   const [profileSaveState, setProfileSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const profileHydratingRef = useRef(false);
   const profileSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHydratedUserRef = useRef<string | null>(null);
   const [phoneVerifiedByUser, setPhoneVerifiedByUser] = useState<Record<string, boolean>>({});
   const [emailVerifiedByUser, setEmailVerifiedByUser] = useState<Record<string, boolean>>({});
   const [phoneOtp, setPhoneOtp] = useState('');
@@ -547,8 +548,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    profileHydratingRef.current = true;
     const me = currentUser.trim().toLowerCase();
+    if (!me) return;
+    if (lastHydratedUserRef.current === me) return;
+
+    profileHydratingRef.current = true;
     const p = profiles.find((x) => x.display_name.toLowerCase() === me);
     setFullName(p?.full_name ?? '');
     setGender(p?.gender ?? '');
@@ -569,6 +573,8 @@ export default function App() {
     setPhoneVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.phone_verified }));
     setEmailVerifiedByUser((prev) => ({ ...prev, [k]: !!p?.email_verified }));
     setProfileSaveState('idle');
+    lastHydratedUserRef.current = me;
+
     const t = setTimeout(() => {
       profileHydratingRef.current = false;
     }, 0);
