@@ -1,95 +1,97 @@
 # Gathr Roadmap
 
-## Current Status (Done)
+_Last updated: 2026-02-27_
 
-### Frontend
-- Event feed + create event
-- Join request flow (request / approve / reject)
-- Exact location/time hidden until approval
-- Host profile card with trust/skill summary
-- Multi-metric user rating form
-- Report flow + reason picker
-- Block/unblock + blocked hosts hidden from feed
-- Event date->time picker (ISO timestamp output)
-- Registration gate before core app actions
-- Profile completion meter + autosave
-- Avatar upload + avatar/initial chips across feed/invites/notifications
-- Moderation dashboard severity grouping + visual badges
+## ✅ Completed So Far
+
+### Core event platform
+- [x] Event feed + create event
+- [x] Join request flow (request / approve / reject)
+- [x] Host invites + member invite/request flow (host approval final)
+- [x] Exact location/time hidden until approval
+- [x] Event date→time picker improvements (safe timestamp flow)
+- [x] Event description field
+- [x] Capacity support (`min_people`, `max_people`, `no_max`) with full checks
+
+### Discovery + maps
+- [x] Search bar + fuzzy matching
+- [x] Category filter + activity filter
+- [x] Date filter + radius filter (with unknown-location handling)
+- [x] Postcode/location autocomplete (remote + Google fallback)
+- [x] Map pin drop for precise locations
+- [x] Map browse view (nearby/global admin)
+
+### Identity + onboarding
+- [x] Registration gate before core actions
+- [x] Profile completion meter + autosave
+- [x] Profile fields: full name, gender, age group, based in, about me
+- [x] Avatar upload + avatar chips in feed/invites/notifications
+- [x] Password + confirm + strength rules
+- [x] Email OTP flow (send/verify/resend/change)
+- [x] Phone OTP flow UI (send/verify/resend/change; provider-dependent)
+- [x] Full-screen onboarding wizard with:
+  - [x] Animated logo intro
+  - [x] Step progress + back button
+  - [x] Interest categories + per-category option boxes
+  - [x] Location question with Google-style suggestions
+  - [x] Searchable country picker (flag + code + aliases)
+  - [x] Testing fast-track + skip email/phone
+  - [x] Inline validation errors
+  - [x] Draft persistence on web refresh
+  - [x] Post-signup checklist modal
+
+### Ratings / trust / safety
+- [x] Multi-metric participant ratings (skill/friendliness/reliability/communication/boundary)
+- [x] Rating eligibility enforcement (approved attendee↔host + event ended)
+- [x] Activity-level ratings
+- [x] Online activities supported + per-game leaderboard scaffold
+- [x] Report flow + reason picker + details
+- [x] Block/unblock + blocked hosts hidden from feed
+- [x] Moderation dashboard with severity grouping + visual badges
 
 ### Backend (Supabase)
-- Tables: `events`, `join_requests`, `event_ratings`, `user_reports`, `user_blocks`, `user_profiles`
-- RLS policies for read/write safety in dev mode
-- Hard enforcement for ratings:
-  - only approved attendee↔host pairs for the same event
-  - only after event time has passed
-- Profile/contact/verification columns added (`avatar_url`, `phone`, `email`, verified flags)
-- Avatars storage bucket + policies patch added
+- [x] Core tables: `events`, `join_requests`, `event_ratings`, `event_activity_ratings`, `event_comments`, `user_reports`, `user_blocks`, `user_profiles`, moderation/rating skip tables
+- [x] Dev-safe RLS and policy patches
+- [x] Profile/contact/verification columns (`avatar_url`, `phone`, `email`, verified flags)
+- [x] Avatars storage bucket + policy patch
 
 ---
 
-## Roadmap Phases
+## 🚧 Remaining Work (To Complete MVP+)
 
-## Phase A — Core UX + Discovery (High)
-- [ ] Clear in-app project structure view (done / doing / todo)
-- [ ] Searchable dropdown for activities (type + suggestions)
-- [ ] Event description field on activity creation
-- [ ] Profile "About me" field
-- [ ] Search v1:
-  - [ ] Free-text search bar
-  - [ ] Category + location + radius
-  - [ ] Location + radius only
-  - [ ] Time filters (today / tomorrow / this week)
-- [ ] Map browse view (rough area activity discovery)
+## Phase A — Discovery UX Polish (High)
+- [ ] Search/filter simplification pass (basic vs advanced)
+- [ ] Time quick filters polish: today / tomorrow / this week
+- [ ] Better empty states and filter-result explanations
+- [ ] Clear in-app "done / doing / todo" project structure page
 
-## Phase B — Identity + Trust (High)
-- [~] Registration fields:
-  - [x] Gender (male/female)
-  - [x] Age group (14 and under, 15–18, 19–25, 26–40, etc.)
-  - [~] Phone (verification UI done; provider setup pending)
-  - [~] Email (OTP flow implemented; magic-link return polish pending)
-  - [x] Photo
-  - [x] Full name
-  - [x] Password + confirm + complexity validation
-- [x] Location postcode autocomplete
-- [x] Drop-a-pin precise map location
-- [x] Host invites people
-- [x] Members can request/invite attendance (host still approves)
+## Phase B — Registration Finalization (High)
+- [ ] Decide production requirement: email and/or phone mandatory
+- [ ] Configure and validate production SMS provider
+- [ ] Remove test-mode shortcuts for production build (or gate behind env flag)
+- [ ] Final onboarding polish pass (copy, transitions, analytics hooks)
 
-## Phase C — Activity Model + Ratings (Medium)
-- [ ] Required number of people per activity
-- [ ] Activity-level ratings (rate the activity/event itself)
-- [ ] Online activities (gaming etc.)
-- [ ] Separate rankings per game (CS, LoL, etc.)
-- [ ] Social activities: no skill-level requirement
+## Phase C — Reputation Rules (Medium)
+- [ ] Enforce host lockout below reputation threshold (e.g. <3.5)
+- [ ] Social activities: ensure no skill-gating where inappropriate
+- [ ] Per-game ranking refinements beyond current scaffold
 
-## Phase D — Safety/Moderation Expansion (Medium)
-- [ ] Report management dashboard
-- [ ] Block/report history in user profile
-- [ ] Auto-flagging thresholds for repeat reports
+## Phase D — Moderation Expansion (Medium)
+- [ ] Report management workflow refinement (triage/review lifecycle)
+- [ ] Block/report history in profile
+- [ ] Repeat offender analytics + threshold tuning
+
+## Phase E — Collaboration + Dev Hygiene (Medium)
+- [ ] Schema migration documentation cleanup
+- [ ] Seed script for test/demo data
+- [ ] Contributor setup guide (env + auth provider setup)
+- [ ] Regression checklist for releases
 
 ---
 
-## Suggested Build Order (Sprints)
-
-### Sprint 1
-- Activity searchable dropdown
-- Event description
-- Profile About me
-- Search v1 (text + basic filters)
-
-### Sprint 2
-- Registration profile fields + verification placeholders
-- Postcode autocomplete
-- Drop pin on map
-
-### Sprint 3
-- Host invites + member invite/request improvements
-- Required people capacity logic
-
-### Sprint 4
-- Activity ratings
-- Online game activities + per-game ranking
-- Social/no-skill rule logic
-
-### Sprint 5
-- Moderation dashboard + refinements
+## 🔄 Update Policy (Source of Truth)
+- This file is the canonical roadmap for Gathr status.
+- On every completed feature/meaningful change:
+  1. Update this roadmap (`Completed` and/or `Remaining` sections)
+  2. Commit the roadmap update in the same branch/PR when practical
+  3. Push to GitHub so collaborators see latest status
