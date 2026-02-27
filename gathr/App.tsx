@@ -279,6 +279,7 @@ export default function App() {
   const [welcomeCountryQuery, setWelcomeCountryQuery] = useState('');
   const [selectedWelcomeCountry, setSelectedWelcomeCountry] = useState<{ flag: string; name: string; code: string } | null>(null);
   const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
+  const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
@@ -1491,7 +1492,7 @@ export default function App() {
     }
 
     if (!showWelcomeFlow && !fullName.trim() && selectedInterests.length === 0) {
-      setWelcomeStep('logo');
+      setWelcomeStep(welcomeTestingFastTrack ? 'phone' : 'logo');
       setWelcomeName('');
       setWelcomeCategorySelection([]);
       setWelcomeInterestSelection([]);
@@ -1509,7 +1510,7 @@ export default function App() {
       setWelcomeEmailBusy(false);
       setShowWelcomeFlow(true);
     }
-  }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length]);
+  }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length, welcomeTestingFastTrack]);
 
   useEffect(() => {
     if (!showWelcomeFlow || welcomeStep !== 'logo') return;
@@ -2419,12 +2420,12 @@ export default function App() {
       const key = currentUser.trim().toLowerCase();
       setPhoneVerifiedByUser((prev) => ({ ...prev, [key]: true }));
 
-      const name = welcomeName.trim();
-      const location = welcomeLocationQuery.trim();
-      if (!name || !welcomeAgeGroup || !location) return;
+      const name = welcomeName.trim() || currentUser.trim();
+      const location = welcomeLocationQuery.trim() || 'Testing location';
+      const resolvedAge = welcomeAgeGroup || '19–25';
 
       setFullName(name);
-      setAgeGroup(welcomeAgeGroup);
+      setAgeGroup(resolvedAge);
       setBasedIn(location);
       setPhoneValue(phone);
 
