@@ -2252,16 +2252,6 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
-  const welcomeInterestOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          welcomeCategorySelection.flatMap((c) => activityOptions[c] ?? [])
-        )
-      ),
-    [welcomeCategorySelection, activityOptions]
-  );
-
   const continueWelcomeNameStep = () => {
     const name = welcomeName.trim();
     if (!name) return;
@@ -3703,27 +3693,31 @@ export default function App() {
                 </View>
 
                 {welcomeCategorySelection.length > 0 && (
-                  <View style={styles.welcomeOptionsBox}>
-                    <Text style={styles.metaStrong}>Options</Text>
-                    <View style={styles.rowGapWrap}>
-                      {welcomeInterestOptions.map((interest) => {
-                        const active = welcomeInterestSelection.includes(interest);
-                        return (
-                          <TouchableOpacity
-                            key={`welcome-interest-${interest}`}
-                            style={[styles.chipBtn, active && styles.chipBtnActive]}
-                            onPress={() =>
-                              setWelcomeInterestSelection((prev) =>
-                                prev.includes(interest) ? prev.filter((x) => x !== interest) : [...prev, interest]
-                              )
-                            }
-                          >
-                            <Text style={styles.chipBtnText}>{active ? `✓ ${interest}` : interest}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
+                  <>
+                    {welcomeCategorySelection.map((cat) => (
+                      <View key={`welcome-options-${cat}`} style={styles.welcomeOptionsBox}>
+                        <Text style={styles.metaStrong}>{cat}</Text>
+                        <View style={styles.rowGapWrap}>
+                          {(activityOptions[cat] ?? []).map((interest) => {
+                            const active = welcomeInterestSelection.includes(interest);
+                            return (
+                              <TouchableOpacity
+                                key={`welcome-interest-${cat}-${interest}`}
+                                style={[styles.chipBtn, active && styles.chipBtnActive]}
+                                onPress={() =>
+                                  setWelcomeInterestSelection((prev) =>
+                                    prev.includes(interest) ? prev.filter((x) => x !== interest) : [...prev, interest]
+                                  )
+                                }
+                              >
+                                <Text style={styles.chipBtnText}>{active ? `✓ ${interest}` : interest}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ))}
+                  </>
                 )}
 
                 <TouchableOpacity
