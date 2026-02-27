@@ -59,29 +59,29 @@ _Last updated: 2026-02-27_
 
 ## 🚧 Remaining Work (To Complete MVP+)
 
-## Phase A — Discovery UX Polish (High)
-- [ ] Search/filter simplification pass (basic vs advanced)
+## Phase A - Discovery UX Polish (High)
+- [x] Search/filter simplification pass (basic vs advanced)
 - [ ] Time quick filters polish: today / tomorrow / this week
-- [ ] Better empty states and filter-result explanations
+- [x] Better empty states and filter-result explanations
 - [ ] Clear in-app "done / doing / todo" project structure page
 
-## Phase B — Registration Finalization (High)
+## Phase B - Registration Finalization (High)
 - [ ] Decide production requirement: email and/or phone mandatory
 - [ ] Configure and validate production SMS provider
 - [ ] Remove test-mode shortcuts for production build (or gate behind env flag)
 - [ ] Final onboarding polish pass (copy, transitions, analytics hooks)
 
-## Phase C — Reputation Rules (Medium)
+## Phase C - Reputation Rules (Medium)
 - [ ] Enforce host lockout below reputation threshold (e.g. <3.5)
 - [ ] Social activities: ensure no skill-gating where inappropriate
 - [ ] Per-game ranking refinements beyond current scaffold
 
-## Phase D — Moderation Expansion (Medium)
+## Phase D - Moderation Expansion (Medium)
 - [ ] Report management workflow refinement (triage/review lifecycle)
 - [ ] Block/report history in profile
 - [ ] Repeat offender analytics + threshold tuning
 
-## Phase E — Collaboration + Dev Hygiene (Medium)
+## Phase E - Collaboration + Dev Hygiene (Medium)
 - [ ] Schema migration documentation cleanup
 - [ ] Seed script for test/demo data
 - [ ] Contributor setup guide (env + auth provider setup)
