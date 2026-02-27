@@ -264,7 +264,7 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify' | 'phone' | 'phoneVerify'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify' | 'phone' | 'phoneVerify' | 'password'>('logo');
   const [welcomeName, setWelcomeName] = useState('');
   const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
   const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
@@ -2342,6 +2342,12 @@ export default function App() {
     setWelcomeStep('phone');
   };
 
+  const continueWithoutPhoneForTesting = () => {
+    setWelcomePhone('');
+    setWelcomePhoneCode('');
+    setWelcomeStep('password');
+  };
+
   const continueWelcomeEmailStep = async () => {
     const email = welcomeEmail.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
@@ -2412,6 +2418,33 @@ export default function App() {
     }
   };
 
+  const completeWelcomeAfterPassword = () => {
+    const name = welcomeName.trim() || currentUser.trim();
+    const location = welcomeLocationQuery.trim() || 'Testing location';
+    const resolvedAge = welcomeAgeGroup || '19–25';
+
+    if (!passwordStrong) {
+      setError('Password must be 8+ chars and include upper/lower/number/special.');
+      return;
+    }
+    if (!passwordsMatch) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setFullName(name);
+    setAgeGroup(resolvedAge);
+    setBasedIn(location);
+
+    const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
+    if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
+
+    setShowWelcomeFlow(false);
+    setShowProfileSection(true);
+    setError(null);
+    setInfo('Onboarding complete ✅');
+  };
+
   const verifyWelcomePhoneCodeAndFinish = async () => {
     const phone = welcomePhone.trim();
     const token = welcomePhoneCode.trim();
@@ -2427,23 +2460,11 @@ export default function App() {
 
       const key = currentUser.trim().toLowerCase();
       setPhoneVerifiedByUser((prev) => ({ ...prev, [key]: true }));
-
-      const name = welcomeName.trim() || currentUser.trim();
-      const location = welcomeLocationQuery.trim() || 'Testing location';
-      const resolvedAge = welcomeAgeGroup || '19–25';
-
-      setFullName(name);
-      setAgeGroup(resolvedAge);
-      setBasedIn(location);
       setPhoneValue(phone);
 
-      const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
-      if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
-
-      setShowWelcomeFlow(false);
-      setShowProfileSection(true);
       setError(null);
       setInfo('Phone verified ✅');
+      setWelcomeStep('password');
     } finally {
       setWelcomeEmailBusy(false);
     }
@@ -4113,6 +4134,9 @@ export default function App() {
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.mapBtn} onPress={continueWithoutPhoneForTesting}>
+                  <Text style={styles.mapBtnText}>Skip phone for now (testing)</Text>
+                </TouchableOpacity>
               </>
             )}
 
@@ -4156,6 +4180,41 @@ export default function App() {
                     <Text style={styles.approveBtnText}>Change phone</Text>
                   </TouchableOpacity>
                 </View>
+              </>
+            )}
+
+            {welcomeStep === 'password' && (
+              <>
+                <Text style={styles.welcomeQuestion}>Please create your password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoFocus
+                />
+                <TextInput
+                  style={styles.input}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <Text style={styles.meta}>Requirements: 8+ chars, upper + lower + number + special.</Text>
+                {!!password && !passwordStrong && <Text style={styles.error}>Password does not meet requirements.</Text>}
+                {!!confirmPassword && !passwordsMatch && <Text style={styles.error}>Passwords do not match.</Text>}
+                <TouchableOpacity
+                  style={[styles.primaryBtn, (!passwordStrong || !passwordsMatch) && { opacity: 0.5 }]}
+                  onPress={completeWelcomeAfterPassword}
+                  disabled={!passwordStrong || !passwordsMatch}
+                >
+                  <Text style={styles.primaryBtnText}>Next</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
