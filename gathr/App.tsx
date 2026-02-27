@@ -264,11 +264,12 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'interests'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'interests'>('logo');
   const [welcomeName, setWelcomeName] = useState('');
-  const [welcomeInterestCategory, setWelcomeInterestCategory] = useState<string[]>([]);
+  const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
+  const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.9)).current;
+  const logoScale = useRef(new Animated.Value(0.92)).current;
 
   const activityOptions: Record<string, string[]> = {
     Sports: ['Basketball', 'Football', 'Tennis', 'Running', 'Gym'],
@@ -1477,7 +1478,8 @@ export default function App() {
     if (!showWelcomeFlow && !fullName.trim() && selectedInterests.length === 0) {
       setWelcomeStep('logo');
       setWelcomeName('');
-      setWelcomeInterestCategory([]);
+      setWelcomeCategorySelection([]);
+      setWelcomeInterestSelection([]);
       setShowWelcomeFlow(true);
     }
   }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length]);
@@ -1486,32 +1488,56 @@ export default function App() {
     if (!showWelcomeFlow || welcomeStep !== 'logo') return;
 
     logoOpacity.setValue(0);
-    logoScale.setValue(0.9);
+    logoScale.setValue(0.92);
 
-    const anim = Animated.parallel([
+    const intro = Animated.parallel([
       Animated.timing(logoOpacity, {
         toValue: 1,
-        duration: 700,
+        duration: 650,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(logoScale, {
         toValue: 1,
-        duration: 700,
+        duration: 650,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]);
 
-    anim.start();
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoScale, {
+          toValue: 1.04,
+          duration: 520,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: 520,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    intro.start(() => pulse.start());
 
     const timer = setTimeout(() => {
-      setWelcomeStep('name');
-    }, 1700);
+      pulse.stop();
+      Animated.timing(logoOpacity, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }).start(() => setWelcomeStep('name'));
+    }, 2100);
 
     return () => {
       clearTimeout(timer);
-      anim.stop();
+      intro.stop();
+      pulse.stop();
     };
   }, [showWelcomeFlow, welcomeStep, logoOpacity, logoScale]);
 
@@ -2226,18 +2252,35 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
+  const welcomeInterestOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          welcomeCategorySelection.flatMap((c) => activityOptions[c] ?? [])
+        )
+      ),
+    [welcomeCategorySelection, activityOptions]
+  );
 
   const continueWelcomeNameStep = () => {
     const name = welcomeName.trim();
     if (!name) return;
-    setFullName(name);
+    setWelcomeStep('categories');
+  };
+
+  const continueWelcomeCategoryStep = () => {
+    if (welcomeCategorySelection.length === 0) return;
     setWelcomeStep('interests');
   };
 
   const finishWelcomeFlow = () => {
-    const pickedFromCategories = welcomeInterestCategory.flatMap((c) => activityOptions[c] ?? []).slice(0, 6);
-    const mergedInterests = Array.from(new Set([...selectedInterests, ...pickedFromCategories]));
+    const name = welcomeName.trim();
+    if (!name) return;
+    setFullName(name);
+
+    const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
     if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
+
     setShowWelcomeFlow(false);
     setShowProfileSection(true);
   };
@@ -3641,24 +3684,56 @@ export default function App() {
               </>
             )}
 
-            {welcomeStep === 'interests' && (
+            {welcomeStep === 'categories' && (
               <>
                 <Text style={styles.welcomeQuestion}>What are your interests?</Text>
-                <Text style={styles.meta}>Pick one or more to get started.</Text>
+                <Text style={styles.meta}>Step 1/2: pick categories.</Text>
                 <View style={styles.rowGapWrap}>
                   {starterInterestCategories.map((cat) => {
-                    const active = welcomeInterestCategory.includes(cat);
+                    const active = welcomeCategorySelection.includes(cat);
                     return (
                       <TouchableOpacity
                         key={`welcome-cat-${cat}`}
                         style={[styles.chipBtn, active && styles.chipBtnActive]}
                         onPress={() =>
-                          setWelcomeInterestCategory((prev) =>
+                          setWelcomeCategorySelection((prev) =>
                             prev.includes(cat) ? prev.filter((x) => x !== cat) : [...prev, cat]
                           )
                         }
                       >
                         <Text style={styles.chipBtnText}>{cat}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TouchableOpacity
+                  style={[styles.primaryBtn, welcomeCategorySelection.length === 0 && { opacity: 0.5 }]}
+                  onPress={continueWelcomeCategoryStep}
+                  disabled={welcomeCategorySelection.length === 0}
+                >
+                  <Text style={styles.primaryBtnText}>Continue</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'interests' && (
+              <>
+                <Text style={styles.welcomeQuestion}>Choose specific interests</Text>
+                <Text style={styles.meta}>Step 2/2: tick as many as you want.</Text>
+                <View style={styles.rowGapWrap}>
+                  {welcomeInterestOptions.map((interest) => {
+                    const active = welcomeInterestSelection.includes(interest);
+                    return (
+                      <TouchableOpacity
+                        key={`welcome-interest-${interest}`}
+                        style={[styles.chipBtn, active && styles.chipBtnActive]}
+                        onPress={() =>
+                          setWelcomeInterestSelection((prev) =>
+                            prev.includes(interest) ? prev.filter((x) => x !== interest) : [...prev, interest]
+                          )
+                        }
+                      >
+                        <Text style={styles.chipBtnText}>{active ? `✓ ${interest}` : interest}</Text>
                       </TouchableOpacity>
                     );
                   })}
