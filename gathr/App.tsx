@@ -2361,10 +2361,46 @@ export default function App() {
     { flag: '🇻🇳', name: 'Vietnam', code: '+84' },
   ];
 
+  const countryIsoByName: Record<string, string[]> = {
+    'Lithuania': ['lt', 'lit'],
+    'United Kingdom': ['uk', 'gb', 'gbr'],
+    'United States': ['us', 'usa'],
+    'Latvia': ['lv'],
+    'Estonia': ['ee'],
+    'Poland': ['pl'],
+    'Germany': ['de'],
+    'Ireland': ['ie'],
+    'France': ['fr'],
+    'Spain': ['es'],
+    'Italy': ['it'],
+    'Norway': ['no'],
+    'Sweden': ['se'],
+    'Finland': ['fi'],
+    'Denmark': ['dk'],
+    'Netherlands': ['nl'],
+    'Belgium': ['be'],
+    'Portugal': ['pt'],
+    'Ukraine': ['ua'],
+    'Turkey': ['tr'],
+    'Canada': ['ca'],
+    'Australia': ['au'],
+    'New Zealand': ['nz'],
+    'Japan': ['jp'],
+    'South Korea': ['kr'],
+    'India': ['in'],
+    'China': ['cn'],
+    'Singapore': ['sg'],
+    'United Arab Emirates': ['ae', 'uae'],
+  };
+
   const welcomeCountrySuggestions = useMemo(() => {
     const q = welcomeCountryQuery.trim().toLowerCase();
     if (!q) return countryDialList;
-    return countryDialList.filter((c) => `${c.name} ${c.code}`.toLowerCase().includes(q));
+    return countryDialList.filter((c) => {
+      const aliases = countryIsoByName[c.name] ?? [];
+      const hay = `${c.name} ${c.code}`.toLowerCase();
+      return hay.includes(q) || aliases.some((a) => a.includes(q));
+    });
   }, [welcomeCountryQuery]);
 
   useEffect(() => {
