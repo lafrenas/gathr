@@ -1466,16 +1466,19 @@ export default function App() {
     return { done, total, percent, nextAction };
   }, [currentUser, fullName, gender, ageGroup, basedIn, phoneValue, emailValue, selectedInterests, aboutMe, userArea, avatarUrlByUser, photoAddedByUser, phoneVerifiedByUser, emailVerifiedByUser]);
 
-  const registrationChecklist = useMemo(() => ({
-    fullName: !!fullName.trim(),
-    gender: !!gender.trim(),
-    ageGroup: !!ageGroup.trim(),
-    basedIn: !!basedIn.trim(),
-    email: !!emailValue.trim() && emailLooksValid,
-    password: passwordStrong,
-    confirmPassword: passwordsMatch,
-    emailVerified: !!emailVerifiedByUser[currentUser.trim().toLowerCase()],
-  }), [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, passwordStrong, passwordsMatch, emailVerifiedByUser, currentUser]);
+  const registrationChecklist = useMemo(() => {
+    const hasEmail = !!emailValue.trim();
+    return {
+      fullName: !!fullName.trim(),
+      gender: !!gender.trim(),
+      ageGroup: !!ageGroup.trim(),
+      basedIn: !!basedIn.trim(),
+      email: !hasEmail || emailLooksValid,
+      password: passwordStrong,
+      confirmPassword: passwordsMatch,
+      emailVerified: !hasEmail || !!emailVerifiedByUser[currentUser.trim().toLowerCase()],
+    };
+  }, [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, passwordStrong, passwordsMatch, emailVerifiedByUser, currentUser]);
 
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
 
@@ -1565,7 +1568,7 @@ export default function App() {
 
   const requireRegistration = () => {
     if (registrationComplete) return true;
-    setError('Complete registration first: full name, gender, age group, based in, valid email, and verified email.');
+    setError('Complete registration first: full name, gender, age group, based in, and password. Email is optional in testing mode.');
     setShowProfileSection(true);
     return false;
   };
@@ -2036,11 +2039,11 @@ export default function App() {
     if (!registrationChecklist.fullName || !registrationChecklist.gender || !registrationChecklist.ageGroup || !registrationChecklist.basedIn) {
       return setError('Complete all required basic fields first.');
     }
-    if (!registrationChecklist.email) return setError('Enter a valid email first.');
+    if (!registrationChecklist.email) return setError('Enter a valid email or leave it blank for testing.');
     if (!registrationChecklist.password) return setError('Password must be 8+ chars and include upper/lower/number/special.');
     if (!registrationChecklist.confirmPassword) return setError('Passwords do not match.');
 
-    if (!emailVerifiedByUser[me.toLowerCase()]) {
+    if (emailValue.trim() && !emailVerifiedByUser[me.toLowerCase()]) {
       await sendEmailVerification();
       setRegistrationStep('email');
       setRegistrationModalVisible(true);
@@ -2330,6 +2333,12 @@ export default function App() {
     setWelcomeStep('email');
   };
 
+  const skipWelcomeEmailStep = () => {
+    setWelcomeEmail('');
+    setWelcomeEmailCode('');
+    setWelcomeStep('phone');
+  };
+
   const continueWelcomeEmailStep = async () => {
     const email = welcomeEmail.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
@@ -2468,7 +2477,7 @@ export default function App() {
       {!registrationComplete && (
         <View style={styles.registrationGateCard}>
           <Text style={styles.cardTitle}>Complete registration to use Gathr</Text>
-          <Text style={styles.meta}>Required: full name, gender, age group, based in, valid email, verified email.</Text>
+          <Text style={styles.meta}>Required: full name, gender, age group, based in, password. Email optional for testing.</Text>
           <Text style={styles.meta}>Status: {Object.values(registrationChecklist).filter(Boolean).length}/{Object.keys(registrationChecklist).length}</Text>
           <TouchableOpacity
             style={styles.mapBtn}
@@ -3974,6 +3983,9 @@ export default function App() {
                   disabled={!welcomeEmail.trim() || welcomeEmailBusy}
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mapBtn} onPress={skipWelcomeEmailStep}>
+                  <Text style={styles.mapBtnText}>Skip email for now (testing)</Text>
                 </TouchableOpacity>
               </>
             )}
