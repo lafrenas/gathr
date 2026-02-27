@@ -1485,9 +1485,8 @@ export default function App() {
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
 
   useEffect(() => {
-    if (registrationComplete) {
+    if (registrationComplete && !showWelcomeFlow) {
       setShowProfileSection(false);
-      setShowWelcomeFlow(false);
       return;
     }
 
