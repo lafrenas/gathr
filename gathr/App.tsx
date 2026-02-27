@@ -1632,11 +1632,6 @@ export default function App() {
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
 
   useEffect(() => {
-    if (registrationComplete && !showWelcomeFlow) {
-      setShowProfileSection(false);
-      return;
-    }
-
     if (!showWelcomeFlow && !fullName.trim() && selectedInterests.length === 0) {
       setWelcomeStep(welcomeTestingFastTrack ? 'phone' : 'logo');
       setWelcomeName('');
