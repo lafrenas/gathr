@@ -133,6 +133,111 @@ type EventCommentRow = {
   created_at: string;
 };
 
+type WelcomeStep = 'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify' | 'phone' | 'phoneVerify' | 'password';
+type CountryOption = { flag: string; name: string; code: string };
+
+const WELCOME_DRAFT_STORAGE_KEY = 'gathr_welcome_draft_v1';
+
+const COUNTRY_DIAL_LIST: CountryOption[] = [
+  { flag: '🇦🇱', name: 'Albania', code: '+355' },
+  { flag: '🇦🇷', name: 'Argentina', code: '+54' },
+  { flag: '🇦🇺', name: 'Australia', code: '+61' },
+  { flag: '🇦🇹', name: 'Austria', code: '+43' },
+  { flag: '🇧🇪', name: 'Belgium', code: '+32' },
+  { flag: '🇧🇦', name: 'Bosnia and Herzegovina', code: '+387' },
+  { flag: '🇧🇷', name: 'Brazil', code: '+55' },
+  { flag: '🇧🇬', name: 'Bulgaria', code: '+359' },
+  { flag: '🇨🇦', name: 'Canada', code: '+1' },
+  { flag: '🇨🇱', name: 'Chile', code: '+56' },
+  { flag: '🇨🇳', name: 'China', code: '+86' },
+  { flag: '🇨🇴', name: 'Colombia', code: '+57' },
+  { flag: '🇭🇷', name: 'Croatia', code: '+385' },
+  { flag: '🇨🇾', name: 'Cyprus', code: '+357' },
+  { flag: '🇨🇿', name: 'Czech Republic', code: '+420' },
+  { flag: '🇩🇰', name: 'Denmark', code: '+45' },
+  { flag: '🇪🇬', name: 'Egypt', code: '+20' },
+  { flag: '🇪🇪', name: 'Estonia', code: '+372' },
+  { flag: '🇫🇮', name: 'Finland', code: '+358' },
+  { flag: '🇫🇷', name: 'France', code: '+33' },
+  { flag: '🇬🇪', name: 'Georgia', code: '+995' },
+  { flag: '🇩🇪', name: 'Germany', code: '+49' },
+  { flag: '🇬🇷', name: 'Greece', code: '+30' },
+  { flag: '🇭🇺', name: 'Hungary', code: '+36' },
+  { flag: '🇮🇸', name: 'Iceland', code: '+354' },
+  { flag: '🇮🇳', name: 'India', code: '+91' },
+  { flag: '🇮🇩', name: 'Indonesia', code: '+62' },
+  { flag: '🇮🇪', name: 'Ireland', code: '+353' },
+  { flag: '🇮🇱', name: 'Israel', code: '+972' },
+  { flag: '🇮🇹', name: 'Italy', code: '+39' },
+  { flag: '🇯🇵', name: 'Japan', code: '+81' },
+  { flag: '🇰🇿', name: 'Kazakhstan', code: '+7' },
+  { flag: '🇱🇻', name: 'Latvia', code: '+371' },
+  { flag: '🇱🇹', name: 'Lithuania', code: '+370' },
+  { flag: '🇱🇺', name: 'Luxembourg', code: '+352' },
+  { flag: '🇲🇾', name: 'Malaysia', code: '+60' },
+  { flag: '🇲🇹', name: 'Malta', code: '+356' },
+  { flag: '🇲🇽', name: 'Mexico', code: '+52' },
+  { flag: '🇲🇩', name: 'Moldova', code: '+373' },
+  { flag: '🇲🇪', name: 'Montenegro', code: '+382' },
+  { flag: '🇳🇱', name: 'Netherlands', code: '+31' },
+  { flag: '🇳🇿', name: 'New Zealand', code: '+64' },
+  { flag: '🇳🇴', name: 'Norway', code: '+47' },
+  { flag: '🇵🇰', name: 'Pakistan', code: '+92' },
+  { flag: '🇵🇭', name: 'Philippines', code: '+63' },
+  { flag: '🇵🇱', name: 'Poland', code: '+48' },
+  { flag: '🇵🇹', name: 'Portugal', code: '+351' },
+  { flag: '🇶🇦', name: 'Qatar', code: '+974' },
+  { flag: '🇷🇴', name: 'Romania', code: '+40' },
+  { flag: '🇷🇸', name: 'Serbia', code: '+381' },
+  { flag: '🇸🇬', name: 'Singapore', code: '+65' },
+  { flag: '🇸🇰', name: 'Slovakia', code: '+421' },
+  { flag: '🇸🇮', name: 'Slovenia', code: '+386' },
+  { flag: '🇿🇦', name: 'South Africa', code: '+27' },
+  { flag: '🇰🇷', name: 'South Korea', code: '+82' },
+  { flag: '🇪🇸', name: 'Spain', code: '+34' },
+  { flag: '🇸🇪', name: 'Sweden', code: '+46' },
+  { flag: '🇨🇭', name: 'Switzerland', code: '+41' },
+  { flag: '🇹🇷', name: 'Turkey', code: '+90' },
+  { flag: '🇺🇦', name: 'Ukraine', code: '+380' },
+  { flag: '🇦🇪', name: 'United Arab Emirates', code: '+971' },
+  { flag: '🇬🇧', name: 'United Kingdom', code: '+44' },
+  { flag: '🇺🇸', name: 'United States', code: '+1' },
+  { flag: '🇺🇾', name: 'Uruguay', code: '+598' },
+  { flag: '🇻🇳', name: 'Vietnam', code: '+84' },
+];
+
+const COUNTRY_ISO_BY_NAME: Record<string, string[]> = {
+  Lithuania: ['lt', 'lit'],
+  'United Kingdom': ['uk', 'gb', 'gbr'],
+  'United States': ['us', 'usa'],
+  Latvia: ['lv'],
+  Estonia: ['ee'],
+  Poland: ['pl'],
+  Germany: ['de'],
+  Ireland: ['ie'],
+  France: ['fr'],
+  Spain: ['es'],
+  Italy: ['it'],
+  Norway: ['no'],
+  Sweden: ['se'],
+  Finland: ['fi'],
+  Denmark: ['dk'],
+  Netherlands: ['nl'],
+  Belgium: ['be'],
+  Portugal: ['pt'],
+  Ukraine: ['ua'],
+  Turkey: ['tr'],
+  Canada: ['ca'],
+  Australia: ['au'],
+  'New Zealand': ['nz'],
+  Japan: ['jp'],
+  'South Korea': ['kr'],
+  India: ['in'],
+  China: ['cn'],
+  Singapore: ['sg'],
+  'United Arab Emirates': ['ae', 'uae'],
+};
+
 export default function App() {
   const testUsers = ['1', '2', '3', '4', '5'];
   const [currentUser, setCurrentUser] = useState('1');
@@ -265,7 +370,7 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify' | 'phone' | 'phoneVerify' | 'password'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<WelcomeStep>('logo');
   const [welcomeName, setWelcomeName] = useState('');
   const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
   const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
@@ -278,7 +383,7 @@ export default function App() {
   const [welcomePhone, setWelcomePhone] = useState('');
   const [welcomePhoneCode, setWelcomePhoneCode] = useState('');
   const [welcomeCountryQuery, setWelcomeCountryQuery] = useState('');
-  const [selectedWelcomeCountry, setSelectedWelcomeCountry] = useState<{ flag: string; name: string; code: string } | null>(null);
+  const [selectedWelcomeCountry, setSelectedWelcomeCountry] = useState<CountryOption | null>(null);
   const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
   const [showPostSignupChecklist, setShowPostSignupChecklist] = useState(false);
   const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
@@ -2322,7 +2427,6 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
-  const welcomeDraftStorageKey = 'gathr_welcome_draft_v1';
   const welcomeStepOrder: Array<typeof welcomeStep> = welcomeTestingFastTrack
     ? ['phone', 'phoneVerify', 'password']
     : ['logo', 'name', 'categories', 'age', 'location', 'email', 'emailVerify', 'phone', 'phoneVerify', 'password'];
@@ -2333,111 +2437,12 @@ export default function App() {
     ? `Step ${welcomeStepIndex + 1} of ${visibleWelcomeStepOrder.length}`
     : '';
 
-  const countryDialList = [
-    { flag: '🇦🇱', name: 'Albania', code: '+355' },
-    { flag: '🇦🇷', name: 'Argentina', code: '+54' },
-    { flag: '🇦🇺', name: 'Australia', code: '+61' },
-    { flag: '🇦🇹', name: 'Austria', code: '+43' },
-    { flag: '🇧🇪', name: 'Belgium', code: '+32' },
-    { flag: '🇧🇦', name: 'Bosnia and Herzegovina', code: '+387' },
-    { flag: '🇧🇷', name: 'Brazil', code: '+55' },
-    { flag: '🇧🇬', name: 'Bulgaria', code: '+359' },
-    { flag: '🇨🇦', name: 'Canada', code: '+1' },
-    { flag: '🇨🇱', name: 'Chile', code: '+56' },
-    { flag: '🇨🇳', name: 'China', code: '+86' },
-    { flag: '🇨🇴', name: 'Colombia', code: '+57' },
-    { flag: '🇭🇷', name: 'Croatia', code: '+385' },
-    { flag: '🇨🇾', name: 'Cyprus', code: '+357' },
-    { flag: '🇨🇿', name: 'Czech Republic', code: '+420' },
-    { flag: '🇩🇰', name: 'Denmark', code: '+45' },
-    { flag: '🇪🇬', name: 'Egypt', code: '+20' },
-    { flag: '🇪🇪', name: 'Estonia', code: '+372' },
-    { flag: '🇫🇮', name: 'Finland', code: '+358' },
-    { flag: '🇫🇷', name: 'France', code: '+33' },
-    { flag: '🇬🇪', name: 'Georgia', code: '+995' },
-    { flag: '🇩🇪', name: 'Germany', code: '+49' },
-    { flag: '🇬🇷', name: 'Greece', code: '+30' },
-    { flag: '🇭🇺', name: 'Hungary', code: '+36' },
-    { flag: '🇮🇸', name: 'Iceland', code: '+354' },
-    { flag: '🇮🇳', name: 'India', code: '+91' },
-    { flag: '🇮🇩', name: 'Indonesia', code: '+62' },
-    { flag: '🇮🇪', name: 'Ireland', code: '+353' },
-    { flag: '🇮🇱', name: 'Israel', code: '+972' },
-    { flag: '🇮🇹', name: 'Italy', code: '+39' },
-    { flag: '🇯🇵', name: 'Japan', code: '+81' },
-    { flag: '🇰🇿', name: 'Kazakhstan', code: '+7' },
-    { flag: '🇱🇻', name: 'Latvia', code: '+371' },
-    { flag: '🇱🇹', name: 'Lithuania', code: '+370' },
-    { flag: '🇱🇺', name: 'Luxembourg', code: '+352' },
-    { flag: '🇲🇾', name: 'Malaysia', code: '+60' },
-    { flag: '🇲🇹', name: 'Malta', code: '+356' },
-    { flag: '🇲🇽', name: 'Mexico', code: '+52' },
-    { flag: '🇲🇩', name: 'Moldova', code: '+373' },
-    { flag: '🇲🇪', name: 'Montenegro', code: '+382' },
-    { flag: '🇳🇱', name: 'Netherlands', code: '+31' },
-    { flag: '🇳🇿', name: 'New Zealand', code: '+64' },
-    { flag: '🇳🇴', name: 'Norway', code: '+47' },
-    { flag: '🇵🇰', name: 'Pakistan', code: '+92' },
-    { flag: '🇵🇭', name: 'Philippines', code: '+63' },
-    { flag: '🇵🇱', name: 'Poland', code: '+48' },
-    { flag: '🇵🇹', name: 'Portugal', code: '+351' },
-    { flag: '🇶🇦', name: 'Qatar', code: '+974' },
-    { flag: '🇷🇴', name: 'Romania', code: '+40' },
-    { flag: '🇷🇸', name: 'Serbia', code: '+381' },
-    { flag: '🇸🇬', name: 'Singapore', code: '+65' },
-    { flag: '🇸🇰', name: 'Slovakia', code: '+421' },
-    { flag: '🇸🇮', name: 'Slovenia', code: '+386' },
-    { flag: '🇿🇦', name: 'South Africa', code: '+27' },
-    { flag: '🇰🇷', name: 'South Korea', code: '+82' },
-    { flag: '🇪🇸', name: 'Spain', code: '+34' },
-    { flag: '🇸🇪', name: 'Sweden', code: '+46' },
-    { flag: '🇨🇭', name: 'Switzerland', code: '+41' },
-    { flag: '🇹🇷', name: 'Turkey', code: '+90' },
-    { flag: '🇺🇦', name: 'Ukraine', code: '+380' },
-    { flag: '🇦🇪', name: 'United Arab Emirates', code: '+971' },
-    { flag: '🇬🇧', name: 'United Kingdom', code: '+44' },
-    { flag: '🇺🇸', name: 'United States', code: '+1' },
-    { flag: '🇺🇾', name: 'Uruguay', code: '+598' },
-    { flag: '🇻🇳', name: 'Vietnam', code: '+84' },
-  ];
-
-  const countryIsoByName: Record<string, string[]> = {
-    'Lithuania': ['lt', 'lit'],
-    'United Kingdom': ['uk', 'gb', 'gbr'],
-    'United States': ['us', 'usa'],
-    'Latvia': ['lv'],
-    'Estonia': ['ee'],
-    'Poland': ['pl'],
-    'Germany': ['de'],
-    'Ireland': ['ie'],
-    'France': ['fr'],
-    'Spain': ['es'],
-    'Italy': ['it'],
-    'Norway': ['no'],
-    'Sweden': ['se'],
-    'Finland': ['fi'],
-    'Denmark': ['dk'],
-    'Netherlands': ['nl'],
-    'Belgium': ['be'],
-    'Portugal': ['pt'],
-    'Ukraine': ['ua'],
-    'Turkey': ['tr'],
-    'Canada': ['ca'],
-    'Australia': ['au'],
-    'New Zealand': ['nz'],
-    'Japan': ['jp'],
-    'South Korea': ['kr'],
-    'India': ['in'],
-    'China': ['cn'],
-    'Singapore': ['sg'],
-    'United Arab Emirates': ['ae', 'uae'],
-  };
 
   const welcomeCountrySuggestions = useMemo(() => {
     const q = welcomeCountryQuery.trim().toLowerCase();
-    if (!q) return countryDialList;
-    return countryDialList.filter((c) => {
-      const aliases = countryIsoByName[c.name] ?? [];
+    if (!q) return COUNTRY_DIAL_LIST;
+    return COUNTRY_DIAL_LIST.filter((c) => {
+      const aliases = COUNTRY_ISO_BY_NAME[c.name] ?? [];
       const hay = `${c.name} ${c.code}`.toLowerCase();
       return hay.includes(q) || aliases.some((a) => a.includes(q));
     });
@@ -2449,10 +2454,10 @@ export default function App() {
 
     if (Platform.OS !== 'web') return;
     try {
-      const raw = globalThis?.localStorage?.getItem(welcomeDraftStorageKey);
+      const raw = globalThis?.localStorage?.getItem(WELCOME_DRAFT_STORAGE_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw) as {
-        step?: typeof welcomeStep;
+        step?: WelcomeStep;
         name?: string;
         categories?: string[];
         interests?: string[];
@@ -2476,7 +2481,7 @@ export default function App() {
     } catch {
       // ignore bad draft payload
     }
-  }, [welcomeDraftStorageKey, welcomeStep]);
+  }, [welcomeStep]);
 
   useEffect(() => {
     if (!showWelcomeFlow || Platform.OS !== 'web') return;
@@ -2493,7 +2498,7 @@ export default function App() {
         countryQuery: welcomeCountryQuery,
         selectedCountry: selectedWelcomeCountry,
       };
-      globalThis?.localStorage?.setItem(welcomeDraftStorageKey, JSON.stringify(payload));
+      globalThis?.localStorage?.setItem(WELCOME_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     } catch {
       // ignore write errors
     }
@@ -2509,7 +2514,7 @@ export default function App() {
     welcomePhone,
     welcomeCountryQuery,
     selectedWelcomeCountry,
-    welcomeDraftStorageKey,
+
   ]);
 
   useEffect(() => {
@@ -2686,7 +2691,7 @@ export default function App() {
     setWelcomeInlineError(null);
     if (Platform.OS === 'web') {
       try {
-        globalThis?.localStorage?.removeItem(welcomeDraftStorageKey);
+        globalThis?.localStorage?.removeItem(WELCOME_DRAFT_STORAGE_KEY);
       } catch {}
     }
     setShowWelcomeFlow(false);
