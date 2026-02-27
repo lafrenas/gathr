@@ -2387,13 +2387,21 @@ export default function App() {
 
   const continueWelcomePhoneStep = async () => {
     const phone = welcomePhone.trim();
-    if (!phone || !/^\+?[0-9\s()\-]{7,20}$/.test(phone)) return;
+    if (!phone || !/^\+?[0-9\s()\-]{7,20}$/.test(phone)) {
+      setError('Enter a valid full phone number (include country code + rest of number).');
+      return;
+    }
 
     try {
       setWelcomeEmailBusy(true);
       const { error } = await supabase.auth.signInWithOtp({ phone });
       if (error) {
-        setError(error.message);
+        const msg = (error.message || '').toLowerCase();
+        if (msg.includes('sms') || msg.includes('provider') || msg.includes('twilio') || msg.includes('phone')) {
+          setError('SMS provider is likely not configured in Supabase Auth yet. Configure SMS provider, then try again.');
+        } else {
+          setError(error.message);
+        }
         return;
       }
       setError(null);
