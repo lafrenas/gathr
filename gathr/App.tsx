@@ -279,6 +279,7 @@ export default function App() {
   const [welcomeCountryQuery, setWelcomeCountryQuery] = useState('');
   const [selectedWelcomeCountry, setSelectedWelcomeCountry] = useState<{ flag: string; name: string; code: string } | null>(null);
   const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
+  const [showPostSignupChecklist, setShowPostSignupChecklist] = useState(false);
   const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -2440,6 +2441,7 @@ export default function App() {
 
     setShowWelcomeFlow(false);
     setShowProfileSection(true);
+    setShowPostSignupChecklist(true);
     setError(null);
     setInfo('Onboarding complete ✅');
   };
@@ -3841,6 +3843,40 @@ export default function App() {
         </View>
       )}
       </ScrollView>
+
+      <Modal visible={showPostSignupChecklist} transparent animationType="fade" onRequestClose={() => setShowPostSignupChecklist(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>Nice — you’re in 🎉</Text>
+            <Text style={styles.meta}>You can use Gathr now. Finish these later to improve trust and matches.</Text>
+            <Text style={styles.meta}>Profile completion: {profileCompletion.percent}% ({profileCompletion.done}/{profileCompletion.total})</Text>
+
+            <View style={styles.rowGapWrap}>
+              {!gender.trim() && <Text style={styles.meta}>• Add gender</Text>}
+              {!aboutMe.trim() && <Text style={styles.meta}>• Add About me</Text>}
+              {!avatarUrlByUser[currentUser.trim().toLowerCase()] && <Text style={styles.meta}>• Upload profile photo</Text>}
+              {!emailValue.trim() && <Text style={styles.meta}>• Add email (optional)</Text>}
+              {!phoneValue.trim() && <Text style={styles.meta}>• Add phone (optional)</Text>}
+            </View>
+
+            <View style={styles.rowGap}>
+              <TouchableOpacity
+                style={[styles.mapBtn, { flex: 1 }]}
+                onPress={() => {
+                  setShowPostSignupChecklist(false);
+                  collapseAllSections();
+                  setShowProfileSection(true);
+                }}
+              >
+                <Text style={styles.mapBtnText}>Open profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={() => setShowPostSignupChecklist(false)}>
+                <Text style={styles.approveBtnText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showWelcomeFlow} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={styles.modalBackdrop}>
