@@ -264,10 +264,14 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location'>('logo');
   const [welcomeName, setWelcomeName] = useState('');
   const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
   const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
+  const [welcomeAgeGroup, setWelcomeAgeGroup] = useState('');
+  const [welcomeLocationQuery, setWelcomeLocationQuery] = useState('');
+  const [welcomeLocationSuggestions, setWelcomeLocationSuggestions] = useState<string[]>([]);
+  const [showWelcomeLocationSuggestions, setShowWelcomeLocationSuggestions] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
 
@@ -1480,6 +1484,10 @@ export default function App() {
       setWelcomeName('');
       setWelcomeCategorySelection([]);
       setWelcomeInterestSelection([]);
+      setWelcomeAgeGroup('');
+      setWelcomeLocationQuery('');
+      setWelcomeLocationSuggestions([]);
+      setShowWelcomeLocationSuggestions(false);
       setShowWelcomeFlow(true);
     }
   }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length]);
@@ -2252,16 +2260,48 @@ export default function App() {
   };
 
   const starterInterestCategories = ['Sports', 'Social', 'Online'];
+
+  useEffect(() => {
+    if (!showWelcomeFlow || welcomeStep !== 'location') return;
+    const q = welcomeLocationQuery.trim();
+    if (q.length < 2) {
+      setWelcomeLocationSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const googleList = await fetchGoogleAutocomplete(q);
+      setWelcomeLocationSuggestions(Array.isArray(googleList) ? googleList : []);
+      setShowWelcomeLocationSuggestions(true);
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [showWelcomeFlow, welcomeStep, welcomeLocationQuery]);
+
   const continueWelcomeNameStep = () => {
     const name = welcomeName.trim();
     if (!name) return;
     setWelcomeStep('categories');
   };
 
+  const continueWelcomeInterestsStep = () => {
+    if (welcomeInterestSelection.length === 0) return;
+    setWelcomeStep('age');
+  };
+
+  const continueWelcomeAgeStep = () => {
+    if (!welcomeAgeGroup) return;
+    setWelcomeStep('location');
+  };
+
   const finishWelcomeFlow = () => {
     const name = welcomeName.trim();
-    if (!name) return;
+    const location = welcomeLocationQuery.trim();
+    if (!name || !welcomeAgeGroup || !location) return;
+
     setFullName(name);
+    setAgeGroup(welcomeAgeGroup);
+    setBasedIn(location);
 
     const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
     if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
@@ -3722,10 +3762,76 @@ export default function App() {
 
                 <TouchableOpacity
                   style={[styles.primaryBtn, welcomeInterestSelection.length === 0 && { opacity: 0.5 }]}
-                  onPress={finishWelcomeFlow}
+                  onPress={continueWelcomeInterestsStep}
                   disabled={welcomeInterestSelection.length === 0}
                 >
-                  <Text style={styles.primaryBtnText}>Start</Text>
+                  <Text style={styles.primaryBtnText}>Next</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'age' && (
+              <>
+                <Text style={styles.welcomeQuestion}>How old are you?</Text>
+                <Text style={styles.meta}>Choose your age group.</Text>
+                <View style={styles.rowGapWrap}>
+                  {['14 and under', '15–18', '19–25', '26–40', '41+'].map((a) => (
+                    <TouchableOpacity
+                      key={`welcome-age-${a}`}
+                      style={[styles.chipBtn, welcomeAgeGroup === a && styles.chipBtnActive]}
+                      onPress={() => setWelcomeAgeGroup(a)}
+                    >
+                      <Text style={styles.chipBtnText}>{a}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={[styles.primaryBtn, !welcomeAgeGroup && { opacity: 0.5 }]}
+                  onPress={continueWelcomeAgeStep}
+                  disabled={!welcomeAgeGroup}
+                >
+                  <Text style={styles.primaryBtnText}>Next</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'location' && (
+              <>
+                <Text style={styles.welcomeQuestion}>Where are you from?</Text>
+                <Text style={styles.meta}>Search location with Google-style suggestions.</Text>
+                <TextInput
+                  style={styles.input}
+                  value={welcomeLocationQuery}
+                  onChangeText={(t) => {
+                    setWelcomeLocationQuery(t);
+                    setShowWelcomeLocationSuggestions(true);
+                  }}
+                  placeholder="Type city or area"
+                  placeholderTextColor="#9ca3af"
+                  autoFocus
+                />
+                {showWelcomeLocationSuggestions && welcomeLocationSuggestions.length > 0 && (
+                  <View style={styles.suggestionBox}>
+                    {welcomeLocationSuggestions.map((s) => (
+                      <TouchableOpacity
+                        key={`welcome-loc-${s}`}
+                        style={styles.suggestionItem}
+                        onPress={() => {
+                          setWelcomeLocationQuery(s);
+                          setShowWelcomeLocationSuggestions(false);
+                        }}
+                      >
+                        <Text style={styles.suggestionText}>{s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.primaryBtn, !welcomeLocationQuery.trim() && { opacity: 0.5 }]}
+                  onPress={finishWelcomeFlow}
+                  disabled={!welcomeLocationQuery.trim()}
+                >
+                  <Text style={styles.primaryBtnText}>Next</Text>
                 </TouchableOpacity>
               </>
             )}
