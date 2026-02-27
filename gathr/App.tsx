@@ -2534,27 +2534,21 @@ export default function App() {
     }
   };
 
-  const completeWelcomeAfterPassword = () => {
+  const applyWelcomeRegistrationBasics = () => {
     const name = welcomeName.trim() || currentUser.trim();
     const location = welcomeLocationQuery.trim() || 'Testing location';
     const resolvedAge = welcomeAgeGroup || '19–25';
-
-    if (!passwordStrong) {
-      setWelcomeInlineError('Password must be 8+ chars and include upper/lower/number/special.');
-      return;
-    }
-    if (!passwordsMatch) {
-      setWelcomeInlineError('Passwords do not match.');
-      return;
-    }
+    const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
 
     setFullName(name);
     setAgeGroup(resolvedAge);
     setBasedIn(location);
-
-    const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
     if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
 
+    return { name, location, resolvedAge, mergedInterests };
+  };
+
+  const closeWelcomeFlowAsRegistered = () => {
     setWelcomeInlineError(null);
     if (Platform.OS === 'web') {
       try {
@@ -2566,6 +2560,20 @@ export default function App() {
     setShowPostSignupChecklist(true);
     setError(null);
     setInfo('Onboarding complete ✅');
+  };
+
+  const completeWelcomeAfterPassword = () => {
+    if (!passwordStrong) {
+      setWelcomeInlineError('Password must be 8+ chars and include upper/lower/number/special.');
+      return;
+    }
+    if (!passwordsMatch) {
+      setWelcomeInlineError('Passwords do not match.');
+      return;
+    }
+
+    applyWelcomeRegistrationBasics();
+    closeWelcomeFlowAsRegistered();
   };
 
   const verifyWelcomePhoneCodeAndFinish = async () => {
