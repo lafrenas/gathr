@@ -835,9 +835,7 @@ export default function App() {
       .map((e) => (e.category.split(':')[1] ?? '').trim())
       .filter((x) => x.length >= 2);
 
-    const allCatalogActivities = filterCategory === 'All'
-      ? Array.from(new Set(Object.values(activityOptions).flat()))
-      : (activityOptions[filterCategory] ?? []);
+    const allCatalogActivities = Array.from(new Set(Object.values(activityOptions).flat()));
 
     const candidates: string[] = [];
     for (const e of categoryFiltered) {
@@ -881,6 +879,9 @@ export default function App() {
       const words = v.split(/[^a-z0-9]+/).filter(Boolean);
       const typoHit = words.some((w) => wordDistance(q, w) <= (q.length >= 6 ? 2 : 1));
       if (typoHit) return 4;
+
+      const fullDistance = wordDistance(q, v);
+      if (fullDistance <= (q.length >= 6 ? 2 : 1)) return 5;
 
       return 99;
     };
