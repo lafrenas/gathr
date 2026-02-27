@@ -264,7 +264,7 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify' | 'phone' | 'phoneVerify'>('logo');
   const [welcomeName, setWelcomeName] = useState('');
   const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
   const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
@@ -274,6 +274,8 @@ export default function App() {
   const [showWelcomeLocationSuggestions, setShowWelcomeLocationSuggestions] = useState(false);
   const [welcomeEmail, setWelcomeEmail] = useState('');
   const [welcomeEmailCode, setWelcomeEmailCode] = useState('');
+  const [welcomePhone, setWelcomePhone] = useState('');
+  const [welcomePhoneCode, setWelcomePhoneCode] = useState('');
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
@@ -1493,6 +1495,8 @@ export default function App() {
       setShowWelcomeLocationSuggestions(false);
       setWelcomeEmail('');
       setWelcomeEmailCode('');
+      setWelcomePhone('');
+      setWelcomePhoneCode('');
       setWelcomeEmailBusy(false);
       setShowWelcomeFlow(true);
     }
@@ -2324,7 +2328,7 @@ export default function App() {
     }
   };
 
-  const verifyWelcomeEmailCodeAndFinish = async () => {
+  const verifyWelcomeEmailCode = async () => {
     const email = welcomeEmail.trim();
     const token = welcomeEmailCode.trim();
     if (!email || !token) return;
@@ -2339,6 +2343,49 @@ export default function App() {
 
       const key = currentUser.trim().toLowerCase();
       setEmailVerifiedByUser((prev) => ({ ...prev, [key]: true }));
+      setEmailValue(email);
+      setWelcomeStep('phone');
+      setError(null);
+      setInfo('Email verified ✅');
+    } finally {
+      setWelcomeEmailBusy(false);
+    }
+  };
+
+  const continueWelcomePhoneStep = async () => {
+    const phone = welcomePhone.trim();
+    if (!phone || !/^\+?[0-9\s()\-]{7,20}$/.test(phone)) return;
+
+    try {
+      setWelcomeEmailBusy(true);
+      const { error } = await supabase.auth.signInWithOtp({ phone });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setError(null);
+      setInfo('Verification code sent to your phone ✅');
+      setWelcomeStep('phoneVerify');
+    } finally {
+      setWelcomeEmailBusy(false);
+    }
+  };
+
+  const verifyWelcomePhoneCodeAndFinish = async () => {
+    const phone = welcomePhone.trim();
+    const token = welcomePhoneCode.trim();
+    if (!phone || !token) return;
+
+    try {
+      setWelcomeEmailBusy(true);
+      const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      const key = currentUser.trim().toLowerCase();
+      setPhoneVerifiedByUser((prev) => ({ ...prev, [key]: true }));
 
       const name = welcomeName.trim();
       const location = welcomeLocationQuery.trim();
@@ -2347,7 +2394,7 @@ export default function App() {
       setFullName(name);
       setAgeGroup(welcomeAgeGroup);
       setBasedIn(location);
-      setEmailValue(email);
+      setPhoneValue(phone);
 
       const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
       if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
@@ -2355,7 +2402,7 @@ export default function App() {
       setShowWelcomeFlow(false);
       setShowProfileSection(true);
       setError(null);
-      setInfo('Email verified ✅');
+      setInfo('Phone verified ✅');
     } finally {
       setWelcomeEmailBusy(false);
     }
@@ -3924,7 +3971,7 @@ export default function App() {
                 />
                 <TouchableOpacity
                   style={[styles.primaryBtn, (!welcomeEmailCode.trim() || welcomeEmailBusy) && { opacity: 0.5 }]}
-                  onPress={verifyWelcomeEmailCodeAndFinish}
+                  onPress={verifyWelcomeEmailCode}
                   disabled={!welcomeEmailCode.trim() || welcomeEmailBusy}
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Verifying…' : 'Next'}</Text>
@@ -3947,6 +3994,72 @@ export default function App() {
                     disabled={welcomeEmailBusy}
                   >
                     <Text style={styles.approveBtnText}>Change email</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {welcomeStep === 'phone' && (
+              <>
+                <Text style={styles.welcomeQuestion}>What's your phone number?</Text>
+                <Text style={styles.meta}>Use format like +44...</Text>
+                <TextInput
+                  style={styles.input}
+                  value={welcomePhone}
+                  onChangeText={setWelcomePhone}
+                  placeholder="+44..."
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="phone-pad"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.primaryBtn, (!welcomePhone.trim() || welcomeEmailBusy) && { opacity: 0.5 }]}
+                  onPress={continueWelcomePhoneStep}
+                  disabled={!welcomePhone.trim() || welcomeEmailBusy}
+                >
+                  <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'phoneVerify' && (
+              <>
+                <Text style={styles.welcomeQuestion}>Verification code sent</Text>
+                <Text style={styles.meta}>We sent a code to {welcomePhone.trim()}. Please enter it below.</Text>
+                <TextInput
+                  style={styles.input}
+                  value={welcomePhoneCode}
+                  onChangeText={setWelcomePhoneCode}
+                  placeholder="Enter SMS verification code"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="number-pad"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.primaryBtn, (!welcomePhoneCode.trim() || welcomeEmailBusy) && { opacity: 0.5 }]}
+                  onPress={verifyWelcomePhoneCodeAndFinish}
+                  disabled={!welcomePhoneCode.trim() || welcomeEmailBusy}
+                >
+                  <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Verifying…' : 'Next'}</Text>
+                </TouchableOpacity>
+
+                <View style={styles.rowGap}>
+                  <TouchableOpacity
+                    style={[styles.mapBtn, { flex: 1 }, welcomeEmailBusy && { opacity: 0.5 }]}
+                    onPress={continueWelcomePhoneStep}
+                    disabled={welcomeEmailBusy}
+                  >
+                    <Text style={styles.mapBtnText}>Resend code</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.rejectBtn, { flex: 1 }, welcomeEmailBusy && { opacity: 0.5 }]}
+                    onPress={() => {
+                      setWelcomePhoneCode('');
+                      setWelcomeStep('phone');
+                    }}
+                    disabled={welcomeEmailBusy}
+                  >
+                    <Text style={styles.approveBtnText}>Change phone</Text>
                   </TouchableOpacity>
                 </View>
               </>
