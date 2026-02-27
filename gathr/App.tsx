@@ -1648,8 +1648,11 @@ export default function App() {
   }, [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, passwordStrong, passwordsMatch, emailVerifiedByUser, currentUser]);
 
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
+  const [skipRegistrationForTesting, setSkipRegistrationForTesting] = useState(true);
+  const registrationReady = registrationComplete || skipRegistrationForTesting;
 
   useEffect(() => {
+    if (skipRegistrationForTesting) return;
     if (!showWelcomeFlow && !fullName.trim() && selectedInterests.length === 0) {
       setWelcomeStep(welcomeTestingFastTrack ? 'phone' : 'logo');
       setWelcomeName('');
@@ -1670,7 +1673,7 @@ export default function App() {
       setUsedWelcomeTestingSkip(false);
       setShowWelcomeFlow(true);
     }
-  }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length, welcomeTestingFastTrack]);
+  }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length, welcomeTestingFastTrack, skipRegistrationForTesting]);
 
   useEffect(() => {
     if (!showWelcomeFlow || welcomeStep !== 'logo') return;
@@ -1730,7 +1733,7 @@ export default function App() {
   }, [showWelcomeFlow, welcomeStep, logoOpacity, logoScale]);
 
   const requireRegistration = () => {
-    if (registrationComplete) return true;
+    if (registrationReady) return true;
     setError('Complete registration first: full name, gender, age group, based in, and password. Email is optional in testing mode.');
     setShowProfileSection(true);
     return false;
@@ -2824,7 +2827,12 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>gathr</Text>
       <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
-      {!registrationComplete && (
+      <View style={styles.rowGap}>
+        <TouchableOpacity style={[styles.chipBtn, skipRegistrationForTesting && styles.chipBtnActive]} onPress={() => setSkipRegistrationForTesting((v) => !v)}>
+          <Text style={styles.chipBtnText}>{skipRegistrationForTesting ? 'Testing mode: registration skipped' : 'Require registration before using app'}</Text>
+        </TouchableOpacity>
+      </View>
+      {!registrationReady && (
         <View style={styles.registrationGateCard}>
           <Text style={styles.cardTitle}>Complete registration to use Gathr</Text>
           <Text style={styles.meta}>Required: full name, gender, age group, based in, password. Email optional for testing.</Text>
@@ -2851,7 +2859,7 @@ export default function App() {
 
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowProfileSection((v) => !v)}>
-          <Text style={styles.cardTitle}>{registrationComplete ? 'Your profile' : 'Registration'}</Text>
+          <Text style={styles.cardTitle}>{registrationReady ? 'Your profile' : 'Registration'}</Text>
           <Text style={styles.meta}>{showProfileSection ? '▾' : '▸'}</Text>
         </TouchableOpacity>
         {showProfileSection && (
@@ -3049,8 +3057,8 @@ export default function App() {
               </TouchableOpacity>
             </View>
             <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
-            <TouchableOpacity style={styles.mapBtn} onPress={registrationComplete ? saveProfile : startRegistrationVerification}>
-              <Text style={styles.mapBtnText}>{registrationComplete ? 'Save profile' : 'Register'}</Text>
+            <TouchableOpacity style={styles.mapBtn} onPress={registrationReady ? saveProfile : startRegistrationVerification}>
+              <Text style={styles.mapBtnText}>{registrationReady ? 'Save profile' : 'Register'}</Text>
             </TouchableOpacity>
             <Text style={styles.meta}>{profileSaveState === 'error' ? 'Save failed — tap retry' : 'Auto-save enabled'}</Text>
             {profileSaveState === 'error' && (
@@ -3065,7 +3073,7 @@ export default function App() {
       {!!error && <Text style={styles.error}>Backend: {error}</Text>}
       {!!info && <Text style={styles.approvedText}>{info}</Text>}
 
-      {registrationComplete ? (
+      {registrationReady ? (
       <>
       <View style={styles.card}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setShowDebugSection((v) => !v)}>
