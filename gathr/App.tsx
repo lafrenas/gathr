@@ -1808,6 +1808,17 @@ export default function App() {
     return { min: Number.isFinite(min) ? min : 0, max: max && Number.isFinite(max) ? max : null };
   }
 
+  const minPeopleNum = Number(minPeople);
+  const maxPeopleNum = Number(maxPeople);
+  const capacityInputError = !Number.isInteger(minPeopleNum) || minPeopleNum < 1 || minPeopleNum > 200
+    ? 'Min people must be a whole number between 1 and 200.'
+    : (!noMax && (!Number.isInteger(maxPeopleNum) || maxPeopleNum < minPeopleNum || maxPeopleNum > 500))
+      ? 'Max people must be a whole number >= Min and <= 500.'
+      : null;
+
+  const formatCapacity = (joined: number, min: number, max: number | null) =>
+    `${joined} joined • min ${min}${max ? ` • max ${max}` : ' • no max'}`;
+
   const requestJoin = async (eventId: number) => {
     if (!requireRegistration()) return;
     const name = currentUser.trim();
@@ -3321,7 +3332,7 @@ export default function App() {
         />
         <Text style={styles.ratingLabel}>Participants</Text>
         <Text style={styles.ratingHelp}>Set minimum and optional maximum participants.</Text>
-        <Text style={styles.ratingLabel}>Min people</Text>
+        <Text style={styles.ratingLabel}>Minimum people required</Text>
         <TextInput
           style={styles.input}
           placeholder="e.g. 2"
@@ -3330,7 +3341,7 @@ export default function App() {
           value={minPeople}
           onChangeText={setMinPeople}
         />
-        <Text style={styles.ratingLabel}>Max people</Text>
+        <Text style={styles.ratingLabel}>Maximum people allowed</Text>
         <TextInput
           style={[styles.input, noMax && { opacity: 0.45 }]}
           placeholder="e.g. 8"
@@ -3342,8 +3353,10 @@ export default function App() {
         />
         <TouchableOpacity style={[styles.checkboxRow]} onPress={() => setNoMax((v) => !v)}>
           <Text style={styles.checkboxMark}>{noMax ? '☑' : '☐'}</Text>
-          <Text style={styles.chipBtnText}>No max</Text>
+          <Text style={styles.chipBtnText}>No max capacity</Text>
         </TouchableOpacity>
+        <Text style={styles.meta}>{noMax ? 'Anyone can join until host stops approvals.' : 'Set a hard cap to auto-block extra approvals.'}</Text>
+        {!!capacityInputError && <Text style={styles.error}>{capacityInputError}</Text>}
 
         <Text style={styles.ratingLabel}>Category</Text>
         <View style={styles.rowGapWrap}>
@@ -3503,7 +3516,7 @@ export default function App() {
           </>
         )}
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={createEvent}>
+        <TouchableOpacity style={[styles.primaryBtn, !!capacityInputError && { opacity: 0.5 }]} onPress={createEvent} disabled={!!capacityInputError}>
           <Text style={styles.primaryBtnText}>Create Event</Text>
         </TouchableOpacity>
           </>
@@ -3529,7 +3542,7 @@ export default function App() {
                 <Text style={styles.eventTitle}>{event?.title ?? 'Event'} • {r.requester_name}</Text>
                 <Text style={styles.meta}>Source: {r.invite_source === 'host' ? 'Host invite' : r.invite_source === 'member' ? `Member invite (${r.invited_by_name || 'member'})` : 'User request'}</Text>
                 <Text style={styles.meta}>Requester: {reqStat ? `Trust ⭐ ${reqStat.trust.toFixed(1)} (${reqStat.count}) • Skill ⭐ ${reqStat.skill.toFixed(1)}` : 'New / no ratings yet'}</Text>
-                <Text style={styles.meta}>Capacity: {approvedCount} / min {min}{max ? ` / max ${max}` : ' / no max'}</Text>
+                <Text style={styles.meta}>Capacity: {formatCapacity(approvedCount, min, max)}</Text>
                 <View style={styles.rowGap}>
                   {!isFull ? (
                     <TouchableOpacity style={styles.approveBtn} onPress={() => setRequestStatus(r.id, 'approved')}>
@@ -3944,7 +3957,7 @@ export default function App() {
                 )}
                 <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
               </View>
-              <Text style={styles.meta}>Capacity: {approvedCount} / min {minPeopleEvent}{maxPeopleEvent ? ` / max ${maxPeopleEvent}` : ' / no max'}</Text>
+              <Text style={styles.meta}>Capacity: {formatCapacity(approvedCount, minPeopleEvent, maxPeopleEvent)}</Text>
               {activityRatingStats[item.id] && (
                 <Text style={styles.meta}>Activity quality ⭐ {activityRatingStats[item.id].avg.toFixed(1)} ({activityRatingStats[item.id].count})</Text>
               )}
@@ -4761,7 +4774,7 @@ export default function App() {
                 <Text style={styles.meta}>Approx location: {publicAreaForEvent(ev)}</Text>
                 {(() => {
                   const { min, max } = getEventCapacity(ev);
-                  return <Text style={styles.meta}>Capacity: {participants.length} / min {min}{max ? ` / max ${max}` : ' / no max'}</Text>;
+                  return <Text style={styles.meta}>Capacity: {formatCapacity(participants.length, min, max)}</Text>;
                 })()}
 
                 {(() => {
