@@ -264,7 +264,7 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'interests'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories'>('logo');
   const [welcomeName, setWelcomeName] = useState('');
   const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
   const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
@@ -2268,11 +2268,6 @@ export default function App() {
     setWelcomeStep('categories');
   };
 
-  const continueWelcomeCategoryStep = () => {
-    if (welcomeCategorySelection.length === 0) return;
-    setWelcomeStep('interests');
-  };
-
   const finishWelcomeFlow = () => {
     const name = welcomeName.trim();
     if (!name) return;
@@ -3687,7 +3682,7 @@ export default function App() {
             {welcomeStep === 'categories' && (
               <>
                 <Text style={styles.welcomeQuestion}>What are your interests?</Text>
-                <Text style={styles.meta}>Step 1/2: pick categories.</Text>
+                <Text style={styles.meta}>Pick categories, then tick options below straight away.</Text>
                 <View style={styles.rowGapWrap}>
                   {starterInterestCategories.map((cat) => {
                     const active = welcomeCategorySelection.includes(cat);
@@ -3706,39 +3701,36 @@ export default function App() {
                     );
                   })}
                 </View>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, welcomeCategorySelection.length === 0 && { opacity: 0.5 }]}
-                  onPress={continueWelcomeCategoryStep}
-                  disabled={welcomeCategorySelection.length === 0}
-                >
-                  <Text style={styles.primaryBtnText}>Continue</Text>
-                </TouchableOpacity>
-              </>
-            )}
 
-            {welcomeStep === 'interests' && (
-              <>
-                <Text style={styles.welcomeQuestion}>Choose specific interests</Text>
-                <Text style={styles.meta}>Step 2/2: tick as many as you want.</Text>
-                <View style={styles.rowGapWrap}>
-                  {welcomeInterestOptions.map((interest) => {
-                    const active = welcomeInterestSelection.includes(interest);
-                    return (
-                      <TouchableOpacity
-                        key={`welcome-interest-${interest}`}
-                        style={[styles.chipBtn, active && styles.chipBtnActive]}
-                        onPress={() =>
-                          setWelcomeInterestSelection((prev) =>
-                            prev.includes(interest) ? prev.filter((x) => x !== interest) : [...prev, interest]
-                          )
-                        }
-                      >
-                        <Text style={styles.chipBtnText}>{active ? `✓ ${interest}` : interest}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <TouchableOpacity style={styles.primaryBtn} onPress={finishWelcomeFlow}>
+                {welcomeCategorySelection.length > 0 && (
+                  <View style={styles.welcomeOptionsBox}>
+                    <Text style={styles.metaStrong}>Options</Text>
+                    <View style={styles.rowGapWrap}>
+                      {welcomeInterestOptions.map((interest) => {
+                        const active = welcomeInterestSelection.includes(interest);
+                        return (
+                          <TouchableOpacity
+                            key={`welcome-interest-${interest}`}
+                            style={[styles.chipBtn, active && styles.chipBtnActive]}
+                            onPress={() =>
+                              setWelcomeInterestSelection((prev) =>
+                                prev.includes(interest) ? prev.filter((x) => x !== interest) : [...prev, interest]
+                              )
+                            }
+                          >
+                            <Text style={styles.chipBtnText}>{active ? `✓ ${interest}` : interest}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.primaryBtn, welcomeInterestSelection.length === 0 && { opacity: 0.5 }]}
+                  onPress={finishWelcomeFlow}
+                  disabled={welcomeInterestSelection.length === 0}
+                >
                   <Text style={styles.primaryBtnText}>Start</Text>
                 </TouchableOpacity>
               </>
@@ -4075,6 +4067,7 @@ const styles = StyleSheet.create({
   welcomeCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 16, padding: 18, minHeight: 220, justifyContent: 'center' },
   welcomeLogo: { color: '#f8fafc', fontSize: 52, fontWeight: '900', textAlign: 'center', letterSpacing: 1.2 },
   welcomeQuestion: { color: '#e2e8f0', fontSize: 24, fontWeight: '800', marginBottom: 12 },
+  welcomeOptionsBox: { backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 10, marginTop: 6, marginBottom: 8 },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 6 },
   dayChip: { width: '11.5%', backgroundColor: '#334155', borderRadius: 8, alignItems: 'center', paddingVertical: 8 },
   input: {
