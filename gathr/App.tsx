@@ -3929,6 +3929,26 @@ export default function App() {
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Verifying…' : 'Next'}</Text>
                 </TouchableOpacity>
+
+                <View style={styles.rowGap}>
+                  <TouchableOpacity
+                    style={[styles.mapBtn, { flex: 1 }, welcomeEmailBusy && { opacity: 0.5 }]}
+                    onPress={continueWelcomeEmailStep}
+                    disabled={welcomeEmailBusy}
+                  >
+                    <Text style={styles.mapBtnText}>Resend code</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.rejectBtn, { flex: 1 }, welcomeEmailBusy && { opacity: 0.5 }]}
+                    onPress={() => {
+                      setWelcomeEmailCode('');
+                      setWelcomeStep('email');
+                    }}
+                    disabled={welcomeEmailBusy}
+                  >
+                    <Text style={styles.approveBtnText}>Change email</Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>
