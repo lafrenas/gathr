@@ -3842,7 +3842,7 @@ export default function App() {
       )}
       </ScrollView>
 
-      <Modal visible={showWelcomeFlow && !registrationComplete} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={showWelcomeFlow} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={styles.modalBackdrop}>
           <View style={styles.welcomeCard}>
             {welcomeStep === 'logo' && (
