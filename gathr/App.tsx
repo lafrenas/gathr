@@ -264,7 +264,7 @@ export default function App() {
   const [boundaryRating, setBoundaryRating] = useState('5');
   const [skillContext, setSkillContext] = useState('General');
   const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location'>('logo');
+  const [welcomeStep, setWelcomeStep] = useState<'logo' | 'name' | 'categories' | 'age' | 'location' | 'email' | 'emailVerify'>('logo');
   const [welcomeName, setWelcomeName] = useState('');
   const [welcomeCategorySelection, setWelcomeCategorySelection] = useState<string[]>([]);
   const [welcomeInterestSelection, setWelcomeInterestSelection] = useState<string[]>([]);
@@ -272,6 +272,9 @@ export default function App() {
   const [welcomeLocationQuery, setWelcomeLocationQuery] = useState('');
   const [welcomeLocationSuggestions, setWelcomeLocationSuggestions] = useState<string[]>([]);
   const [showWelcomeLocationSuggestions, setShowWelcomeLocationSuggestions] = useState(false);
+  const [welcomeEmail, setWelcomeEmail] = useState('');
+  const [welcomeEmailCode, setWelcomeEmailCode] = useState('');
+  const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.92)).current;
 
@@ -1488,6 +1491,9 @@ export default function App() {
       setWelcomeLocationQuery('');
       setWelcomeLocationSuggestions([]);
       setShowWelcomeLocationSuggestions(false);
+      setWelcomeEmail('');
+      setWelcomeEmailCode('');
+      setWelcomeEmailBusy(false);
       setShowWelcomeFlow(true);
     }
   }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length]);
@@ -2294,20 +2300,65 @@ export default function App() {
     setWelcomeStep('location');
   };
 
-  const finishWelcomeFlow = () => {
-    const name = welcomeName.trim();
-    const location = welcomeLocationQuery.trim();
-    if (!name || !welcomeAgeGroup || !location) return;
+  const continueWelcomeLocationStep = () => {
+    if (!welcomeLocationQuery.trim()) return;
+    setWelcomeStep('email');
+  };
 
-    setFullName(name);
-    setAgeGroup(welcomeAgeGroup);
-    setBasedIn(location);
+  const continueWelcomeEmailStep = async () => {
+    const email = welcomeEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
 
-    const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
-    if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
+    try {
+      setWelcomeEmailBusy(true);
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setError(null);
+      setInfo('Verification code sent to your email ✅');
+      setWelcomeStep('emailVerify');
+    } finally {
+      setWelcomeEmailBusy(false);
+    }
+  };
 
-    setShowWelcomeFlow(false);
-    setShowProfileSection(true);
+  const verifyWelcomeEmailCodeAndFinish = async () => {
+    const email = welcomeEmail.trim();
+    const token = welcomeEmailCode.trim();
+    if (!email || !token) return;
+
+    try {
+      setWelcomeEmailBusy(true);
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      const key = currentUser.trim().toLowerCase();
+      setEmailVerifiedByUser((prev) => ({ ...prev, [key]: true }));
+
+      const name = welcomeName.trim();
+      const location = welcomeLocationQuery.trim();
+      if (!name || !welcomeAgeGroup || !location) return;
+
+      setFullName(name);
+      setAgeGroup(welcomeAgeGroup);
+      setBasedIn(location);
+      setEmailValue(email);
+
+      const mergedInterests = Array.from(new Set([...selectedInterests, ...welcomeInterestSelection]));
+      if (mergedInterests.length > 0) setSelectedInterests(mergedInterests);
+
+      setShowWelcomeFlow(false);
+      setShowProfileSection(true);
+      setError(null);
+      setInfo('Email verified ✅');
+    } finally {
+      setWelcomeEmailBusy(false);
+    }
   };
 
   const sanitizeMapQuery = (query: string) => {
@@ -3828,10 +3879,55 @@ export default function App() {
                 )}
                 <TouchableOpacity
                   style={[styles.primaryBtn, !welcomeLocationQuery.trim() && { opacity: 0.5 }]}
-                  onPress={finishWelcomeFlow}
+                  onPress={continueWelcomeLocationStep}
                   disabled={!welcomeLocationQuery.trim()}
                 >
                   <Text style={styles.primaryBtnText}>Next</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'email' && (
+              <>
+                <Text style={styles.welcomeQuestion}>What's your email?</Text>
+                <TextInput
+                  style={styles.input}
+                  value={welcomeEmail}
+                  onChangeText={setWelcomeEmail}
+                  placeholder="name@email.com"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.primaryBtn, (!welcomeEmail.trim() || welcomeEmailBusy) && { opacity: 0.5 }]}
+                  onPress={continueWelcomeEmailStep}
+                  disabled={!welcomeEmail.trim() || welcomeEmailBusy}
+                >
+                  <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {welcomeStep === 'emailVerify' && (
+              <>
+                <Text style={styles.welcomeQuestion}>Verification code sent</Text>
+                <Text style={styles.meta}>We sent a code to {welcomeEmail.trim()}. Please enter it below.</Text>
+                <TextInput
+                  style={styles.input}
+                  value={welcomeEmailCode}
+                  onChangeText={setWelcomeEmailCode}
+                  placeholder="Enter verification code"
+                  placeholderTextColor="#9ca3af"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.primaryBtn, (!welcomeEmailCode.trim() || welcomeEmailBusy) && { opacity: 0.5 }]}
+                  onPress={verifyWelcomeEmailCodeAndFinish}
+                  disabled={!welcomeEmailCode.trim() || welcomeEmailBusy}
+                >
+                  <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Verifying…' : 'Next'}</Text>
                 </TouchableOpacity>
               </>
             )}
