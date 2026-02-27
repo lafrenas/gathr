@@ -281,6 +281,7 @@ export default function App() {
   const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
   const [showPostSignupChecklist, setShowPostSignupChecklist] = useState(false);
   const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
+  const [usedWelcomeTestingSkip, setUsedWelcomeTestingSkip] = useState(false);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const [welcomeInlineError, setWelcomeInlineError] = useState<string | null>(null);
   const welcomeDraftHydratedRef = useRef(false);
@@ -1510,6 +1511,7 @@ export default function App() {
       setSelectedWelcomeCountry(null);
       setShowWelcomeCountryList(false);
       setWelcomeEmailBusy(false);
+      setUsedWelcomeTestingSkip(false);
       setShowWelcomeFlow(true);
     }
   }, [registrationComplete, showWelcomeFlow, fullName, selectedInterests.length, welcomeTestingFastTrack]);
@@ -2538,12 +2540,14 @@ export default function App() {
     setWelcomeEmail('');
     setWelcomeEmailCode('');
     setWelcomeInlineError(null);
+    setUsedWelcomeTestingSkip(true);
     setWelcomeStep('phone');
   };
 
   const continueWithoutPhoneForTesting = () => {
     setWelcomePhone('');
     setWelcomePhoneCode('');
+    setUsedWelcomeTestingSkip(true);
     setWelcomeStep('password');
   };
 
@@ -4109,8 +4113,17 @@ export default function App() {
           <View style={styles.welcomeCard}>
             {welcomeStep !== 'logo' && (
               <View style={styles.sectionHeader}>
-                <Text style={styles.meta}>{welcomeProgressLabel}</Text>
-                <TouchableOpacity style={styles.chipBtn} onPress={goBackWelcomeStep} disabled={welcomeStepIndex === 0}>
+                <View>
+                  <Text style={styles.meta}>{welcomeProgressLabel}</Text>
+                  {(welcomeTestingFastTrack || usedWelcomeTestingSkip) && (
+                    <Text style={styles.testingBadge}>TESTING MODE</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[styles.chipBtn, welcomeStepIndex === 0 && styles.chipBtnDisabled]}
+                  onPress={goBackWelcomeStep}
+                  disabled={welcomeStepIndex === 0}
+                >
                   <Text style={styles.chipBtnText}>{welcomeStepIndex === 0 ? 'Back' : '← Back'}</Text>
                 </TouchableOpacity>
               </View>
@@ -4878,6 +4891,7 @@ const styles = StyleSheet.create({
   chipBtnDisabled: { opacity: 0.45 },
   chipBtnActive: { backgroundColor: '#2563eb' },
   chipBtnText: { color: '#fff', fontWeight: '600' },
+  testingBadge: { color: '#fde68a', fontSize: 11, fontWeight: '800', marginTop: 2 },
   approveBtn: { backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   approveBtnText: { color: '#fff', fontWeight: '700' },
