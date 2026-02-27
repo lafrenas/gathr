@@ -277,6 +277,7 @@ export default function App() {
   const [welcomePhone, setWelcomePhone] = useState('');
   const [welcomePhoneCode, setWelcomePhoneCode] = useState('');
   const [welcomeCountryQuery, setWelcomeCountryQuery] = useState('');
+  const [selectedWelcomeCountry, setSelectedWelcomeCountry] = useState<{ flag: string; name: string; code: string } | null>(null);
   const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -1503,6 +1504,7 @@ export default function App() {
       setWelcomePhone('');
       setWelcomePhoneCode('');
       setWelcomeCountryQuery('');
+      setSelectedWelcomeCountry(null);
       setShowWelcomeCountryList(false);
       setWelcomeEmailBusy(false);
       setShowWelcomeFlow(true);
@@ -4035,50 +4037,70 @@ export default function App() {
             {welcomeStep === 'phone' && (
               <>
                 <Text style={styles.welcomeQuestion}>What's your phone number?</Text>
-                <Text style={styles.meta}>Choose country code, then add the rest of your number.</Text>
+                <Text style={styles.meta}>Search country once, then enter your number with prefilled code.</Text>
 
-                <TextInput
-                  style={styles.input}
-                  value={welcomeCountryQuery}
-                  onChangeText={(t) => {
-                    setWelcomeCountryQuery(t);
-                    setShowWelcomeCountryList(true);
-                  }}
-                  placeholder="Search country (e.g. lit, uk, germany)"
-                  placeholderTextColor="#9ca3af"
-                />
+                {!selectedWelcomeCountry ? (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      value={welcomeCountryQuery}
+                      onChangeText={(t) => {
+                        setWelcomeCountryQuery(t);
+                        setShowWelcomeCountryList(true);
+                      }}
+                      placeholder="Search country (e.g. lit, uk, germany)"
+                      placeholderTextColor="#9ca3af"
+                      autoFocus
+                    />
 
-                {showWelcomeCountryList && (
-                  <View style={styles.suggestionBox}>
-                    {welcomeCountrySuggestions.slice(0, 8).map((c) => (
-                      <TouchableOpacity
-                        key={`country-${c.name}-${c.code}`}
-                        style={styles.suggestionItem}
-                        onPress={() => {
-                          setWelcomeCountryQuery(`${c.flag} ${c.name} ${c.code}`);
-                          setWelcomePhone(c.code);
-                          setShowWelcomeCountryList(false);
-                        }}
-                      >
-                        <Text style={styles.suggestionText}>{c.flag} {c.name} ({c.code})</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                    {showWelcomeCountryList && (
+                      <View style={styles.suggestionBox}>
+                        {welcomeCountrySuggestions.slice(0, 8).map((c) => (
+                          <TouchableOpacity
+                            key={`country-${c.name}-${c.code}`}
+                            style={styles.suggestionItem}
+                            onPress={() => {
+                              setSelectedWelcomeCountry(c);
+                              setWelcomeCountryQuery(`${c.flag} ${c.name}`);
+                              setWelcomePhone(c.code);
+                              setShowWelcomeCountryList(false);
+                            }}
+                          >
+                            <Text style={styles.suggestionText}>{c.flag} {c.name} ({c.code})</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.welcomeCountrySelected}
+                      onPress={() => {
+                        setSelectedWelcomeCountry(null);
+                        setWelcomeCountryQuery('');
+                        setWelcomePhone('');
+                        setShowWelcomeCountryList(true);
+                      }}
+                    >
+                      <Text style={styles.chipBtnText}>{selectedWelcomeCountry.flag} {selectedWelcomeCountry.name} ({selectedWelcomeCountry.code}) • Change</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.input}
+                      value={welcomePhone}
+                      onChangeText={setWelcomePhone}
+                      placeholder={`${selectedWelcomeCountry.code}...`}
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="phone-pad"
+                      autoFocus
+                    />
+                  </>
                 )}
 
-                <TextInput
-                  style={styles.input}
-                  value={welcomePhone}
-                  onChangeText={setWelcomePhone}
-                  placeholder="+370..."
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="phone-pad"
-                  autoFocus
-                />
                 <TouchableOpacity
-                  style={[styles.primaryBtn, (!welcomePhone.trim() || welcomeEmailBusy) && { opacity: 0.5 }]}
+                  style={[styles.primaryBtn, (!welcomePhone.trim() || !selectedWelcomeCountry || welcomeEmailBusy) && { opacity: 0.5 }]}
                   onPress={continueWelcomePhoneStep}
-                  disabled={!welcomePhone.trim() || welcomeEmailBusy}
+                  disabled={!welcomePhone.trim() || !selectedWelcomeCountry || welcomeEmailBusy}
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
                 </TouchableOpacity>
@@ -4460,6 +4482,7 @@ const styles = StyleSheet.create({
   welcomeLogo: { color: '#f8fafc', fontSize: 52, fontWeight: '900', textAlign: 'center', letterSpacing: 1.2 },
   welcomeQuestion: { color: '#e2e8f0', fontSize: 24, fontWeight: '800', marginBottom: 12 },
   welcomeOptionsBox: { backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 10, marginTop: 6, marginBottom: 8 },
+  welcomeCountrySelected: { backgroundColor: '#1f2937', borderColor: '#334155', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8 },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 6 },
   dayChip: { width: '11.5%', backgroundColor: '#334155', borderRadius: 8, alignItems: 'center', paddingVertical: 8 },
   input: {
