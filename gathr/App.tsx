@@ -75,6 +75,7 @@ type UserBlockRow = {
   id: number;
   blocker_name: string;
   blocked_name: string;
+  created_at?: string;
 };
 
 type UserReportRow = {
@@ -419,6 +420,14 @@ export default function App() {
       .slice(0, 12);
   }, [interestCatalog, interestQuery, selectedInterests]);
 
+  const isBlockedPair = (a: string, b: string) => {
+    const al = a.trim().toLowerCase();
+    const bl = b.trim().toLowerCase();
+    if (!al || !bl) return false;
+    return blocks.some((x) => x.blocker_name.toLowerCase() === al && x.blocked_name.toLowerCase() === bl)
+      || blocks.some((x) => x.blocker_name.toLowerCase() === bl && x.blocked_name.toLowerCase() === al);
+  };
+
   const inviteSuggestions = useMemo(() => {
     if (!inviteEventId) return [] as UserProfileRow[];
     const q = inviteName.trim().toLowerCase();
@@ -442,6 +451,7 @@ export default function App() {
     return profiles
       .filter((p) => p.display_name.toLowerCase() !== me)
       .filter((p) => !existingNames.has(p.display_name.toLowerCase()))
+      .filter((p) => !isBlockedPair(currentUser, p.display_name))
       .filter((p) => {
         if (isOnlineEvent) return true;
         if (!matchedCityHint) return true;
@@ -454,7 +464,7 @@ export default function App() {
         return hay.includes(q);
       })
       .slice(0, 8);
-  }, [inviteEventId, inviteName, currentUser, events, requests, profiles]);
+  }, [inviteEventId, inviteName, currentUser, events, requests, profiles, blocks]);
 
   const loadData = async () => {
     setBusy(true);
@@ -806,23 +816,29 @@ export default function App() {
   };
 
   const pendingForMyHostedEvents = useMemo(() => {
+    const me = currentUser.trim().toLowerCase();
     const hostedEventIds = new Set(
-      events.filter((e) => e.host_name.toLowerCase() === currentUser.trim().toLowerCase()).map((e) => e.id)
+      events.filter((e) => e.host_name.toLowerCase() === me).map((e) => e.id)
     );
     return requests.filter(
       (r) =>
         r.status === 'pending' &&
         hostedEventIds.has(r.event_id) &&
-        (r.invite_source === 'self' || r.invite_response === 'accepted')
+        (r.invite_source === 'self' || r.invite_response === 'accepted') &&
+        !isBlockedPair(currentUser, r.requester_name)
     );
-  }, [events, requests, currentUser]);
+  }, [events, requests, currentUser, blocks]);
 
   const myInviteInbox = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
     return requests
       .filter((r) => r.requester_name.toLowerCase() === me && r.invite_source !== 'self')
+      .filter((r) => {
+        const ev = events.find((e) => e.id === r.event_id);
+        return ev ? !isBlockedPair(currentUser, ev.host_name) : true;
+      })
       .sort((a, b) => b.id - a.id);
-  }, [requests, currentUser]);
+  }, [requests, currentUser, events, blocks]);
 
   const notifications = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
@@ -903,14 +919,22 @@ export default function App() {
     return new Set(blocks.filter((b) => b.blocker_name.toLowerCase() === me).map((b) => b.blocked_name.toLowerCase()));
   }, [blocks, currentUser]);
 
+  const blockedMe = useMemo(() => {
+    const me = currentUser.trim().toLowerCase();
+    return new Set(blocks.filter((b) => b.blocked_name.toLowerCase() === me).map((b) => b.blocker_name.toLowerCase()));
+  }, [blocks, currentUser]);
+
   const blockedList = useMemo(() => {
     const me = currentUser.trim().toLowerCase();
     return blocks.filter((b) => b.blocker_name.toLowerCase() === me);
   }, [blocks, currentUser]);
 
   const visibleEvents = useMemo(() => {
-    return events.filter((e) => !blockedByMe.has(e.host_name.toLowerCase()));
-  }, [events, blockedByMe]);
+    return events.filter((e) => {
+      const host = e.host_name.toLowerCase();
+      return !blockedByMe.has(host) && !blockedMe.has(host);
+    });
+  }, [events, blockedByMe, blockedMe]);
 
   const matchesTimeFilter = (eventTime: string, mode: 'all' | 'today' | 'tomorrow' | 'week') => {
     if (mode === 'all') return true;
@@ -1819,6 +1843,14 @@ export default function App() {
   const formatCapacity = (joined: number, min: number, max: number | null) =>
     `${joined} joined • min ${min}${max ? ` • max ${max}` : ' • no max'}`;
 
+  const countRecent = (items: Array<{ created_at?: string | null }>, windowMs: number) => {
+    const cutoff = Date.now() - windowMs;
+    return items.filter((x) => {
+      const ts = Date.parse(x.created_at ?? '');
+      return Number.isFinite(ts) && ts >= cutoff;
+    }).length;
+  };
+
   const requestJoin = async (eventId: number) => {
     if (!requireRegistration()) return;
     const name = currentUser.trim();
@@ -1828,6 +1860,10 @@ export default function App() {
 
     const event = events.find((e) => e.id === eventId);
     if (event) {
+      if (isBlockedPair(name, event.host_name)) {
+        return setError('Cannot join this event due to an active block between you and the host.');
+      }
+
       const reportedByMe = new Set(
         reports
           .filter((rp) => rp.reporter_name.toLowerCase() === name.toLowerCase())
@@ -1880,6 +1916,10 @@ export default function App() {
     const ev = events.find((e) => e.id === eventId);
     if (!ev) return setError('Event not found.');
 
+    if (isBlockedPair(inviter, target) || isBlockedPair(ev.host_name, target)) {
+      return setError('Cannot invite this user due to an active block.');
+    }
+
     const isHostInviter = ev.host_name.toLowerCase() === inviter.toLowerCase();
     const isApprovedAttendee = requests.some(
       (r) => r.event_id === eventId && r.requester_name.toLowerCase() === inviter.toLowerCase() && r.status === 'approved'
@@ -1929,6 +1969,11 @@ export default function App() {
     const req = requests.find((r) => r.id === requestId);
     if (!req) return;
 
+    const ev = events.find((e) => e.id === req.event_id);
+    if (accept && ev && isBlockedPair(currentUser, ev.host_name)) {
+      return setError('Cannot accept invite due to an active block with this host.');
+    }
+
     const payload = accept
       ? {
           invite_response: 'accepted' as const,
@@ -1952,6 +1997,9 @@ export default function App() {
           return setError('Invitee must accept invitation before host approval.');
         }
         const event = events.find((e) => e.id === req.event_id);
+        if (event && isBlockedPair(event.host_name, req.requester_name)) {
+          return setError('Cannot approve while host/requester block is active.');
+        }
         const { max } = getEventCapacity(event);
         if (max) {
           const approvedCount = 1 + requests.filter((r) => r.event_id === req.event_id && r.status === 'approved').length;
@@ -2361,6 +2409,22 @@ export default function App() {
   const reportHost = async (hostName: string, reason: string, details?: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
+
+    const myRecentReports = reports.filter((r) => r.reporter_name.toLowerCase() === me.toLowerCase());
+    if (countRecent(myRecentReports, 10 * 60 * 1000) >= 3) {
+      return setError('Rate limit: max 3 reports per 10 minutes. Please wait a bit.');
+    }
+
+    const alreadyReportedRecently = reports.some((r) =>
+      r.reporter_name.toLowerCase() === me.toLowerCase()
+      && r.reported_name.toLowerCase() === hostName.toLowerCase()
+      && Number.isFinite(Date.parse(r.created_at ?? ''))
+      && Date.parse(r.created_at ?? '') >= (Date.now() - 24 * 60 * 60 * 1000)
+    );
+    if (alreadyReportedRecently) {
+      return setError('You already reported this user in the last 24h.');
+    }
+
     setError(null);
     const { error } = await supabase.from('user_reports').insert({
       reporter_name: me,
@@ -2375,6 +2439,12 @@ export default function App() {
   const blockHost = async (hostName: string) => {
     const me = currentUser.trim();
     if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
+
+    const myRecentBlocks = blocks.filter((b) => b.blocker_name.toLowerCase() === me.toLowerCase());
+    if (countRecent(myRecentBlocks, 10 * 60 * 1000) >= 6) {
+      return setError('Rate limit: too many block actions. Try again later.');
+    }
+
     setError(null);
     const { error } = await supabase.from('user_blocks').upsert(
       { blocker_name: me, blocked_name: hostName },
@@ -2387,6 +2457,17 @@ export default function App() {
   const unblockHost = async (hostName: string) => {
     const me = currentUser.trim();
     if (!me) return;
+
+    const pairRecentChanges = blocks.filter((b) =>
+      b.blocker_name.toLowerCase() === me.toLowerCase()
+      && b.blocked_name.toLowerCase() === hostName.toLowerCase()
+      && Number.isFinite(Date.parse(b.created_at ?? ''))
+      && Date.parse(b.created_at ?? '') >= (Date.now() - 60 * 1000)
+    );
+    if (pairRecentChanges.length > 0) {
+      return setError('Please wait at least 1 minute before unblocking this user.');
+    }
+
     setError(null);
     const { error } = await supabase
       .from('user_blocks')

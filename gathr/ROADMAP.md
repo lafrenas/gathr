@@ -49,6 +49,9 @@ _Last updated: 2026-02-27_
 - [x] Report flow + reason picker + details
 - [x] Block/unblock + blocked hosts hidden from feed
 - [x] Moderation dashboard with severity grouping + visual badges
+- [x] Abuse throttles for reports and block/unblock churn (UI + DB trigger)
+- [x] Moderation audit log scaffold (`moderation_audit_log` + action triggers)
+- [x] Block enforcement expanded across feed/invite/approval flows (both directions)
 
 ### Backend (Supabase)
 - [x] Core tables: `events`, `join_requests`, `event_ratings`, `event_activity_ratings`, `event_comments`, `user_reports`, `user_blocks`, `user_profiles`, moderation/rating skip tables

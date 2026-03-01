@@ -138,7 +138,11 @@ Current implementation is monolithic in `App.tsx`; recommended modular split:
 - App-level checks:
   - host approval required to reveal exact details
   - capacity checks on approvals/invites
-  - blocking filters feed visibility
+  - blocking filters now enforced bidirectionally in feed/invite/approval flows
+- Trigger-level trust & safety controls:
+  - report anti-spam limits (3 per 10 minutes per reporter; 1 per 24h per reporter→reported pair)
+  - block/unblock anti-thrash limits using moderation audit history
+  - moderation action audit trail (`moderation_audit_log`) for report/block/status changes
 
 ## 4.4 Auth/verification architecture
 
