@@ -3427,8 +3427,12 @@ export default function App() {
             <TouchableOpacity
               style={[styles.approveBtn, { flex: 1 }]}
               onPress={async () => {
-                const ok = await reportHost(reportTarget, reportReason, reportDetails);
-                if (!ok) return;
+                const me = currentUser.trim();
+                const alreadyEligible = hasRecentDetailedReport(me, reportTarget);
+                if (!alreadyEligible) {
+                  const ok = await reportHost(reportTarget, reportReason, reportDetails);
+                  if (!ok) return;
+                }
                 await blockHost(reportTarget);
                 setReportDetails('');
                 setReportTarget(null);
