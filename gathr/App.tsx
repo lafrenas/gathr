@@ -4139,7 +4139,7 @@ export default function App() {
                         {participants.map((name) => {
                           const stat = userRatingStats[name.toLowerCase()];
                           const role = name.toLowerCase() === item.host_name.toLowerCase() ? 'host' : 'member';
-                          const canReport = hasEventEnded(item.exact_time) && name.toLowerCase() !== currentUser.trim().toLowerCase();
+                          const canActionUser = name.toLowerCase() !== currentUser.trim().toLowerCase();
                           return (
                             <View key={`going-${item.id}-${name}`} style={styles.rowGap}>
                               <View style={styles.rowInline}>
@@ -4152,7 +4152,7 @@ export default function App() {
                                 )}
                                 <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
                               </View>
-                              {canReport && (
+                              {canActionUser && (
                                 <View style={styles.rowGap}>
                                   <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setReportTarget(name)}>
                                     <Text style={styles.approveBtnText}>Report participant</Text>
