@@ -930,11 +930,24 @@ export default function App() {
   }, [blocks, currentUser]);
 
   const visibleEvents = useMemo(() => {
+    const me = currentUser.trim();
     return events.filter((e) => {
       const host = e.host_name.toLowerCase();
-      return !blockedByMe.has(host) && !blockedMe.has(host);
+      if (blockedByMe.has(host) || blockedMe.has(host)) return false;
+
+      const eventPeople = [
+        e.host_name,
+        ...requests
+          .filter((r) => r.event_id === e.id && (r.status === 'approved' || r.status === 'pending'))
+          .map((r) => r.requester_name),
+      ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+
+      // Safety privacy: hide events where any blocked relationship exists between me and attendees.
+      if (eventPeople.some((p) => isBlockedPair(me, p) && p.toLowerCase() !== me.toLowerCase())) return false;
+
+      return true;
     });
-  }, [events, blockedByMe, blockedMe]);
+  }, [events, requests, blockedByMe, blockedMe, currentUser, blocks]);
 
   const matchesTimeFilter = (eventTime: string, mode: 'all' | 'today' | 'tomorrow' | 'week') => {
     if (mode === 'all') return true;
@@ -2524,9 +2537,34 @@ export default function App() {
           .eq('requester_name', me)
           .in('status', ['pending', 'approved']);
       }
+
+      // Shared upcoming events: if both users are in same upcoming event, remove both users' attendance rows.
+      const sharedFutureIds = events
+        .filter((e) => {
+          const ts = Date.parse(e.exact_time);
+          return Number.isFinite(ts) && ts > now;
+        })
+        .filter((e) => {
+          const attendees = requests
+            .filter((r) => r.event_id === e.id && (r.status === 'approved' || r.status === 'pending'))
+            .map((r) => r.requester_name.toLowerCase());
+          const hasMe = e.host_name.toLowerCase() === me.toLowerCase() || attendees.includes(me.toLowerCase());
+          const hasTarget = e.host_name.toLowerCase() === targetName.toLowerCase() || attendees.includes(targetName.toLowerCase());
+          return hasMe && hasTarget;
+        })
+        .map((e) => e.id);
+
+      if (sharedFutureIds.length > 0) {
+        await supabase
+          .from('join_requests')
+          .update({ status: 'rejected', invite_response: 'declined' })
+          .in('event_id', sharedFutureIds)
+          .in('requester_name', [me, targetName])
+          .in('status', ['pending', 'approved']);
+      }
     }
 
-    setInfo(`Blocked ${targetName}. They lose access to your upcoming events immediately.`);
+    setInfo(`Blocked ${targetName}. Upcoming shared access was removed.`);
     await loadData();
   };
 
