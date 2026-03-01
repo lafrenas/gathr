@@ -79,6 +79,9 @@ _Last updated: 2026-02-27_
 
 ## Phase C - Reputation Rules (Medium)
 - [ ] Enforce host lockout below reputation threshold (e.g. <3.5)
+- [x] Ratings integrity baseline: 24h edit window + lock while dispute open
+- [x] Host dispute flow scaffold for unfair ratings (`rating_disputes`)
+- [x] Backfill integrity helper view (`rating_integrity_flags`)
 - [ ] Social activities: ensure no skill-gating where inappropriate
 - [ ] Per-game ranking refinements beyond current scaffold
 

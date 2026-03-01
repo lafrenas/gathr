@@ -121,6 +121,9 @@ Current implementation is monolithic in `App.tsx`; recommended modular split:
 - `event_rating_skips`
   - track deferred/skip rating actions
 
+- `rating_disputes`
+  - disputes raised by rated users (e.g., hosts) for unfair/inaccurate ratings
+
 - `user_profiles`
   - registration/profile identity, contact, verification flags, interests, avatar
 
@@ -144,6 +147,9 @@ Current implementation is monolithic in `App.tsx`; recommended modular split:
   - block requires prior detailed report for same actor→target pair (report-first policy)
   - block/unblock anti-thrash limits using moderation audit history
   - moderation action audit trail (`moderation_audit_log`) for report/block/status changes
+- Trigger-level rating integrity controls:
+  - rating updates locked after 24h from original rating creation
+  - rating updates locked while an open dispute exists
 
 ## 4.4 Auth/verification architecture
 

@@ -57,6 +57,7 @@ type JoinRequestRow = {
 
 type EventRatingRow = {
   id: number;
+  created_at?: string;
   event_id: number;
   rater_name: string;
   rated_name: string;
@@ -131,6 +132,17 @@ type EventCommentRow = {
   event_id: number;
   author_name: string;
   body: string;
+  created_at: string;
+};
+
+type RatingDisputeRow = {
+  id: number;
+  rating_id: number;
+  event_id: number;
+  raised_by: string;
+  target_user: string;
+  reason: string;
+  status: 'open' | 'reviewing' | 'resolved' | 'rejected';
   created_at: string;
 };
 
@@ -253,6 +265,7 @@ export default function App() {
   const [activityRatings, setActivityRatings] = useState<ActivityRatingRow[]>([]);
   const [moderationStatuses, setModerationStatuses] = useState<ModerationStatusRow[]>([]);
   const [comments, setComments] = useState<EventCommentRow[]>([]);
+  const [ratingDisputes, setRatingDisputes] = useState<RatingDisputeRow[]>([]);
   const [selectedHost, setSelectedHost] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('Harassment');
@@ -528,6 +541,11 @@ export default function App() {
     const { data: cData, error: cError } = await supabase.from('event_comments').select('*').order('id', { ascending: false });
     if (!cError) {
       setComments((cData ?? []) as EventCommentRow[]);
+    }
+
+    const { data: rdData, error: rdError } = await supabase.from('rating_disputes').select('*').order('id', { ascending: false });
+    if (!rdError) {
+      setRatingDisputes((rdData ?? []) as RatingDisputeRow[]);
     }
 
     setBusy(false);
@@ -1864,6 +1882,8 @@ export default function App() {
     }).length;
   };
 
+  const RATING_EDIT_WINDOW_HOURS = 24;
+
   const requestJoin = async (eventId: number) => {
     if (!requireRegistration()) return;
     const name = currentUser.trim();
@@ -2067,6 +2087,29 @@ export default function App() {
       !Number.isInteger(boundary_respect) || boundary_respect < 1 || boundary_respect > 5
     ) {
       return setError('Ratings must be numbers 1 to 5.');
+    }
+
+    const existing = ratings.find(
+      (x) => x.event_id === ratingEventId
+        && x.rater_name.toLowerCase() === rater.toLowerCase()
+        && x.rated_name.toLowerCase() === ratingTargetName.toLowerCase()
+    );
+
+    if (existing?.created_at) {
+      const ageMs = Date.now() - Date.parse(existing.created_at);
+      if (Number.isFinite(ageMs) && ageMs > RATING_EDIT_WINDOW_HOURS * 60 * 60 * 1000) {
+        return setError(`Rating is locked after ${RATING_EDIT_WINDOW_HOURS}h. Open a dispute instead.`);
+      }
+    }
+
+    const hasOpenDispute = ratingDisputes.some((d) =>
+      d.event_id === ratingEventId
+      && d.target_user.toLowerCase() === ratingTargetName.toLowerCase()
+      && d.raised_by.toLowerCase() === ratingTargetName.toLowerCase()
+      && (d.status === 'open' || d.status === 'reviewing')
+    );
+    if (hasOpenDispute) {
+      return setError('This rating target has an open dispute for this event. Editing is locked until review completes.');
     }
 
     const { error } = await supabase.from('event_ratings').upsert(
@@ -2366,6 +2409,29 @@ export default function App() {
       { onConflict: 'user_name' }
     );
     if (error) return setError(error.message);
+    await loadData();
+  };
+
+  const raiseRatingDispute = async (rating: EventRatingRow) => {
+    const me = currentUser.trim();
+    if (!me) return;
+    if (rating.rated_name.toLowerCase() !== me.toLowerCase()) {
+      return setError('You can only dispute ratings written about you.');
+    }
+
+    const existingOpen = ratingDisputes.find((d) => d.rating_id === rating.id && (d.status === 'open' || d.status === 'reviewing'));
+    if (existingOpen) return setInfo('This rating is already disputed and under review.');
+
+    const { error } = await supabase.from('rating_disputes').insert({
+      rating_id: rating.id,
+      event_id: rating.event_id,
+      raised_by: me,
+      target_user: rating.rated_name,
+      reason: 'Host disputes rating fairness/accuracy',
+      status: 'open',
+    });
+    if (error) return setError(error.message);
+    setInfo('Dispute submitted. Rating is now flagged for moderator review.');
     await loadData();
   };
 
@@ -3321,9 +3387,21 @@ export default function App() {
                 ) : (
                   <Text style={styles.meta}>No ratings yet.</Text>
                 )}
-                {reviews.map((r) => (
-                  <Text key={r.id} style={styles.reviewSnippet}>• {r.comment}</Text>
-                ))}
+                {reviews.map((r) => {
+                  const canDispute = r.rated_name.toLowerCase() === currentUser.trim().toLowerCase();
+                  const dispute = ratingDisputes.find((d) => d.rating_id === r.id);
+                  return (
+                    <View key={r.id} style={{ marginTop: 6 }}>
+                      <Text style={styles.reviewSnippet}>• {r.comment}</Text>
+                      <Text style={styles.meta}>by {r.rater_name}{r.created_at ? ` • ${new Date(r.created_at).toLocaleString()}` : ''}</Text>
+                      {canDispute && (
+                        <TouchableOpacity style={styles.mapBtn} onPress={() => raiseRatingDispute(r)}>
+                          <Text style={styles.mapBtnText}>{dispute ? `Dispute: ${dispute.status}` : 'Dispute this rating'}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
               </>
             );
           })()}
