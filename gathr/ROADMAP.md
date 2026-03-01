@@ -96,6 +96,12 @@ _Last updated: 2026-02-27_
 - [ ] Contributor setup guide (env + auth provider setup)
 - [ ] Regression checklist for releases
 
+## Phase F - Event lifecycle reliability (High)
+- [x] Explicit lifecycle states (`draft`, `published`, `ongoing`, `ended`, `archived`)
+- [x] Transition guardrails in app + DB trigger (invalid jumps blocked)
+- [x] Idempotent status sync helper (`sync_event_statuses`)
+- [x] Host lifecycle controls in event cards (publish/start/end/archive)
+
 ---
 
 ## 🔄 Update Policy (Source of Truth)

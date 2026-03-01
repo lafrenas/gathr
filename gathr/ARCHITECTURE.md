@@ -64,6 +64,7 @@ flowchart LR
 
 ### B) Event lifecycle
 - Create event (category/activity/description/location/date-time/capacity)
+- Explicit status model: `draft` -> `published` -> `ongoing` -> `ended` -> `archived`
 - Feed listing with search + filters + map browse entry point
 - Request/invite/approve flow with host gate
 - Exact location/time hidden until approved
@@ -141,6 +142,7 @@ Current implementation is monolithic in `App.tsx`; recommended modular split:
 - App-level checks:
   - host approval required to reveal exact details
   - capacity checks on approvals/invites
+  - lifecycle transitions constrained in UI actions (publish/start/end/archive)
   - blocking filters now enforced bidirectionally in feed/invite/approval flows
 - Trigger-level trust & safety controls:
   - report anti-spam limits (3 per 10 minutes per reporter; 1 per 24h per reporter→reported pair)
@@ -150,6 +152,10 @@ Current implementation is monolithic in `App.tsx`; recommended modular split:
 - Trigger-level rating integrity controls:
   - rating updates locked after 24h from original rating creation
   - rating updates locked while an open dispute exists
+- Trigger-level event lifecycle controls:
+  - invalid status transitions are rejected
+  - lifecycle timestamps (`started_at`, `ended_at`, `archived_at`) auto-stamped
+  - idempotent sync helper available for scheduled catches (`sync_event_statuses`)
 
 ## 4.4 Auth/verification architecture
 

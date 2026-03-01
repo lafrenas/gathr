@@ -34,6 +34,10 @@ type EventRow = {
   title: string;
   category: string;
   description?: string | null;
+  status?: 'draft' | 'published' | 'ongoing' | 'ended' | 'archived';
+  started_at?: string | null;
+  ended_at?: string | null;
+  archived_at?: string | null;
   min_people?: number | null;
   max_people?: number | null;
   no_max?: boolean | null;
@@ -772,6 +776,17 @@ export default function App() {
     return Date.now() >= ts;
   };
 
+  const getLifecycleStatus = (event: EventRow): 'draft' | 'published' | 'ongoing' | 'ended' | 'archived' => {
+    if (event.archived_at || event.status === 'archived') return 'archived';
+    if (event.status === 'ended') return 'ended';
+    if (event.status === 'ongoing') return 'ongoing';
+    if (event.status === 'draft') return 'draft';
+
+    const ts = Date.parse(event.exact_time);
+    if (!Number.isFinite(ts)) return event.status ?? 'published';
+    return Date.now() >= ts ? 'ended' : (event.status ?? 'published');
+  };
+
   const exactTimeDisplay = eventDateTime ? eventDateTime.toLocaleString() : '';
   const exactTimeWebLocal = eventDateTime
     ? new Date(eventDateTime.getTime() - eventDateTime.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
@@ -952,6 +967,7 @@ export default function App() {
     return events.filter((e) => {
       const host = e.host_name.toLowerCase();
       if (blockedByMe.has(host) || blockedMe.has(host)) return false;
+      if (getLifecycleStatus(e) === 'archived') return false;
 
       const eventPeople = [
         e.host_name,
@@ -1827,6 +1843,7 @@ export default function App() {
       exact_lat: isOnline ? null : resolvedCoords?.latitude ?? null,
       exact_lng: isOnline ? null : resolvedCoords?.longitude ?? null,
       exact_time: exactTime.trim(),
+      status: 'published',
       host_name: currentUser.trim() || 'Anonymous',
     });
 
@@ -2044,6 +2061,36 @@ export default function App() {
     }
 
     const { error } = await supabase.from('join_requests').update({ status }).eq('id', requestId);
+    if (error) return setError(error.message);
+    await loadData();
+  };
+
+  const setEventLifecycleStatus = async (eventId: number, nextStatus: 'draft' | 'published' | 'ongoing' | 'ended' | 'archived') => {
+    const me = currentUser.trim().toLowerCase();
+    const ev = events.find((e) => e.id === eventId);
+    if (!ev) return setError('Event not found.');
+    if (ev.host_name.toLowerCase() !== me) return setError('Only host can change event status.');
+
+    const current = getLifecycleStatus(ev);
+    const allowed: Record<string, Array<'draft' | 'published' | 'ongoing' | 'ended' | 'archived'>> = {
+      draft: ['published', 'archived'],
+      published: ['ongoing', 'ended', 'archived'],
+      ongoing: ['ended', 'archived'],
+      ended: ['archived'],
+      archived: [],
+    };
+
+    if (current === nextStatus) return;
+    if (!allowed[current]?.includes(nextStatus)) {
+      return setError(`Invalid transition: ${current} -> ${nextStatus}`);
+    }
+
+    const patch: Record<string, string | null> = { status: nextStatus };
+    if (nextStatus === 'ongoing') patch.started_at = new Date().toISOString();
+    if (nextStatus === 'ended') patch.ended_at = new Date().toISOString();
+    if (nextStatus === 'archived') patch.archived_at = new Date().toISOString();
+
+    const { error } = await supabase.from('events').update(patch).eq('id', eventId);
     if (error) return setError(error.message);
     await loadData();
   };
@@ -4261,6 +4308,36 @@ export default function App() {
                 <Text style={styles.meta}>{item.category.replace(':', ' • ')} • Host: {item.host_name}</Text>
               </View>
               <Text style={styles.meta}>Capacity: {formatCapacity(approvedCount, minPeopleEvent, maxPeopleEvent)}</Text>
+              <Text style={styles.meta}>Lifecycle: {getLifecycleStatus(item).toUpperCase()}</Text>
+              {isHost && (
+                <View style={styles.rowGapWrap}>
+                  {getLifecycleStatus(item) === 'draft' && (
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setEventLifecycleStatus(item.id, 'published')}>
+                      <Text style={styles.chipBtnText}>Publish</Text>
+                    </TouchableOpacity>
+                  )}
+                  {getLifecycleStatus(item) === 'published' && (
+                    <>
+                      <TouchableOpacity style={styles.chipBtn} onPress={() => setEventLifecycleStatus(item.id, 'ongoing')}>
+                        <Text style={styles.chipBtnText}>Start</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.chipBtn} onPress={() => setEventLifecycleStatus(item.id, 'ended')}>
+                        <Text style={styles.chipBtnText}>End</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  {getLifecycleStatus(item) === 'ongoing' && (
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setEventLifecycleStatus(item.id, 'ended')}>
+                      <Text style={styles.chipBtnText}>Mark ended</Text>
+                    </TouchableOpacity>
+                  )}
+                  {getLifecycleStatus(item) !== 'archived' && (
+                    <TouchableOpacity style={styles.chipBtn} onPress={() => setEventLifecycleStatus(item.id, 'archived')}>
+                      <Text style={styles.chipBtnText}>Archive</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
               {activityRatingStats[item.id] && (
                 <Text style={styles.meta}>Activity quality ⭐ {activityRatingStats[item.id].avg.toFixed(1)} ({activityRatingStats[item.id].count})</Text>
               )}
