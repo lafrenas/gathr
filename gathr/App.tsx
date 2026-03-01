@@ -2479,6 +2479,54 @@ export default function App() {
       { onConflict: 'blocker_name,blocked_name' }
     );
     if (error) return setError(error.message);
+
+    const now = Date.now();
+    const futureEventIds = events
+      .filter((e) => {
+        const ts = Date.parse(e.exact_time);
+        return Number.isFinite(ts) && ts > now;
+      })
+      .map((e) => e.id);
+
+    if (futureEventIds.length > 0) {
+      // If blocker is host, blocked user immediately loses attendance on blocker's upcoming events.
+      const blockerHostedFutureIds = events
+        .filter((e) => e.host_name.toLowerCase() === me.toLowerCase())
+        .filter((e) => {
+          const ts = Date.parse(e.exact_time);
+          return Number.isFinite(ts) && ts > now;
+        })
+        .map((e) => e.id);
+
+      if (blockerHostedFutureIds.length > 0) {
+        await supabase
+          .from('join_requests')
+          .update({ status: 'rejected', invite_response: 'declined' })
+          .in('event_id', blockerHostedFutureIds)
+          .eq('requester_name', targetName)
+          .in('status', ['pending', 'approved']);
+      }
+
+      // Symmetric safety: if blocked user is host, blocker also loses attendance on blocked host's upcoming events.
+      const targetHostedFutureIds = events
+        .filter((e) => e.host_name.toLowerCase() === targetName.toLowerCase())
+        .filter((e) => {
+          const ts = Date.parse(e.exact_time);
+          return Number.isFinite(ts) && ts > now;
+        })
+        .map((e) => e.id);
+
+      if (targetHostedFutureIds.length > 0) {
+        await supabase
+          .from('join_requests')
+          .update({ status: 'rejected', invite_response: 'declined' })
+          .in('event_id', targetHostedFutureIds)
+          .eq('requester_name', me)
+          .in('status', ['pending', 'approved']);
+      }
+    }
+
+    setInfo(`Blocked ${targetName}. They lose access to your upcoming events immediately.`);
     await loadData();
   };
 
