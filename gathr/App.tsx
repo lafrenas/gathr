@@ -4139,6 +4139,17 @@ export default function App() {
       {showFeedSection && (
       <View style={styles.list}>
         {(showAllEvents ? filteredEvents : filteredEvents.slice(0, 8)).map((item) => {
+          const eventPeopleForSafety = [
+            item.host_name,
+            ...requests
+              .filter((r) => r.event_id === item.id && (r.status === 'approved' || r.status === 'pending'))
+              .map((r) => r.requester_name),
+          ].filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i);
+          const hasBlockedSafetyPair = eventPeopleForSafety.some(
+            (p) => p.toLowerCase() !== currentUser.trim().toLowerCase() && isBlockedPair(currentUser, p)
+          );
+          if (hasBlockedSafetyPair) return null;
+
           const isHost = item.host_name.toLowerCase() === currentUser.trim().toLowerCase();
           const myReq = requests.find(
             (r) => r.event_id === item.id && r.requester_name.toLowerCase() === currentUser.trim().toLowerCase()
