@@ -141,6 +141,7 @@ Current implementation is monolithic in `App.tsx`; recommended modular split:
   - blocking filters now enforced bidirectionally in feed/invite/approval flows
 - Trigger-level trust & safety controls:
   - report anti-spam limits (3 per 10 minutes per reporter; 1 per 24h per reporter→reported pair)
+  - block requires prior detailed report for same actor→target pair (report-first policy)
   - block/unblock anti-thrash limits using moderation audit history
   - moderation action audit trail (`moderation_audit_log`) for report/block/status changes
 

@@ -2406,39 +2406,67 @@ export default function App() {
     await loadData();
   };
 
-  const reportHost = async (hostName: string, reason: string, details?: string) => {
+  const reportHost = async (targetName: string, reason: string, details?: string) => {
     const me = currentUser.trim();
-    if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
+    if (!me || me.toLowerCase() === targetName.toLowerCase()) return false;
+
+    const detailText = details?.trim() || '';
+    if (detailText.length < 20) {
+      setError('Please provide report details (at least 20 characters).');
+      return false;
+    }
 
     const myRecentReports = reports.filter((r) => r.reporter_name.toLowerCase() === me.toLowerCase());
     if (countRecent(myRecentReports, 10 * 60 * 1000) >= 3) {
-      return setError('Rate limit: max 3 reports per 10 minutes. Please wait a bit.');
+      setError('Rate limit: max 3 reports per 10 minutes. Please wait a bit.');
+      return false;
     }
 
     const alreadyReportedRecently = reports.some((r) =>
       r.reporter_name.toLowerCase() === me.toLowerCase()
-      && r.reported_name.toLowerCase() === hostName.toLowerCase()
+      && r.reported_name.toLowerCase() === targetName.toLowerCase()
       && Number.isFinite(Date.parse(r.created_at ?? ''))
       && Date.parse(r.created_at ?? '') >= (Date.now() - 24 * 60 * 60 * 1000)
     );
     if (alreadyReportedRecently) {
-      return setError('You already reported this user in the last 24h.');
+      setError('You already reported this user in the last 24h.');
+      return false;
     }
 
     setError(null);
     const { error } = await supabase.from('user_reports').insert({
       reporter_name: me,
-      reported_name: hostName,
+      reported_name: targetName,
       reason: reason.trim() || 'General safety concern',
-      details: details?.trim() || null,
+      details: detailText,
     });
-    if (error) return setError(error.message);
+    if (error) {
+      setError(error.message);
+      return false;
+    }
     await loadData();
+    return true;
   };
 
-  const blockHost = async (hostName: string) => {
+  const hasRecentDetailedReport = (actorName: string, targetName: string, maxAgeMs = 30 * 24 * 60 * 60 * 1000) => {
+    const now = Date.now();
+    return reports.some((r) => {
+      const ts = Date.parse(r.created_at ?? '');
+      return r.reporter_name.toLowerCase() === actorName.toLowerCase()
+        && r.reported_name.toLowerCase() === targetName.toLowerCase()
+        && (r.details ?? '').trim().length >= 20
+        && Number.isFinite(ts)
+        && ts >= (now - maxAgeMs);
+    });
+  };
+
+  const blockHost = async (targetName: string) => {
     const me = currentUser.trim();
-    if (!me || me.toLowerCase() === hostName.toLowerCase()) return;
+    if (!me || me.toLowerCase() === targetName.toLowerCase()) return;
+
+    if (!hasRecentDetailedReport(me, targetName)) {
+      return setError('To block someone, first submit a report with full details.');
+    }
 
     const myRecentBlocks = blocks.filter((b) => b.blocker_name.toLowerCase() === me.toLowerCase());
     if (countRecent(myRecentBlocks, 10 * 60 * 1000) >= 6) {
@@ -2447,7 +2475,7 @@ export default function App() {
 
     setError(null);
     const { error } = await supabase.from('user_blocks').upsert(
-      { blocker_name: me, blocked_name: hostName },
+      { blocker_name: me, blocked_name: targetName },
       { onConflict: 'blocker_name,blocked_name' }
     );
     if (error) return setError(error.message);
@@ -3275,7 +3303,7 @@ export default function App() {
 
       {reportTarget && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Report host: {reportTarget}</Text>
+          <Text style={styles.cardTitle}>Report user: {reportTarget}</Text>
           <Text style={styles.ratingHelp}>Choose reason</Text>
           <View style={styles.rowGapWrap}>
             {['Harassment', 'No-show', 'Unsafe behavior', 'Spam', 'Other'].map((reason) => (
@@ -3290,7 +3318,7 @@ export default function App() {
           </View>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="What happened? (optional details)"
+            placeholder="What happened? (required, min 20 chars)"
             placeholderTextColor="#9ca3af"
             value={reportDetails}
             onChangeText={setReportDetails}
@@ -3298,17 +3326,32 @@ export default function App() {
             numberOfLines={3}
             textAlignVertical="top"
           />
+          <Text style={styles.meta}>Details length: {reportDetails.trim().length}/20</Text>
           <View style={styles.rowGap}>
             <TouchableOpacity
               style={[styles.rejectBtn, { flex: 1 }]}
               onPress={async () => {
-                await reportHost(reportTarget, reportReason, reportDetails);
-                setReportDetails('');
-                setReportTarget(null);
+                const ok = await reportHost(reportTarget, reportReason, reportDetails);
+                if (!ok) return;
+                setInfo(`Report submitted for ${reportTarget}. You can now block them.`);
               }}
             >
               <Text style={styles.approveBtnText}>Submit report</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.approveBtn, { flex: 1 }]}
+              onPress={async () => {
+                const ok = await reportHost(reportTarget, reportReason, reportDetails);
+                if (!ok) return;
+                await blockHost(reportTarget);
+                setReportDetails('');
+                setReportTarget(null);
+              }}
+            >
+              <Text style={styles.approveBtnText}>Report + block</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.rowGap}>
             <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => { setReportDetails(''); setReportTarget(null); }}>
               <Text style={styles.mapBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -3318,7 +3361,7 @@ export default function App() {
 
       {blockedList.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Blocked hosts</Text>
+          <Text style={styles.cardTitle}>Blocked users</Text>
           {blockedList.map((b) => (
             <View key={b.id} style={styles.rowGap}>
               <Text style={[styles.meta, { flex: 1 }]}>{b.blocked_name}</Text>
@@ -4110,9 +4153,14 @@ export default function App() {
                                 <Text style={styles.meta}>• {name} ({role}){stat ? `  Trust ⭐ ${stat.trust.toFixed(1)} (${stat.count})` : '  New'}</Text>
                               </View>
                               {canReport && (
-                                <TouchableOpacity style={styles.rejectBtn} onPress={() => setReportTarget(name)}>
-                                  <Text style={styles.approveBtnText}>Report participant</Text>
-                                </TouchableOpacity>
+                                <View style={styles.rowGap}>
+                                  <TouchableOpacity style={[styles.rejectBtn, { flex: 1 }]} onPress={() => setReportTarget(name)}>
+                                    <Text style={styles.approveBtnText}>Report participant</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity style={[styles.mapBtn, { flex: 1 }]} onPress={() => blockHost(name)}>
+                                    <Text style={styles.mapBtnText}>Block participant</Text>
+                                  </TouchableOpacity>
+                                </View>
                               )}
                             </View>
                           );
@@ -4165,7 +4213,7 @@ export default function App() {
 
               {!isHost && (
                 <TouchableOpacity style={styles.rejectBtn} onPress={() => blockHost(item.host_name)}>
-                  <Text style={styles.approveBtnText}>Block this host</Text>
+                  <Text style={styles.approveBtnText}>Block this user</Text>
                 </TouchableOpacity>
               )}
 

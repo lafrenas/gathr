@@ -52,6 +52,8 @@ _Last updated: 2026-02-27_
 - [x] Abuse throttles for reports and block/unblock churn (UI + DB trigger)
 - [x] Moderation audit log scaffold (`moderation_audit_log` + action triggers)
 - [x] Block enforcement expanded across feed/invite/approval flows (both directions)
+- [x] Report-first safety policy: blocking requires prior detailed report
+- [x] Participant-level block/report actions (not host-only)
 
 ### Backend (Supabase)
 - [x] Core tables: `events`, `join_requests`, `event_ratings`, `event_activity_ratings`, `event_comments`, `user_reports`, `user_blocks`, `user_profiles`, moderation/rating skip tables

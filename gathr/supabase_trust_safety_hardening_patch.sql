@@ -75,6 +75,34 @@ create trigger trg_enforce_report_rate_limits
 before insert on public.user_reports
 for each row execute function public.enforce_report_rate_limits();
 
+-- Block creation guard: user must have submitted a detailed report first.
+create or replace function public.enforce_block_requires_report()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_count int;
+begin
+  select count(*) into v_count
+  from public.user_reports ur
+  where lower(ur.reporter_name) = lower(new.blocker_name)
+    and lower(ur.reported_name) = lower(new.blocked_name)
+    and coalesce(length(trim(ur.details)), 0) >= 20
+    and ur.created_at >= now() - interval '30 days';
+
+  if v_count < 1 then
+    raise exception 'block requires prior detailed report';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_enforce_block_requires_report on public.user_blocks;
+create trigger trg_enforce_block_requires_report
+before insert on public.user_blocks
+for each row execute function public.enforce_block_requires_report();
+
 -- Block/unblock anti-thrash limiter: max 6 toggles / 10 minutes / actor-target pair.
 create or replace function public.enforce_block_toggle_limits()
 returns trigger
