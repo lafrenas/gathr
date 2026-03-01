@@ -256,6 +256,7 @@ const COUNTRY_ISO_BY_NAME: Record<string, string[]> = {
 };
 
 export default function App() {
+  const PRIVATE_BETA_MODE = (process.env.EXPO_PUBLIC_PRIVATE_BETA_MODE ?? 'true') !== 'false';
   const testUsers = ['1', '2', '3', '4', '5'];
   const [currentUser, setCurrentUser] = useState('1');
   const [showUserPicker, setShowUserPicker] = useState(false);
@@ -407,7 +408,7 @@ export default function App() {
   const [selectedWelcomeCountry, setSelectedWelcomeCountry] = useState<CountryOption | null>(null);
   const [showWelcomeCountryList, setShowWelcomeCountryList] = useState(false);
   const [showPostSignupChecklist, setShowPostSignupChecklist] = useState(false);
-  const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(true);
+  const [welcomeTestingFastTrack, setWelcomeTestingFastTrack] = useState(!PRIVATE_BETA_MODE);
   const [usedWelcomeTestingSkip, setUsedWelcomeTestingSkip] = useState(false);
   const [welcomeEmailBusy, setWelcomeEmailBusy] = useState(false);
   const [welcomeInlineError, setWelcomeInlineError] = useState<string | null>(null);
@@ -1711,15 +1712,17 @@ export default function App() {
       gender: !!gender.trim(),
       ageGroup: !!ageGroup.trim(),
       basedIn: !!basedIn.trim(),
-      email: !hasEmail || emailLooksValid,
+      email: PRIVATE_BETA_MODE ? (hasEmail && emailLooksValid) : (!hasEmail || emailLooksValid),
       password: passwordStrong,
       confirmPassword: passwordsMatch,
-      emailVerified: !hasEmail || !!emailVerifiedByUser[currentUser.trim().toLowerCase()],
+      emailVerified: PRIVATE_BETA_MODE
+        ? !!emailVerifiedByUser[currentUser.trim().toLowerCase()]
+        : (!hasEmail || !!emailVerifiedByUser[currentUser.trim().toLowerCase()]),
     };
-  }, [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, passwordStrong, passwordsMatch, emailVerifiedByUser, currentUser]);
+  }, [fullName, gender, ageGroup, basedIn, emailValue, emailLooksValid, passwordStrong, passwordsMatch, emailVerifiedByUser, currentUser, PRIVATE_BETA_MODE]);
 
   const registrationComplete = Object.values(registrationChecklist).every(Boolean);
-  const [skipRegistrationForTesting, setSkipRegistrationForTesting] = useState(true);
+  const [skipRegistrationForTesting, setSkipRegistrationForTesting] = useState(!PRIVATE_BETA_MODE);
   const registrationReady = registrationComplete || skipRegistrationForTesting;
 
   useEffect(() => {
@@ -1805,7 +1808,7 @@ export default function App() {
 
   const requireRegistration = () => {
     if (registrationReady) return true;
-    setError('Complete registration first: full name, gender, age group, based in, and password. Email is optional in testing mode.');
+    setError(`Complete registration first: full name, gender, age group, based in, and password.${PRIVATE_BETA_MODE ? ' Email verification is required for private beta.' : ' Email is optional in testing mode.'}`);
     setShowProfileSection(true);
     return false;
   };
@@ -3146,15 +3149,17 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>gathr</Text>
       <Text style={styles.subtitle}>Create events. Request to join. Host approves before exact details unlock.</Text>
-      <View style={styles.rowGap}>
-        <TouchableOpacity style={[styles.chipBtn, skipRegistrationForTesting && styles.chipBtnActive]} onPress={() => setSkipRegistrationForTesting((v) => !v)}>
-          <Text style={styles.chipBtnText}>{skipRegistrationForTesting ? 'Testing mode: registration skipped' : 'Require registration before using app'}</Text>
-        </TouchableOpacity>
-      </View>
+      {!PRIVATE_BETA_MODE && (
+        <View style={styles.rowGap}>
+          <TouchableOpacity style={[styles.chipBtn, skipRegistrationForTesting && styles.chipBtnActive]} onPress={() => setSkipRegistrationForTesting((v) => !v)}>
+            <Text style={styles.chipBtnText}>{skipRegistrationForTesting ? 'Testing mode: registration skipped' : 'Require registration before using app'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {!registrationReady && (
         <View style={styles.registrationGateCard}>
           <Text style={styles.cardTitle}>Complete registration to use Gathr</Text>
-          <Text style={styles.meta}>Required: full name, gender, age group, based in, password. Email optional for testing.</Text>
+          <Text style={styles.meta}>{PRIVATE_BETA_MODE ? 'Required: full name, gender, age group, based in, password, valid email, and verified email.' : 'Required: full name, gender, age group, based in, password. Email optional for testing.'}</Text>
           <Text style={styles.meta}>Status: {Object.values(registrationChecklist).filter(Boolean).length}/{Object.keys(registrationChecklist).length}</Text>
           <TouchableOpacity
             style={styles.mapBtn}
@@ -4642,7 +4647,7 @@ export default function App() {
               <View style={styles.sectionHeader}>
                 <View>
                   <Text style={styles.meta}>{welcomeProgressLabel}</Text>
-                  {(welcomeTestingFastTrack || usedWelcomeTestingSkip) && (
+                  {!PRIVATE_BETA_MODE && (welcomeTestingFastTrack || usedWelcomeTestingSkip) && (
                     <Text style={styles.testingBadge}>TESTING MODE</Text>
                   )}
                 </View>
@@ -4826,9 +4831,11 @@ export default function App() {
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.mapBtn} onPress={skipWelcomeEmailStep}>
-                  <Text style={styles.mapBtnText}>Skip email for now (testing)</Text>
-                </TouchableOpacity>
+                {!PRIVATE_BETA_MODE && (
+                  <TouchableOpacity style={styles.mapBtn} onPress={skipWelcomeEmailStep}>
+                    <Text style={styles.mapBtnText}>Skip email for now (testing)</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
 
@@ -4944,9 +4951,11 @@ export default function App() {
                 >
                   <Text style={styles.primaryBtnText}>{welcomeEmailBusy ? 'Sending…' : 'Next'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.mapBtn} onPress={continueWithoutPhoneForTesting}>
-                  <Text style={styles.mapBtnText}>Skip phone for now (testing)</Text>
-                </TouchableOpacity>
+                {!PRIVATE_BETA_MODE && (
+                  <TouchableOpacity style={styles.mapBtn} onPress={continueWithoutPhoneForTesting}>
+                    <Text style={styles.mapBtnText}>Skip phone for now (testing)</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
 

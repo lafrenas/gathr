@@ -72,9 +72,9 @@ _Last updated: 2026-02-27_
 - [ ] Clear in-app "done / doing / todo" project structure page
 
 ## Phase B - Registration Finalization (High)
-- [ ] Decide production requirement: email and/or phone mandatory
+- [x] Private beta requirement set: email mandatory + verified (phone optional)
 - [ ] Configure and validate production SMS provider
-- [ ] Remove test-mode shortcuts for production build (or gate behind env flag)
+- [x] Test-mode shortcuts gated behind env flag (`EXPO_PUBLIC_PRIVATE_BETA_MODE`)
 - [ ] Final onboarding polish pass (copy, transitions, analytics hooks)
 
 ## Phase C - Reputation Rules (Medium)
