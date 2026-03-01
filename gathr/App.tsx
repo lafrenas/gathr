@@ -4104,7 +4104,7 @@ export default function App() {
               {participants.length > 0 && (
                 <View style={{ marginTop: 6 }}>
                   {(() => {
-                    const canSeeNames = hasEventEnded(item.exact_time) && (isHost || approved);
+                    const canSeeNames = isHost || approved;
                     const rated = participants
                       .map((n) => userRatingStats[n.toLowerCase()])
                       .filter(Boolean) as Array<{ trust: number; skill: number }>;
