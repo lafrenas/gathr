@@ -3219,7 +3219,7 @@ export default function App() {
               <Text style={styles.meta}>Next: {profileCompletion.nextAction}</Text>
             </View>
 
-            <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Full name" placeholderTextColor="#9ca3af" />
+            <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Full name" placeholderTextColor="#4b5563" />
             <View style={styles.rowGapWrap}>
               {['male', 'female'].map((g) => (
                 <TouchableOpacity key={g} style={[styles.chipBtn, gender === g && styles.chipBtnActive]} onPress={() => setGender(g)}>
@@ -3242,7 +3242,7 @@ export default function App() {
                 setShowBasedInSuggestions(true);
               }}
               placeholder="Based in (city/country)"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#4b5563"
             />
             {showBasedInSuggestions && basedInSuggestions.length > 0 && (
               <View style={styles.suggestionBox}>
@@ -3260,15 +3260,15 @@ export default function App() {
                 ))}
               </View>
             )}
-            <TextInput style={styles.input} value={phoneValue} onChangeText={setPhoneValue} placeholder="Phone (e.g. +44...)" placeholderTextColor="#9ca3af" keyboardType="phone-pad" />
-            <TextInput style={styles.input} value={emailValue} onChangeText={setEmailValue} placeholder="Email" placeholderTextColor="#9ca3af" keyboardType="email-address" autoCapitalize="none" />
+            <TextInput style={styles.input} value={phoneValue} onChangeText={setPhoneValue} placeholder="Phone (e.g. +44...)" placeholderTextColor="#4b5563" keyboardType="phone-pad" />
+            <TextInput style={styles.input} value={emailValue} onChangeText={setEmailValue} placeholder="Email" placeholderTextColor="#4b5563" keyboardType="email-address" autoCapitalize="none" />
             <View style={styles.rowGap}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Password"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#4b5563"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
@@ -3282,7 +3282,7 @@ export default function App() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Confirm password"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#4b5563"
                 secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
               />
@@ -3294,7 +3294,7 @@ export default function App() {
             {!!password && !passwordStrong && <Text style={styles.error}>Password does not meet requirements.</Text>}
             {!!confirmPassword && !passwordsMatch && <Text style={styles.error}>Passwords do not match.</Text>}
             <Text style={styles.ratingLabel}>Interests</Text>
-            <TextInput style={styles.input} value={interestQuery} onChangeText={setInterestQuery} placeholder="Search interests (Basketball, Tennis...)" placeholderTextColor="#9ca3af" />
+            <TextInput style={styles.input} value={interestQuery} onChangeText={setInterestQuery} placeholder="Search interests (Basketball, Tennis...)" placeholderTextColor="#4b5563" />
             <View style={styles.rowGapWrap}>
               {interestSuggestions.map((i) => (
                 <TouchableOpacity key={i} style={styles.chipBtn} onPress={() => toggleInterest(i)}>
@@ -3311,7 +3311,7 @@ export default function App() {
                 ))}
               </View>
             )}
-            <TextInput style={[styles.input, styles.textArea]} value={aboutMe} onChangeText={setAboutMe} placeholder="About me" placeholderTextColor="#9ca3af" multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput style={[styles.input, styles.textArea]} value={aboutMe} onChangeText={setAboutMe} placeholder="About me" placeholderTextColor="#4b5563" multiline numberOfLines={3} textAlignVertical="top" />
             <Text style={styles.ratingLabel}>Profile photo</Text>
             {!!avatarUrlByUser[currentUser.trim().toLowerCase()] && (
               <Image source={{ uri: avatarUrlByUser[currentUser.trim().toLowerCase()] }} style={styles.avatarPreview} />
@@ -3353,7 +3353,7 @@ export default function App() {
                   <Text style={styles.chipBtnText}>Send email code/link</Text>
                 </TouchableOpacity>
               </View>
-              <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Enter email OTP code" placeholderTextColor="#9ca3af" />
+              <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Enter email OTP code" placeholderTextColor="#4b5563" />
               <TouchableOpacity style={[styles.chipBtn, !emailOtp.trim() && styles.chipBtnDisabled]} onPress={verifyEmailCode}>
                 <Text style={styles.chipBtnText}>Confirm email code</Text>
               </TouchableOpacity>
@@ -3375,12 +3375,12 @@ export default function App() {
                   <Text style={styles.chipBtnText}>Send phone OTP</Text>
                 </TouchableOpacity>
               </View>
-              <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Enter phone OTP code" placeholderTextColor="#9ca3af" keyboardType="number-pad" />
+              <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Enter phone OTP code" placeholderTextColor="#4b5563" keyboardType="number-pad" />
               <TouchableOpacity style={[styles.chipBtn, !phoneOtp.trim() && styles.chipBtnDisabled]} onPress={verifyPhoneCode}>
                 <Text style={styles.chipBtnText}>Confirm phone code</Text>
               </TouchableOpacity>
             </View>
-            <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#9ca3af" />
+            <TextInput style={styles.input} value={userArea} onChangeText={setUserArea} placeholder="Your area (for distance estimate)" placeholderTextColor="#4b5563" />
             <TouchableOpacity style={styles.mapBtn} onPress={registrationReady ? saveProfile : startRegistrationVerification}>
               <Text style={styles.mapBtnText}>{registrationReady ? 'Save profile' : 'Register'}</Text>
             </TouchableOpacity>
@@ -3469,7 +3469,7 @@ export default function App() {
           <TextInput
             style={styles.input}
             placeholder="Search by username, interests, location"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#4b5563"
             value={inviteName}
             onFocus={() => setShowInviteSuggestions(true)}
             onChangeText={(t) => {
@@ -3535,7 +3535,7 @@ export default function App() {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="What happened? (required, min 20 chars)"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#4b5563"
             value={reportDetails}
             onChangeText={setReportDetails}
             multiline
@@ -3596,8 +3596,8 @@ export default function App() {
       {activityRatingEventId && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Rate activity quality</Text>
-          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={activityScore} onChangeText={setActivityScore} />
-          <TextInput style={styles.input} placeholder="Comment (optional)" placeholderTextColor="#9ca3af" value={activityComment} onChangeText={setActivityComment} />
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#4b5563" keyboardType="number-pad" value={activityScore} onChangeText={setActivityScore} />
+          <TextInput style={styles.input} placeholder="Comment (optional)" placeholderTextColor="#4b5563" value={activityComment} onChangeText={setActivityComment} />
           <View style={styles.rowGap}>
             <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={submitActivityRating}>
               <Text style={styles.approveBtnText}>Submit activity rating</Text>
@@ -3624,27 +3624,27 @@ export default function App() {
 
           <Text style={styles.ratingLabel}>Skill</Text>
           <Text style={styles.ratingHelp}>How capable were they at the activity?</Text>
-          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={skillRating} onChangeText={setSkillRating} />
-          <TextInput style={styles.input} placeholder="Skill context (e.g., Basketball)" placeholderTextColor="#9ca3af" value={skillContext} onChangeText={setSkillContext} />
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#4b5563" keyboardType="number-pad" value={skillRating} onChangeText={setSkillRating} />
+          <TextInput style={styles.input} placeholder="Skill context (e.g., Basketball)" placeholderTextColor="#4b5563" value={skillContext} onChangeText={setSkillContext} />
 
           <Text style={styles.ratingLabel}>Friendliness</Text>
           <Text style={styles.ratingHelp}>Were they respectful, kind, and good to be around?</Text>
-          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={friendlinessRating} onChangeText={setFriendlinessRating} />
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#4b5563" keyboardType="number-pad" value={friendlinessRating} onChangeText={setFriendlinessRating} />
 
           <Text style={styles.ratingLabel}>Reliability</Text>
           <Text style={styles.ratingHelp}>Did they show up on time and follow through?</Text>
-          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={reliabilityRating} onChangeText={setReliabilityRating} />
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#4b5563" keyboardType="number-pad" value={reliabilityRating} onChangeText={setReliabilityRating} />
 
           <Text style={styles.ratingLabel}>Communication</Text>
           <Text style={styles.ratingHelp}>Were they clear and responsive before/during event?</Text>
-          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={communicationRating} onChangeText={setCommunicationRating} />
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#4b5563" keyboardType="number-pad" value={communicationRating} onChangeText={setCommunicationRating} />
 
           <Text style={styles.ratingLabel}>Boundary respect</Text>
           <Text style={styles.ratingHelp}>Did they respect boundaries and personal comfort?</Text>
-          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#9ca3af" keyboardType="number-pad" value={boundaryRating} onChangeText={setBoundaryRating} />
+          <TextInput style={styles.input} placeholder="1-5" placeholderTextColor="#4b5563" keyboardType="number-pad" value={boundaryRating} onChangeText={setBoundaryRating} />
 
           <Text style={styles.ratingLabel}>Comment (optional)</Text>
-          <TextInput style={styles.input} placeholder="Short feedback" placeholderTextColor="#9ca3af" value={ratingComment} onChangeText={setRatingComment} />
+          <TextInput style={styles.input} placeholder="Short feedback" placeholderTextColor="#4b5563" value={ratingComment} onChangeText={setRatingComment} />
           <View style={styles.rowGap}>
             <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={submitRating}>
               <Text style={styles.approveBtnText}>Submit rating</Text>
@@ -3663,11 +3663,11 @@ export default function App() {
         </TouchableOpacity>
         {showCreateSection && (
           <>
-        <TextInput style={styles.input} placeholder="Title" placeholderTextColor="#9ca3af" value={title} onChangeText={setTitle} />
+        <TextInput style={styles.input} placeholder="Title" placeholderTextColor="#4b5563" value={title} onChangeText={setTitle} />
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Description (optional)"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#4b5563"
           value={description}
           onChangeText={setDescription}
           multiline
@@ -3680,7 +3680,7 @@ export default function App() {
         <TextInput
           style={styles.input}
           placeholder="e.g. 2"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#4b5563"
           keyboardType="number-pad"
           value={minPeople}
           onChangeText={setMinPeople}
@@ -3689,7 +3689,7 @@ export default function App() {
         <TextInput
           style={[styles.input, noMax && { opacity: 0.45 }]}
           placeholder="e.g. 8"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#4b5563"
           keyboardType="number-pad"
           value={maxPeople}
           onChangeText={setMaxPeople}
@@ -3723,7 +3723,7 @@ export default function App() {
         <TextInput
           style={styles.input}
           placeholder="Type activity (e.g., Basketball)"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#4b5563"
           value={activityType}
           onFocus={() => setShowActivitySuggestions(true)}
           onChangeText={(t) => {
@@ -3822,7 +3822,7 @@ export default function App() {
                   </Modal>
 
                   <Text style={styles.ratingLabel}>Time</Text>
-                  <TextInput style={styles.input} placeholder="HH:mm" placeholderTextColor="#9ca3af" value={webTimeInput} onChangeText={setWebTimeInput} />
+                  <TextInput style={styles.input} placeholder="HH:mm" placeholderTextColor="#4b5563" value={webTimeInput} onChangeText={setWebTimeInput} />
                   <TouchableOpacity style={styles.mapBtn} onPress={() => {
                     const d = new Date(`${webDateInput}T${webTimeInput}`);
                     if (!Number.isFinite(d.getTime())) return;
@@ -4149,7 +4149,7 @@ export default function App() {
         <TextInput
           style={styles.input}
           placeholder="Search by title, activity, area, host..."
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#4b5563"
           value={searchQuery}
           onFocus={() => setShowSearchSuggestions(true)}
           onChangeText={(t) => {
@@ -4526,7 +4526,7 @@ export default function App() {
                     <TextInput
                       style={styles.input}
                       placeholder="Write a message..."
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor="#4b5563"
                       value={commentDraftByEvent[item.id] || ''}
                       onChangeText={(t) => setCommentDraftByEvent((prev) => ({ ...prev, [item.id]: t }))}
                     />
@@ -4675,7 +4675,7 @@ export default function App() {
                   value={welcomeName}
                   onChangeText={setWelcomeName}
                   placeholder="Type your name"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   autoFocus
                 />
                 <TouchableOpacity style={styles.primaryBtn} onPress={continueWelcomeNameStep}>
@@ -4782,7 +4782,7 @@ export default function App() {
                     setShowWelcomeLocationSuggestions(true);
                   }}
                   placeholder="Type city or area"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   autoFocus
                 />
                 {showWelcomeLocationSuggestions && welcomeLocationSuggestions.length > 0 && (
@@ -4819,7 +4819,7 @@ export default function App() {
                   value={welcomeEmail}
                   onChangeText={setWelcomeEmail}
                   placeholder="name@email.com"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoFocus
@@ -4848,7 +4848,7 @@ export default function App() {
                   value={welcomeEmailCode}
                   onChangeText={setWelcomeEmailCode}
                   placeholder="Enter verification code"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   autoFocus
                 />
                 <TouchableOpacity
@@ -4896,7 +4896,7 @@ export default function App() {
                         setShowWelcomeCountryList(true);
                       }}
                       placeholder="Search country (e.g. lit, uk, germany)"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor="#4b5563"
                       autoFocus
                     />
 
@@ -4937,7 +4937,7 @@ export default function App() {
                       value={welcomePhone}
                       onChangeText={setWelcomePhone}
                       placeholder={`${selectedWelcomeCountry.code}...`}
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor="#4b5563"
                       keyboardType="phone-pad"
                       autoFocus
                     />
@@ -4968,7 +4968,7 @@ export default function App() {
                   value={welcomePhoneCode}
                   onChangeText={setWelcomePhoneCode}
                   placeholder="Enter SMS verification code"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   keyboardType="number-pad"
                   autoFocus
                 />
@@ -5010,7 +5010,7 @@ export default function App() {
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Password"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoFocus
@@ -5020,7 +5020,7 @@ export default function App() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="Confirm password"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="#4b5563"
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                 />
@@ -5054,7 +5054,7 @@ export default function App() {
 
             {registrationStep === 'email' ? (
               <>
-                <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Enter email code" placeholderTextColor="#9ca3af" />
+                <TextInput style={styles.input} value={emailOtp} onChangeText={setEmailOtp} placeholder="Enter email code" placeholderTextColor="#4b5563" />
                 <View style={styles.rowGap}>
                   <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={verifyEmailCode}>
                     <Text style={styles.approveBtnText}>Continue</Text>
@@ -5074,7 +5074,7 @@ export default function App() {
               </>
             ) : (
               <>
-                <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Enter SMS code" placeholderTextColor="#9ca3af" keyboardType="number-pad" />
+                <TextInput style={styles.input} value={phoneOtp} onChangeText={setPhoneOtp} placeholder="Enter SMS code" placeholderTextColor="#4b5563" keyboardType="number-pad" />
                 <View style={styles.rowGap}>
                   <TouchableOpacity style={[styles.approveBtn, { flex: 1 }]} onPress={verifyPhoneCode}>
                     <Text style={styles.approveBtnText}>Finish registration</Text>
@@ -5287,7 +5287,7 @@ export default function App() {
           <TextInput
             style={styles.input}
             placeholder="Search place or address"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#4b5563"
             value={mapSearchQuery}
             onChangeText={setMapSearchQuery}
           />
@@ -5352,37 +5352,37 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0b1220' },
+  root: { flex: 1, backgroundColor: '#f8fbff' },
   page: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
-  brand: { color: '#f9fafb', fontSize: 34, fontWeight: '800' },
-  subtitle: { color: '#9ca3af', marginBottom: 12 },
+  brand: { color: '#0f172a', fontSize: 34, fontWeight: '800' },
+  subtitle: { color: '#4b5563', marginBottom: 12 },
   error: { color: '#fca5a5', marginBottom: 8 },
   card: {
-    backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
+    backgroundColor: '#ffffff', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#e8f2ff',
   },
   registrationGateCard: {
-    backgroundColor: '#1f2937', borderRadius: 12, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#374151',
+    backgroundColor: '#e8f2ff', borderRadius: 12, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#c9defc',
   },
-  cardTitle: { color: '#93c5fd', fontWeight: '800', marginBottom: 10 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.65)', justifyContent: 'center', padding: 16 },
-  modalCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 12, maxHeight: '70%' },
-  welcomeCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 16, padding: 18, minHeight: 220, justifyContent: 'center' },
-  welcomeLogo: { color: '#f8fafc', fontSize: 52, fontWeight: '900', textAlign: 'center', letterSpacing: 1.2 },
-  welcomeQuestion: { color: '#e2e8f0', fontSize: 24, fontWeight: '800', marginBottom: 12 },
-  welcomeOptionsBox: { backgroundColor: '#111827', borderColor: '#334155', borderWidth: 1, borderRadius: 12, padding: 10, marginTop: 6, marginBottom: 8 },
-  welcomeCountrySelected: { backgroundColor: '#1f2937', borderColor: '#334155', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8 },
+  cardTitle: { color: '#2563eb', fontWeight: '800', marginBottom: 10 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ffffff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(59,130,246,0.15)', justifyContent: 'center', padding: 16 },
+  modalCard: { backgroundColor: '#f2f8ff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 12, padding: 12, maxHeight: '70%' },
+  welcomeCard: { backgroundColor: '#f2f8ff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 16, padding: 18, minHeight: 220, justifyContent: 'center' },
+  welcomeLogo: { color: '#2563eb', fontSize: 52, fontWeight: '900', textAlign: 'center', letterSpacing: 1.2 },
+  welcomeQuestion: { color: '#1e293b', fontSize: 24, fontWeight: '800', marginBottom: 12 },
+  welcomeOptionsBox: { backgroundColor: '#ffffff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 12, padding: 10, marginTop: 6, marginBottom: 8 },
+  welcomeCountrySelected: { backgroundColor: '#e8f2ff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8 },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginBottom: 6 },
-  dayChip: { width: '11.5%', backgroundColor: '#334155', borderRadius: 8, alignItems: 'center', paddingVertical: 8 },
+  dayChip: { width: '11.5%', backgroundColor: '#b7d3ff', borderRadius: 8, alignItems: 'center', paddingVertical: 8 },
   input: {
-    backgroundColor: '#1f2937', color: '#f9fafb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
+    backgroundColor: '#e8f2ff', color: '#0f172a', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 8,
   },
   textArea: {
     minHeight: 76,
   },
   suggestionBox: {
-    backgroundColor: '#0f172a',
-    borderColor: '#334155',
+    backgroundColor: '#f2f8ff',
+    borderColor: '#b7d3ff',
     borderWidth: 1,
     borderRadius: 10,
     marginBottom: 8,
@@ -5392,26 +5392,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 9,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#e8f2ff',
   },
-  suggestionText: { color: '#e2e8f0' },
+  suggestionText: { color: '#1e293b' },
   list: { paddingBottom: 24 },
   eventCard: {
-    backgroundColor: '#111827', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#1f2937',
+    backgroundColor: '#ffffff', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#e8f2ff',
   },
   eventCardActive: { borderColor: '#22c55e', borderWidth: 2 },
-  eventTitle: { color: '#f9fafb', fontWeight: '700', fontSize: 16 },
+  eventTitle: { color: '#0f172a', fontWeight: '700', fontSize: 16 },
   rowInline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hostAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#334155', marginBottom: 8 },
-  hostAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#334155', marginTop: 2 },
-  initialAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#334155', marginTop: 2, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center' },
-  initialAvatarText: { color: '#e2e8f0', fontSize: 10, fontWeight: '800' },
-  meta: { color: '#9ca3af', marginTop: 2 },
+  hostAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#b7d3ff', marginBottom: 8 },
+  hostAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#b7d3ff', marginTop: 2 },
+  initialAvatarTiny: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#b7d3ff', marginTop: 2, backgroundColor: '#b7d3ff', alignItems: 'center', justifyContent: 'center' },
+  initialAvatarText: { color: '#1e293b', fontSize: 10, fontWeight: '800' },
+  meta: { color: '#4b5563', marginTop: 2 },
   hiddenText: { color: '#fbbf24', marginTop: 8 },
   revealedBox: {
-    marginTop: 8, backgroundColor: '#0f172a', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#334155',
+    marginTop: 8, backgroundColor: '#f2f8ff', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#b7d3ff',
   },
-  revealedText: { color: '#bfdbfe' },
+  revealedText: { color: '#1d4ed8' },
   primaryBtn: {
     marginTop: 10, backgroundColor: '#2563eb', paddingVertical: 10, borderRadius: 10, alignItems: 'center',
   },
@@ -5419,63 +5419,64 @@ const styles = StyleSheet.create({
   pendingText: { marginTop: 10, color: '#fbbf24', fontWeight: '600' },
   approvedText: { marginTop: 10, color: '#4ade80', fontWeight: '700' },
   rejectedText: { marginTop: 10, color: '#f87171', fontWeight: '700' },
-  ratingHint: { marginTop: 8, color: '#94a3b8', fontSize: 12 },
+  ratingHint: { marginTop: 8, color: '#64748b', fontSize: 12 },
   pendingItem: { marginBottom: 8 },
   rowGap: { flexDirection: 'row', gap: 8, marginTop: 8 },
   rowGapWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  chipBtn: { backgroundColor: '#1f2937', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999 },
+  chipBtn: { backgroundColor: '#e8f2ff', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999 },
   chipBtnDisabled: { opacity: 0.45 },
   chipBtnActive: { backgroundColor: '#2563eb' },
-  chipBtnText: { color: '#fff', fontWeight: '600' },
+  chipBtnText: { color: '#0f172a', fontWeight: '600' },
   testingBadge: { color: '#fde68a', fontSize: 11, fontWeight: '800', marginTop: 2 },
   approveBtn: { backgroundColor: '#16a34a', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   rejectBtn: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   approveBtnText: { color: '#fff', fontWeight: '700' },
   mapBtn: {
-    marginTop: 10, backgroundColor: '#374151', paddingVertical: 8, borderRadius: 10, alignItems: 'center',
+    marginTop: 10, backgroundColor: '#c9defc', paddingVertical: 8, borderRadius: 10, alignItems: 'center',
   },
-  mapBtnText: { color: '#e5e7eb', fontWeight: '600' },
-  ratingGuide: { color: '#cbd5e1', marginBottom: 8 },
-  ratingLabel: { color: '#f1f5f9', fontWeight: '700', marginTop: 2 },
-  ratingHelp: { color: '#94a3b8', marginBottom: 6, fontSize: 12 },
-  metaStrong: { color: '#e2e8f0', fontWeight: '700' },
-  verifyCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
+  mapBtnText: { color: '#1e293b', fontWeight: '600' },
+  ratingGuide: { color: '#334155', marginBottom: 8 },
+  ratingLabel: { color: '#0f172a', fontWeight: '700', marginTop: 2 },
+  ratingHelp: { color: '#64748b', marginBottom: 6, fontSize: 12 },
+  metaStrong: { color: '#1e293b', fontWeight: '700' },
+  verifyCard: { backgroundColor: '#f2f8ff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
   verifyBadge: { color: '#fff', fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
   verifyOk: { backgroundColor: '#166534' },
   verifyPending: { backgroundColor: '#9a3412' },
   warnBadge: { color: '#fca5a5', marginTop: 6, fontWeight: '700' },
-  reviewSnippet: { color: '#cbd5e1', marginTop: 6, fontStyle: 'italic' },
+  reviewSnippet: { color: '#334155', marginTop: 6, fontStyle: 'italic' },
   modSection: { marginTop: 10 },
-  modSectionTitle: { color: '#cbd5e1', fontWeight: '800', marginBottom: 8, letterSpacing: 0.4 },
-  modCard: { backgroundColor: '#0f172a', borderColor: '#1e293b', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
+  modSectionTitle: { color: '#334155', fontWeight: '800', marginBottom: 8, letterSpacing: 0.4 },
+  modCard: { backgroundColor: '#f2f8ff', borderColor: '#eef6ff', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
   severityPill: { color: '#fff', fontWeight: '800', fontSize: 11, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
   severityCritical: { backgroundColor: '#b91c1c' },
   severityHigh: { backgroundColor: '#c2410c' },
   severityMedium: { backgroundColor: '#a16207' },
   severityNone: { backgroundColor: '#475569' },
-  metricChip: { color: '#dbeafe', backgroundColor: '#1e3a8a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12, fontWeight: '700' },
-  signalChip: { color: '#e2e8f0', backgroundColor: '#1f2937', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12 },
+  metricChip: { color: '#1d4ed8', backgroundColor: '#dbeafe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12, fontWeight: '700' },
+  signalChip: { color: '#1e293b', backgroundColor: '#e8f2ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, fontSize: 12 },
   statusWatchlist: { backgroundColor: '#78350f' },
   statusWatchlistActive: { backgroundColor: '#d97706' },
-  profileMeterCard: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
-  profilePercentBadge: { color: '#dbeafe', backgroundColor: '#1d4ed8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontWeight: '800' },
-  progressTrack: { backgroundColor: '#1f2937', borderRadius: 999, height: 10, overflow: 'hidden', marginBottom: 6 },
+  profileMeterCard: { backgroundColor: '#f2f8ff', borderColor: '#b7d3ff', borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 8 },
+  profilePercentBadge: { color: '#ffffff', backgroundColor: '#1d4ed8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontWeight: '800' },
+  progressTrack: { backgroundColor: '#e8f2ff', borderRadius: 999, height: 10, overflow: 'hidden', marginBottom: 6 },
   progressFill: { backgroundColor: '#22c55e', height: '100%' },
-  avatarPreview: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: '#334155', marginBottom: 8 },
-  mapModalRoot: { flex: 1, backgroundColor: '#0b1220', padding: 12 },
+  avatarPreview: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: '#b7d3ff', marginBottom: 8 },
+  mapModalRoot: { flex: 1, backgroundColor: '#f8fbff', padding: 12 },
   mapModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', marginTop: 8 },
+  mapView: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#b7d3ff', marginTop: 8 },
   notificationItem: {
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
+    backgroundColor: '#eef6ff',
+    borderColor: '#b7d3ff',
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     marginBottom: 6,
   },
-  notificationText: { color: '#e2e8f0' },
-  notificationHint: { color: '#93c5fd', marginTop: 4, fontSize: 12 },
+  notificationText: { color: '#1e293b' },
+  notificationHint: { color: '#2563eb', marginTop: 4, fontSize: 12 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  checkboxMark: { color: '#e2e8f0', fontSize: 18 },
+  checkboxMark: { color: '#1e293b', fontSize: 18 },
 });
+
